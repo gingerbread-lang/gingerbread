@@ -5,3 +5,5 @@ name = "unnamed-language"
 version = "0.1.0"
 
 [dependencies]
+anyhow = "1.0"
+logos = "0.12.0"
