@@ -14,12 +14,12 @@ pub(crate) enum Instruction {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Loc {
-    Ptr(usize),
+    Ptr(Reg),
     Reg(Reg),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct Reg(pub(crate) usize);
+pub(crate) struct Reg(pub(crate) u8);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Val {

@@ -79,7 +79,7 @@ impl Vm {
                 Instruction::Store(dst, val) => {
                     let val = self.eval(val);
                     match dst {
-                        Loc::Ptr(ptr) => self.stack[ptr] = val,
+                        Loc::Ptr(reg) => self.stack[self.registers[reg]] = val,
                         Loc::Reg(reg) => self.registers[reg] = val,
                     }
                 }
@@ -350,7 +350,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "tried to store at unaligned pointer 4")]
     fn die_storing_at_unaligned_ptr() {
-        Vm::from_instructions(vec![Instruction::Store(Loc::Ptr(4), Val::Imm(10))]).run();
+        Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(4)),
+            Instruction::Store(Loc::Ptr(Reg(1)), Val::Imm(10)),
+        ])
+        .run();
     }
 
     #[test]
@@ -366,7 +370,11 @@ mod tests {
     #[test]
     #[should_panic(expected = "tried to store out of stack bounds: 0 + 8 > 0")]
     fn die_storing_out_of_stack_bounds() {
-        Vm::from_instructions(vec![Instruction::Store(Loc::Ptr(0), Val::Imm(10))]).run();
+        Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(0)),
+            Instruction::Store(Loc::Ptr(Reg(1)), Val::Imm(10)),
+        ])
+        .run();
     }
 
     #[test]
