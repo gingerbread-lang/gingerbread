@@ -7,6 +7,9 @@ pub(crate) enum Instruction {
     Pop(Reg),
     Store(Loc, Val),
     Add(Reg, Val),
+    Sub(Reg, Val),
+    Mul(Reg, Val),
+    Div(Reg, Val),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

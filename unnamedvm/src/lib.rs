@@ -85,6 +85,9 @@ impl Vm {
                 }
 
                 Instruction::Add(dst, val) => self.registers[dst] += self.eval(val),
+                Instruction::Sub(dst, val) => self.registers[dst] -= self.eval(val),
+                Instruction::Mul(dst, val) => self.registers[dst] *= self.eval(val),
+                Instruction::Div(dst, val) => self.registers[dst] /= self.eval(val),
             }
 
             self.instruction_ptr += 1;
@@ -422,5 +425,21 @@ mod tests {
         assert_eq!(vm.registers[STACK_PTR], 2 * WORD_SIZE);
         assert_eq!(vm.registers[Reg(1)], 150);
         assert_eq!(vm.registers[Reg(10)], WORD_SIZE);
+    }
+
+    #[test]
+    fn other_arithmetic() {
+        let mut vm = Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(7)), Val::Imm(1)), // 1
+            Instruction::Add(Reg(7), Val::Imm(1)),             // 2
+            Instruction::Mul(Reg(7), Val::Imm(2)),             // 4
+            Instruction::Sub(Reg(7), Val::Imm(1)),             // 3
+            Instruction::Mul(Reg(7), Val::Imm(3)),             // 9
+            Instruction::Add(Reg(7), Val::Imm(1)),             // 10
+            Instruction::Div(Reg(7), Val::Imm(5)),             // 2
+        ]);
+        vm.run();
+
+        assert_eq!(vm.registers[Reg(7)], 2);
     }
 }
