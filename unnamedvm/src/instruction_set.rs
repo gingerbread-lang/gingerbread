@@ -6,6 +6,7 @@ pub(crate) enum Instruction {
     Push(Val),
     Pop(Reg),
     Store(Loc, Val),
+    Add(Reg, Val),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

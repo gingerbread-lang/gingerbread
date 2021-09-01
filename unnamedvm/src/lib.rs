@@ -83,6 +83,8 @@ impl Vm {
                         Loc::Reg(reg) => self.registers[reg] = val,
                     }
                 }
+
+                Instruction::Add(dst, val) => self.registers[dst] += self.eval(val),
             }
 
             self.instruction_ptr += 1;
@@ -378,5 +380,47 @@ mod tests {
             Instruction::Store(Loc::Reg(Reg(3)), Val::Ptr(Reg(12))),
         ])
         .run();
+    }
+
+    #[test]
+    fn add_immediate() {
+        let mut vm = Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(10)),
+            Instruction::Add(Reg(1), Val::Imm(1)),
+        ]);
+        vm.run();
+
+        assert_eq!(vm.registers[Reg(1)], 11);
+    }
+
+    #[test]
+    fn add_register() {
+        let mut vm = Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(90)),
+            Instruction::Store(Loc::Reg(Reg(2)), Val::Imm(2)),
+            Instruction::Add(Reg(1), Val::Reg(Reg(2))),
+        ]);
+        vm.run();
+
+        assert_eq!(vm.registers[Reg(1)], 92);
+        assert_eq!(vm.registers[Reg(2)], 2);
+    }
+
+    #[test]
+    fn add_from_stack() {
+        let mut vm = Vm::from_instructions(vec![
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(50)),
+            Instruction::Push(Val::Imm(50)),
+            Instruction::Push(Val::Imm(100)),
+            Instruction::Store(Loc::Reg(Reg(10)), Val::Reg(STACK_PTR)),
+            Instruction::Push(Val::Imm(200)),
+            Instruction::Add(Reg(1), Val::Ptr(Reg(10))),
+        ]);
+        vm.run();
+
+        assert_eq!(vm.stack, Stack::new([50, 100, 200]));
+        assert_eq!(vm.registers[STACK_PTR], 2 * WORD_SIZE);
+        assert_eq!(vm.registers[Reg(1)], 150);
+        assert_eq!(vm.registers[Reg(10)], WORD_SIZE);
     }
 }
