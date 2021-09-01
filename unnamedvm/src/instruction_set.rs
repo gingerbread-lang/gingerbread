@@ -1,3 +1,4 @@
+use crate::VmWord;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -23,7 +24,7 @@ pub(crate) struct Reg(pub(crate) u8);
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Val {
-    Imm(usize),
+    Imm(VmWord),
     Reg(Reg),
     Ptr(Reg),
 }

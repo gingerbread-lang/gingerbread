@@ -11,7 +11,10 @@ pub fn run(bytecode: &[u8]) -> bincode::Result<()> {
 }
 
 const STACK_PTR: Reg = Reg(0);
-const WORD_SIZE: usize = std::mem::size_of::<usize>();
+
+type VmWord = u32;
+const VM_WORD_SIZE: VmWord = std::mem::size_of::<VmWord>() as VmWord;
+const VM_WORD_SIZE_USIZE: usize = std::mem::size_of::<VmWord>();
 
 #[derive(Debug)]
 struct Vm {
@@ -51,7 +54,7 @@ impl Vm {
                     if self.is_stack_empty {
                         self.is_stack_empty = false;
                     } else {
-                        *stack_ptr += WORD_SIZE;
+                        *stack_ptr += VM_WORD_SIZE;
                     }
                     let stack_ptr = *stack_ptr;
 
@@ -72,7 +75,7 @@ impl Vm {
                     if self.registers[STACK_PTR] == 0 {
                         self.is_stack_empty = true;
                     } else {
-                        self.registers[STACK_PTR] -= WORD_SIZE;
+                        self.registers[STACK_PTR] -= VM_WORD_SIZE;
                     }
                 }
 
@@ -94,7 +97,7 @@ impl Vm {
         }
     }
 
-    fn eval(&mut self, val: Val) -> usize {
+    fn eval(&mut self, val: Val) -> VmWord {
         match val {
             Val::Imm(val) => val,
             Val::Reg(reg) => self.registers[reg],
@@ -104,19 +107,19 @@ impl Vm {
 }
 
 #[derive(Debug, Default)]
-struct Registers([usize; 32]);
+struct Registers([VmWord; 32]);
 
 impl Index<Reg> for Registers {
-    type Output = usize;
+    type Output = VmWord;
 
     fn index(&self, idx: Reg) -> &Self::Output {
-        &self.0[idx.0 as usize]
+        &self.0[usize::from(idx.0)]
     }
 }
 
 impl IndexMut<Reg> for Registers {
     fn index_mut(&mut self, idx: Reg) -> &mut Self::Output {
-        &mut self.0[idx.0 as usize]
+        &mut self.0[usize::from(idx.0)]
     }
 }
 
@@ -127,20 +130,20 @@ struct Stack {
 
 impl Stack {
     #[cfg(test)]
-    fn new<const LEN: usize>(stack: [usize; LEN]) -> Self {
+    fn new<const LEN: usize>(stack: [VmWord; LEN]) -> Self {
         let mut bytes = Vec::new();
 
         for x in stack {
             bytes.extend_from_slice(&x.to_ne_bytes());
         }
 
-        assert_eq!(bytes.len(), stack.len() * WORD_SIZE);
+        assert_eq!(bytes.len(), stack.len() * VM_WORD_SIZE_USIZE);
 
         Self { bytes }
     }
 
-    fn len(&self) -> usize {
-        self.bytes.len()
+    fn len(&self) -> VmWord {
+        self.bytes.len() as VmWord
     }
 
     #[cfg(test)]
@@ -149,41 +152,41 @@ impl Stack {
     }
 
     fn grow_one(&mut self) {
-        self.bytes.extend_from_slice(&[0; WORD_SIZE]);
+        self.bytes.extend_from_slice(&[0; VM_WORD_SIZE_USIZE]);
     }
 }
 
-impl Index<usize> for Stack {
-    type Output = usize;
+impl Index<VmWord> for Stack {
+    type Output = VmWord;
 
-    fn index(&self, ptr: usize) -> &Self::Output {
-        assert!(ptr % WORD_SIZE == 0, "tried to read from unaligned pointer {}", ptr);
+    fn index(&self, ptr: VmWord) -> &Self::Output {
+        assert!(ptr % VM_WORD_SIZE == 0, "tried to read from unaligned pointer {}", ptr);
 
         assert!(
-            ptr + WORD_SIZE <= self.len(),
+            ptr + VM_WORD_SIZE <= self.len(),
             "tried to read out of stack bounds: {} + {} > {}",
             ptr,
-            WORD_SIZE,
+            VM_WORD_SIZE,
             self.len()
         );
 
-        unsafe { &*(&self.bytes[ptr] as *const u8).cast() }
+        unsafe { &*(&self.bytes[ptr as usize] as *const u8).cast() }
     }
 }
 
-impl IndexMut<usize> for Stack {
-    fn index_mut(&mut self, ptr: usize) -> &mut Self::Output {
-        assert!(ptr % WORD_SIZE == 0, "tried to store at unaligned pointer {}", ptr);
+impl IndexMut<VmWord> for Stack {
+    fn index_mut(&mut self, ptr: VmWord) -> &mut Self::Output {
+        assert!(ptr % VM_WORD_SIZE == 0, "tried to store at unaligned pointer {}", ptr);
 
         assert!(
-            ptr + WORD_SIZE <= self.len(),
+            ptr + VM_WORD_SIZE <= self.len(),
             "tried to store out of stack bounds: {} + {} > {}",
             ptr,
-            WORD_SIZE,
+            VM_WORD_SIZE,
             self.len()
         );
 
-        unsafe { &mut *(&mut self.bytes[ptr] as *mut u8).cast() }
+        unsafe { &mut *(&mut self.bytes[ptr as usize] as *mut u8).cast() }
     }
 }
 
@@ -217,7 +220,7 @@ mod tests {
         vm.run();
 
         assert_eq!(vm.stack, Stack::new([10, 20]));
-        assert_eq!(vm.registers[STACK_PTR], WORD_SIZE);
+        assert_eq!(vm.registers[STACK_PTR], VM_WORD_SIZE);
     }
 
     #[test]
@@ -331,7 +334,7 @@ mod tests {
         vm.run();
 
         assert_eq!(vm.stack, Stack::new([50, 100, 150]));
-        assert_eq!(vm.registers[STACK_PTR], 2 * WORD_SIZE);
+        assert_eq!(vm.registers[STACK_PTR], 2 * VM_WORD_SIZE);
         assert_eq!(vm.registers[Reg(1)], 50);
         assert_eq!(vm.registers[Reg(2)], 100);
         assert_eq!(vm.registers[Reg(3)], 150);
@@ -348,17 +351,17 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "tried to store at unaligned pointer 4")]
+    #[should_panic(expected = "tried to store at unaligned pointer 3")]
     fn die_storing_at_unaligned_ptr() {
         Vm::from_instructions(vec![
-            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(4)),
+            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(3)),
             Instruction::Store(Loc::Ptr(Reg(1)), Val::Imm(10)),
         ])
         .run();
     }
 
     #[test]
-    #[should_panic(expected = "tried to read out of stack bounds: 0 + 8 > 0")]
+    #[should_panic(expected = "tried to read out of stack bounds: 0 + 4 > 0")]
     fn die_reading_out_of_stack_bounds() {
         Vm::from_instructions(vec![
             Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(0)),
@@ -368,7 +371,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "tried to store out of stack bounds: 0 + 8 > 0")]
+    #[should_panic(expected = "tried to store out of stack bounds: 0 + 4 > 0")]
     fn die_storing_out_of_stack_bounds() {
         Vm::from_instructions(vec![
             Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(0)),
@@ -378,12 +381,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "tried to read out of stack bounds: 16 + 8 > 16")]
+    #[should_panic(expected = "tried to read out of stack bounds: 8 + 4 > 8")]
     fn die_reading_out_of_stack_bounds_after_push() {
         Vm::from_instructions(vec![
             Instruction::Store(Loc::Reg(Reg(10)), Val::Imm(0)),
-            Instruction::Store(Loc::Reg(Reg(11)), Val::Imm(WORD_SIZE)),
-            Instruction::Store(Loc::Reg(Reg(12)), Val::Imm(2 * WORD_SIZE)),
+            Instruction::Store(Loc::Reg(Reg(11)), Val::Imm(VM_WORD_SIZE)),
+            Instruction::Store(Loc::Reg(Reg(12)), Val::Imm(2 * VM_WORD_SIZE)),
             Instruction::Push(Val::Imm(100)),
             Instruction::Store(Loc::Reg(Reg(1)), Val::Ptr(Reg(10))),
             Instruction::Push(Val::Imm(200)),
@@ -430,9 +433,9 @@ mod tests {
         vm.run();
 
         assert_eq!(vm.stack, Stack::new([50, 100, 200]));
-        assert_eq!(vm.registers[STACK_PTR], 2 * WORD_SIZE);
+        assert_eq!(vm.registers[STACK_PTR], 2 * VM_WORD_SIZE);
         assert_eq!(vm.registers[Reg(1)], 150);
-        assert_eq!(vm.registers[Reg(10)], WORD_SIZE);
+        assert_eq!(vm.registers[Reg(10)], VM_WORD_SIZE);
     }
 
     #[test]
