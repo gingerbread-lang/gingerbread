@@ -1,6 +1,7 @@
 mod instruction_set;
 use instruction_set::{Instruction, Loc, Reg, Val};
 
+use std::convert::TryInto;
 use std::ops::{Index, IndexMut};
 
 pub fn run(bytecode: &[u8]) -> bincode::Result<()> {
@@ -62,11 +63,11 @@ impl Vm {
                         self.stack.grow_one();
                     }
 
-                    self.stack[stack_ptr] = val;
+                    self.stack.store(stack_ptr, val);
                 }
 
                 Instruction::Pop(dst) => {
-                    let popped_val = self.stack[self.registers[STACK_PTR]];
+                    let popped_val = self.stack.read(self.registers[STACK_PTR]);
 
                     self.registers[dst] = popped_val;
 
@@ -82,7 +83,7 @@ impl Vm {
                 Instruction::Store(dst, val) => {
                     let val = self.eval(val);
                     match dst {
-                        Loc::Ptr(reg) => self.stack[self.registers[reg]] = val,
+                        Loc::Ptr(reg) => self.stack.store(self.registers[reg], val),
                         Loc::Reg(reg) => self.registers[reg] = val,
                     }
                 }
@@ -101,7 +102,7 @@ impl Vm {
         match val {
             Val::Imm(val) => val,
             Val::Reg(reg) => self.registers[reg],
-            Val::Ptr(reg) => self.stack[self.registers[reg]],
+            Val::Ptr(reg) => self.stack.read(self.registers[reg]),
         }
     }
 }
@@ -154,14 +155,8 @@ impl Stack {
     fn grow_one(&mut self) {
         self.bytes.extend_from_slice(&[0; VM_WORD_SIZE_USIZE]);
     }
-}
 
-impl Index<VmWord> for Stack {
-    type Output = VmWord;
-
-    fn index(&self, ptr: VmWord) -> &Self::Output {
-        assert!(ptr % VM_WORD_SIZE == 0, "tried to read from unaligned pointer {}", ptr);
-
+    fn read(&self, ptr: VmWord) -> VmWord {
         assert!(
             ptr + VM_WORD_SIZE <= self.len(),
             "tried to read out of stack bounds: {} + {} > {}",
@@ -170,14 +165,11 @@ impl Index<VmWord> for Stack {
             self.len()
         );
 
-        unsafe { &*(&self.bytes[ptr as usize] as *const u8).cast() }
+        let bytes = self.bytes[ptr as usize..ptr as usize + VM_WORD_SIZE_USIZE].try_into().unwrap();
+        VmWord::from_ne_bytes(bytes)
     }
-}
 
-impl IndexMut<VmWord> for Stack {
-    fn index_mut(&mut self, ptr: VmWord) -> &mut Self::Output {
-        assert!(ptr % VM_WORD_SIZE == 0, "tried to store at unaligned pointer {}", ptr);
-
+    fn store(&mut self, ptr: VmWord, val: VmWord) {
         assert!(
             ptr + VM_WORD_SIZE <= self.len(),
             "tried to store out of stack bounds: {} + {} > {}",
@@ -186,7 +178,9 @@ impl IndexMut<VmWord> for Stack {
             self.len()
         );
 
-        unsafe { &mut *(&mut self.bytes[ptr as usize] as *mut u8).cast() }
+        for (idx, val) in IntoIterator::into_iter(val.to_ne_bytes()).enumerate() {
+            self.bytes[ptr as usize + idx] = val;
+        }
     }
 }
 
@@ -338,26 +332,6 @@ mod tests {
         assert_eq!(vm.registers[Reg(1)], 50);
         assert_eq!(vm.registers[Reg(2)], 100);
         assert_eq!(vm.registers[Reg(3)], 150);
-    }
-
-    #[test]
-    #[should_panic(expected = "tried to read from unaligned pointer 7")]
-    fn die_reading_unaligned_ptr() {
-        Vm::from_instructions(vec![
-            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(7)),
-            Instruction::Store(Loc::Reg(Reg(2)), Val::Ptr(Reg(1))),
-        ])
-        .run();
-    }
-
-    #[test]
-    #[should_panic(expected = "tried to store at unaligned pointer 3")]
-    fn die_storing_at_unaligned_ptr() {
-        Vm::from_instructions(vec![
-            Instruction::Store(Loc::Reg(Reg(1)), Val::Imm(3)),
-            Instruction::Store(Loc::Ptr(Reg(1)), Val::Imm(10)),
-        ])
-        .run();
     }
 
     #[test]
