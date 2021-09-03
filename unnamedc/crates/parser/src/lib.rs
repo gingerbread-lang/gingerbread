@@ -9,6 +9,7 @@ use self::event::Event;
 use self::parser::Parser;
 use self::sink::Sink;
 use rowan::GreenNode;
+use std::fmt;
 use syntax::SyntaxNode;
 use token::Token;
 
@@ -28,16 +29,17 @@ impl Parse {
     pub fn syntax_node(&self) -> SyntaxNode {
         SyntaxNode::new_root(self.green_node.clone())
     }
+}
 
-    pub fn debug_syntax_tree(&self) -> String {
-        let mut s = format!("{:#?}", self.syntax_node());
-        s.remove(s.len() - 1);
+impl fmt::Debug for Parse {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let tree = format!("{:#?}", self.syntax_node());
+        write!(f, "{}", &tree[0..tree.len() - 1])?;
 
         for error in &self.errors {
-            s.push('\n');
-            s.push_str(&error.to_string());
+            write!(f, "\n{}", error)?;
         }
 
-        s
+        Ok(())
     }
 }

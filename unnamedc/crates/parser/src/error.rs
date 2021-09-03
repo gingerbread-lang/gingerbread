@@ -80,13 +80,13 @@ mod tests {
             Some(TokenKind::Asterisk),
             10,
             20,
-            expect![["error at 10..20: expected identifier but found `*`"]],
+            expect![[r#"error at 10..20: expected identifier but found `*`"#]],
         );
     }
 
     #[test]
     fn did_not_find_expected_1() {
-        check([TokenKind::LParen], None, 1, 10, expect![["error at 1..10: expected `(`"]]);
+        check([TokenKind::LParen], None, 1, 10, expect![[r#"error at 1..10: expected `(`"#]]);
     }
 
     #[test]
@@ -96,7 +96,7 @@ mod tests {
             Some(TokenKind::Plus),
             92,
             100,
-            expect![["error at 92..100: expected integer literal or identifier but found `+`"]],
+            expect![[r#"error at 92..100: expected integer literal or identifier but found `+`"#]],
         );
     }
 
@@ -108,7 +108,7 @@ mod tests {
             5,
             6,
             expect![[
-                "error at 5..6: expected `+`, `-`, `*` or `/` but found an unrecognized token"
+                r#"error at 5..6: expected `+`, `-`, `*` or `/` but found an unrecognized token"#
             ]],
         );
     }

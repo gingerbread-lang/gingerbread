@@ -88,12 +88,17 @@ mod tests {
     fn check(input: &str, expect: Expect) {
         let tokens = lexer::lex(input);
         let parse = crate::parse(tokens);
-        expect.assert_eq(&parse.debug_syntax_tree());
+        expect.assert_debug_eq(&parse);
     }
 
     #[test]
     fn parse_nothing() {
-        check("", expect![["Root@0..0"]]);
+        check(
+            "",
+            expect![[r#"
+                Root@0..0
+            "#]],
+        );
     }
 
     #[test]
@@ -101,9 +106,10 @@ mod tests {
         check(
             "foo",
             expect![[r#"
-Root@0..3
-  VarRef@0..3
-    Ident@0..3 "foo""#]],
+                Root@0..3
+                  VarRef@0..3
+                    Ident@0..3 "foo"
+            "#]],
         );
     }
 
@@ -112,11 +118,12 @@ Root@0..3
         check(
             " foo   ",
             expect![[r#"
-Root@0..7
-  Whitespace@0..1 " "
-  VarRef@1..7
-    Ident@1..4 "foo"
-    Whitespace@4..7 "   ""#]],
+                Root@0..7
+                  Whitespace@0..1 " "
+                  VarRef@1..7
+                    Ident@1..4 "foo"
+                    Whitespace@4..7 "   "
+            "#]],
         );
     }
 
@@ -125,9 +132,10 @@ Root@0..7
         check(
             "123",
             expect![[r#"
-Root@0..3
-  IntLiteral@0..3
-    Int@0..3 "123""#]],
+                Root@0..3
+                  IntLiteral@0..3
+                    Int@0..3 "123"
+            "#]],
         );
     }
 
@@ -136,13 +144,14 @@ Root@0..3
         check(
             "2+4",
             expect![[r#"
-Root@0..3
-  BinExpr@0..3
-    IntLiteral@0..1
-      Int@0..1 "2"
-    Plus@1..2 "+"
-    IntLiteral@2..3
-      Int@2..3 "4""#]],
+                Root@0..3
+                  BinExpr@0..3
+                    IntLiteral@0..1
+                      Int@0..1 "2"
+                    Plus@1..2 "+"
+                    IntLiteral@2..3
+                      Int@2..3 "4"
+            "#]],
         );
     }
 
@@ -151,13 +160,14 @@ Root@0..3
         check(
             "len-1",
             expect![[r#"
-Root@0..5
-  BinExpr@0..5
-    VarRef@0..3
-      Ident@0..3 "len"
-    Hyphen@3..4 "-"
-    IntLiteral@4..5
-      Int@4..5 "1""#]],
+                Root@0..5
+                  BinExpr@0..5
+                    VarRef@0..3
+                      Ident@0..3 "len"
+                    Hyphen@3..4 "-"
+                    IntLiteral@4..5
+                      Int@4..5 "1"
+            "#]],
         );
     }
 
@@ -166,15 +176,16 @@ Root@0..5
         check(
             "foo * bar",
             expect![[r#"
-Root@0..9
-  BinExpr@0..9
-    VarRef@0..4
-      Ident@0..3 "foo"
-      Whitespace@3..4 " "
-    Asterisk@4..5 "*"
-    Whitespace@5..6 " "
-    VarRef@6..9
-      Ident@6..9 "bar""#]],
+                Root@0..9
+                  BinExpr@0..9
+                    VarRef@0..4
+                      Ident@0..3 "foo"
+                      Whitespace@3..4 " "
+                    Asterisk@4..5 "*"
+                    Whitespace@5..6 " "
+                    VarRef@6..9
+                      Ident@6..9 "bar"
+            "#]],
         );
     }
 
@@ -183,14 +194,15 @@ Root@0..9
         check(
             "22/ 7",
             expect![[r#"
-Root@0..5
-  BinExpr@0..5
-    IntLiteral@0..2
-      Int@0..2 "22"
-    Slash@2..3 "/"
-    Whitespace@3..4 " "
-    IntLiteral@4..5
-      Int@4..5 "7""#]],
+                Root@0..5
+                  BinExpr@0..5
+                    IntLiteral@0..2
+                      Int@0..2 "22"
+                    Slash@2..3 "/"
+                    Whitespace@3..4 " "
+                    IntLiteral@4..5
+                      Int@4..5 "7"
+            "#]],
         );
     }
 
@@ -199,17 +211,18 @@ Root@0..5
         check(
             "1+2+3",
             expect![[r#"
-Root@0..5
-  BinExpr@0..5
-    BinExpr@0..3
-      IntLiteral@0..1
-        Int@0..1 "1"
-      Plus@1..2 "+"
-      IntLiteral@2..3
-        Int@2..3 "2"
-    Plus@3..4 "+"
-    IntLiteral@4..5
-      Int@4..5 "3""#]],
+                Root@0..5
+                  BinExpr@0..5
+                    BinExpr@0..3
+                      IntLiteral@0..1
+                        Int@0..1 "1"
+                      Plus@1..2 "+"
+                      IntLiteral@2..3
+                        Int@2..3 "2"
+                    Plus@3..4 "+"
+                    IntLiteral@4..5
+                      Int@4..5 "3"
+            "#]],
         );
     }
 
@@ -218,21 +231,22 @@ Root@0..5
         check(
             "x1*x2*x3*x4",
             expect![[r#"
-Root@0..11
-  BinExpr@0..11
-    BinExpr@0..8
-      BinExpr@0..5
-        VarRef@0..2
-          Ident@0..2 "x1"
-        Asterisk@2..3 "*"
-        VarRef@3..5
-          Ident@3..5 "x2"
-      Asterisk@5..6 "*"
-      VarRef@6..8
-        Ident@6..8 "x3"
-    Asterisk@8..9 "*"
-    VarRef@9..11
-      Ident@9..11 "x4""#]],
+                Root@0..11
+                  BinExpr@0..11
+                    BinExpr@0..8
+                      BinExpr@0..5
+                        VarRef@0..2
+                          Ident@0..2 "x1"
+                        Asterisk@2..3 "*"
+                        VarRef@3..5
+                          Ident@3..5 "x2"
+                      Asterisk@5..6 "*"
+                      VarRef@6..8
+                        Ident@6..8 "x3"
+                    Asterisk@8..9 "*"
+                    VarRef@9..11
+                      Ident@9..11 "x4"
+            "#]],
         );
     }
 
@@ -241,17 +255,18 @@ Root@0..11
         check(
             "1+2*3",
             expect![[r#"
-Root@0..5
-  BinExpr@0..5
-    IntLiteral@0..1
-      Int@0..1 "1"
-    Plus@1..2 "+"
-    BinExpr@2..5
-      IntLiteral@2..3
-        Int@2..3 "2"
-      Asterisk@3..4 "*"
-      IntLiteral@4..5
-        Int@4..5 "3""#]],
+                Root@0..5
+                  BinExpr@0..5
+                    IntLiteral@0..1
+                      Int@0..1 "1"
+                    Plus@1..2 "+"
+                    BinExpr@2..5
+                      IntLiteral@2..3
+                        Int@2..3 "2"
+                      Asterisk@3..4 "*"
+                      IntLiteral@4..5
+                        Int@4..5 "3"
+            "#]],
         );
     }
 
@@ -260,21 +275,22 @@ Root@0..5
         check(
             "10/9-8/7",
             expect![[r#"
-Root@0..8
-  BinExpr@0..8
-    BinExpr@0..4
-      IntLiteral@0..2
-        Int@0..2 "10"
-      Slash@2..3 "/"
-      IntLiteral@3..4
-        Int@3..4 "9"
-    Hyphen@4..5 "-"
-    BinExpr@5..8
-      IntLiteral@5..6
-        Int@5..6 "8"
-      Slash@6..7 "/"
-      IntLiteral@7..8
-        Int@7..8 "7""#]],
+                Root@0..8
+                  BinExpr@0..8
+                    BinExpr@0..4
+                      IntLiteral@0..2
+                        Int@0..2 "10"
+                      Slash@2..3 "/"
+                      IntLiteral@3..4
+                        Int@3..4 "9"
+                    Hyphen@4..5 "-"
+                    BinExpr@5..8
+                      IntLiteral@5..6
+                        Int@5..6 "8"
+                      Slash@6..7 "/"
+                      IntLiteral@7..8
+                        Int@7..8 "7"
+            "#]],
         );
     }
 
@@ -283,12 +299,13 @@ Root@0..8
         check(
             "(5)",
             expect![[r#"
-Root@0..3
-  ParenExpr@0..3
-    LParen@0..1 "("
-    IntLiteral@1..2
-      Int@1..2 "5"
-    RParen@2..3 ")""#]],
+                Root@0..3
+                  ParenExpr@0..3
+                    LParen@0..1 "("
+                    IntLiteral@1..2
+                      Int@1..2 "5"
+                    RParen@2..3 ")"
+            "#]],
         );
     }
 
@@ -297,21 +314,22 @@ Root@0..3
         check(
             "((((10))))",
             expect![[r#"
-Root@0..10
-  ParenExpr@0..10
-    LParen@0..1 "("
-    ParenExpr@1..9
-      LParen@1..2 "("
-      ParenExpr@2..8
-        LParen@2..3 "("
-        ParenExpr@3..7
-          LParen@3..4 "("
-          IntLiteral@4..6
-            Int@4..6 "10"
-          RParen@6..7 ")"
-        RParen@7..8 ")"
-      RParen@8..9 ")"
-    RParen@9..10 ")""#]],
+                Root@0..10
+                  ParenExpr@0..10
+                    LParen@0..1 "("
+                    ParenExpr@1..9
+                      LParen@1..2 "("
+                      ParenExpr@2..8
+                        LParen@2..3 "("
+                        ParenExpr@3..7
+                          LParen@3..4 "("
+                          IntLiteral@4..6
+                            Int@4..6 "10"
+                          RParen@6..7 ")"
+                        RParen@7..8 ")"
+                      RParen@8..9 ")"
+                    RParen@9..10 ")"
+            "#]],
         );
     }
 
@@ -320,20 +338,21 @@ Root@0..10
         check(
             "(42+4)*2",
             expect![[r#"
-Root@0..8
-  BinExpr@0..8
-    ParenExpr@0..6
-      LParen@0..1 "("
-      BinExpr@1..5
-        IntLiteral@1..3
-          Int@1..3 "42"
-        Plus@3..4 "+"
-        IntLiteral@4..5
-          Int@4..5 "4"
-      RParen@5..6 ")"
-    Asterisk@6..7 "*"
-    IntLiteral@7..8
-      Int@7..8 "2""#]],
+                Root@0..8
+                  BinExpr@0..8
+                    ParenExpr@0..6
+                      LParen@0..1 "("
+                      BinExpr@1..5
+                        IntLiteral@1..3
+                          Int@1..3 "42"
+                        Plus@3..4 "+"
+                        IntLiteral@4..5
+                          Int@4..5 "4"
+                      RParen@5..6 ")"
+                    Asterisk@6..7 "*"
+                    IntLiteral@7..8
+                      Int@7..8 "2"
+            "#]],
         );
     }
 
@@ -342,12 +361,13 @@ Root@0..8
         check(
             "(foo",
             expect![[r#"
-Root@0..4
-  ParenExpr@0..4
-    LParen@0..1 "("
-    VarRef@1..4
-      Ident@1..4 "foo"
-error at 1..4: expected `+`, `-`, `*`, `/` or `)`"#]],
+                Root@0..4
+                  ParenExpr@0..4
+                    LParen@0..1 "("
+                    VarRef@1..4
+                      Ident@1..4 "foo"
+                error at 1..4: expected `+`, `-`, `*`, `/` or `)`
+            "#]],
         );
     }
 
@@ -356,13 +376,14 @@ error at 1..4: expected `+`, `-`, `*`, `/` or `)`"#]],
         check(
             "(a ",
             expect![[r#"
-Root@0..3
-  ParenExpr@0..3
-    LParen@0..1 "("
-    VarRef@1..3
-      Ident@1..2 "a"
-      Whitespace@2..3 " "
-error at 1..2: expected `+`, `-`, `*`, `/` or `)`"#]],
+                Root@0..3
+                  ParenExpr@0..3
+                    LParen@0..1 "("
+                    VarRef@1..3
+                      Ident@1..2 "a"
+                      Whitespace@2..3 " "
+                error at 1..2: expected `+`, `-`, `*`, `/` or `)`
+            "#]],
         );
     }
 
@@ -371,12 +392,13 @@ error at 1..2: expected `+`, `-`, `*`, `/` or `)`"#]],
         check(
             "1+",
             expect![[r#"
-Root@0..2
-  BinExpr@0..2
-    IntLiteral@0..1
-      Int@0..1 "1"
-    Plus@1..2 "+"
-error at 1..2: expected identifier, integer literal or `(`"#]],
+                Root@0..2
+                  BinExpr@0..2
+                    IntLiteral@0..1
+                      Int@0..1 "1"
+                    Plus@1..2 "+"
+                error at 1..2: expected identifier, integer literal or `(`
+            "#]],
         );
     }
 
@@ -385,14 +407,15 @@ error at 1..2: expected identifier, integer literal or `(`"#]],
         check(
             "å*5",
             expect![[r#"
-Root@0..4
-  BinExpr@0..4
-    Error@0..2
-      Error@0..2 "å"
-    Asterisk@2..3 "*"
-    IntLiteral@3..4
-      Int@3..4 "5"
-error at 0..2: expected identifier, integer literal or `(` but found an unrecognized token"#]],
+                Root@0..4
+                  BinExpr@0..4
+                    Error@0..2
+                      Error@0..2 "å"
+                    Asterisk@2..3 "*"
+                    IntLiteral@3..4
+                      Int@3..4 "5"
+                error at 0..2: expected identifier, integer literal or `(` but found an unrecognized token
+            "#]],
         );
     }
 
@@ -401,16 +424,17 @@ error at 0..2: expected identifier, integer literal or `(` but found an unrecogn
         check(
             "10 - %",
             expect![[r#"
-Root@0..6
-  BinExpr@0..6
-    IntLiteral@0..3
-      Int@0..2 "10"
-      Whitespace@2..3 " "
-    Hyphen@3..4 "-"
-    Whitespace@4..5 " "
-    Error@5..6
-      Error@5..6 "%"
-error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token"#]],
+                Root@0..6
+                  BinExpr@0..6
+                    IntLiteral@0..3
+                      Int@0..2 "10"
+                      Whitespace@2..3 " "
+                    Hyphen@3..4 "-"
+                    Whitespace@4..5 " "
+                    Error@5..6
+                      Error@5..6 "%"
+                error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
+            "#]],
         );
     }
 
@@ -419,32 +443,33 @@ error at 5..6: expected identifier, integer literal or `(` but found an unrecogn
         check(
             "5 * ($ - foo) / ?",
             expect![[r#"
-Root@0..17
-  BinExpr@0..17
-    BinExpr@0..14
-      IntLiteral@0..2
-        Int@0..1 "5"
-        Whitespace@1..2 " "
-      Asterisk@2..3 "*"
-      Whitespace@3..4 " "
-      ParenExpr@4..14
-        LParen@4..5 "("
-        BinExpr@5..12
-          Error@5..7
-            Error@5..6 "$"
-            Whitespace@6..7 " "
-          Hyphen@7..8 "-"
-          Whitespace@8..9 " "
-          VarRef@9..12
-            Ident@9..12 "foo"
-        RParen@12..13 ")"
-        Whitespace@13..14 " "
-    Slash@14..15 "/"
-    Whitespace@15..16 " "
-    Error@16..17
-      Error@16..17 "?"
-error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
-error at 16..17: expected identifier, integer literal or `(` but found an unrecognized token"#]],
+                Root@0..17
+                  BinExpr@0..17
+                    BinExpr@0..14
+                      IntLiteral@0..2
+                        Int@0..1 "5"
+                        Whitespace@1..2 " "
+                      Asterisk@2..3 "*"
+                      Whitespace@3..4 " "
+                      ParenExpr@4..14
+                        LParen@4..5 "("
+                        BinExpr@5..12
+                          Error@5..7
+                            Error@5..6 "$"
+                            Whitespace@6..7 " "
+                          Hyphen@7..8 "-"
+                          Whitespace@8..9 " "
+                          VarRef@9..12
+                            Ident@9..12 "foo"
+                        RParen@12..13 ")"
+                        Whitespace@13..14 " "
+                    Slash@14..15 "/"
+                    Whitespace@15..16 " "
+                    Error@16..17
+                      Error@16..17 "?"
+                error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
+                error at 16..17: expected identifier, integer literal or `(` but found an unrecognized token
+            "#]],
         );
     }
 }
