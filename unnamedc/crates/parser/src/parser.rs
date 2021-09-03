@@ -1,6 +1,6 @@
 mod marker;
 
-use self::marker::Marker;
+pub(crate) use self::marker::{CompletedMarker, Marker};
 use crate::event::Event;
 use token::{Token, TokenKind};
 

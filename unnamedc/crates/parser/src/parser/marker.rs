@@ -10,20 +10,27 @@ pub(crate) struct Marker {
 }
 
 impl Marker {
-    pub(crate) fn new(pos: usize) -> Self {
+    pub(super) fn new(pos: usize) -> Self {
         Self { pos, bomb: DropBomb::new("markers must be completed") }
     }
 
-    pub(crate) fn complete(mut self, p: &mut Parser<'_, '_>, kind: SyntaxKind) {
+    pub(crate) fn complete(mut self, p: &mut Parser<'_, '_>, kind: SyntaxKind) -> CompletedMarker {
         self.bomb.defuse();
         let old_event = mem::replace(&mut p.events[self.pos], Event::StartNode { kind });
         assert_eq!(old_event, Event::Placeholder);
         p.events.push(Event::FinishNode);
-    }
 
-    pub(crate) fn abandon(mut self, p: &mut Parser<'_, '_>) {
-        self.bomb.defuse();
-        let old_event = mem::replace(&mut p.events[self.pos], Event::Abandoned);
-        assert_eq!(old_event, Event::Placeholder);
+        CompletedMarker { pos: self.pos }
+    }
+}
+
+pub(crate) struct CompletedMarker {
+    pos: usize,
+}
+
+impl CompletedMarker {
+    pub(crate) fn precede(self, p: &mut Parser<'_, '_>) -> Marker {
+        p.events.insert(self.pos, Event::Placeholder);
+        Marker::new(self.pos)
     }
 }

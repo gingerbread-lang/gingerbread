@@ -6,5 +6,4 @@ pub(crate) enum Event {
     FinishNode,
     AddToken,
     Placeholder,
-    Abandoned,
 }

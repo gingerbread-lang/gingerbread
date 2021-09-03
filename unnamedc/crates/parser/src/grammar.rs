@@ -1,4 +1,4 @@
-use crate::parser::Parser;
+use crate::parser::{CompletedMarker, Parser};
 use syntax::SyntaxKind;
 use token::TokenKind;
 
@@ -6,47 +6,62 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
     if !p.at_eof() {
-        let m = p.start();
-        parse_lhs(p);
-
-        if p.at(TokenKind::Plus)
-            || p.at(TokenKind::Hyphen)
-            || p.at(TokenKind::Asterisk)
-            || p.at(TokenKind::Slash)
-        {
-            p.bump();
-            parse_lhs(p);
-            m.complete(p, SyntaxKind::BinExpr);
-        } else {
-            m.abandon(p);
-        }
+        parse_expr(p);
     }
 
     m.complete(p, SyntaxKind::Root);
 }
 
-fn parse_lhs(p: &mut Parser<'_, '_>) {
+fn parse_expr(p: &mut Parser<'_, '_>) {
+    parse_expr_bp(p, 0)
+}
+
+fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) {
+    let mut lhs = parse_lhs(p);
+
+    loop {
+        let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
+            (1, 2)
+        } else if p.at(TokenKind::Asterisk) || p.at(TokenKind::Slash) {
+            (3, 4)
+        } else {
+            break;
+        };
+
+        if left_bp < min_bp {
+            break;
+        }
+
+        p.bump();
+
+        let m = lhs.precede(p);
+        parse_expr_bp(p, right_bp);
+        lhs = m.complete(p, SyntaxKind::BinExpr);
+    }
+}
+
+fn parse_lhs(p: &mut Parser<'_, '_>) -> CompletedMarker {
     if p.at(TokenKind::Ident) {
-        parse_var_ref(p);
+        parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
-        parse_int_literal(p);
+        parse_int_literal(p)
     } else {
         panic!();
     }
 }
 
-fn parse_var_ref(p: &mut Parser<'_, '_>) {
+fn parse_var_ref(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::VarRef);
+    m.complete(p, SyntaxKind::VarRef)
 }
 
-fn parse_int_literal(p: &mut Parser<'_, '_>) {
+fn parse_int_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Int));
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::IntLiteral);
+    m.complete(p, SyntaxKind::IntLiteral)
 }
 
 #[cfg(test)]
@@ -159,6 +174,90 @@ Root@0..5
     Whitespace@3..4 " "
     IntLiteral@4..5
       Int@4..5 "7""#]],
+        );
+    }
+
+    #[test]
+    fn parse_two_additions() {
+        check(
+            "1+2+3",
+            expect![[r#"
+Root@0..5
+  BinExpr@0..5
+    BinExpr@0..3
+      IntLiteral@0..1
+        Int@0..1 "1"
+      Plus@1..2 "+"
+      IntLiteral@2..3
+        Int@2..3 "2"
+    Plus@3..4 "+"
+    IntLiteral@4..5
+      Int@4..5 "3""#]],
+        );
+    }
+
+    #[test]
+    fn parse_four_multiplications() {
+        check(
+            "x1*x2*x3*x4",
+            expect![[r#"
+Root@0..11
+  BinExpr@0..11
+    BinExpr@0..8
+      BinExpr@0..5
+        VarRef@0..2
+          Ident@0..2 "x1"
+        Asterisk@2..3 "*"
+        VarRef@3..5
+          Ident@3..5 "x2"
+      Asterisk@5..6 "*"
+      VarRef@6..8
+        Ident@6..8 "x3"
+    Asterisk@8..9 "*"
+    VarRef@9..11
+      Ident@9..11 "x4""#]],
+        );
+    }
+
+    #[test]
+    fn parse_addition_and_multiplication() {
+        check(
+            "1+2*3",
+            expect![[r#"
+Root@0..5
+  BinExpr@0..5
+    IntLiteral@0..1
+      Int@0..1 "1"
+    Plus@1..2 "+"
+    BinExpr@2..5
+      IntLiteral@2..3
+        Int@2..3 "2"
+      Asterisk@3..4 "*"
+      IntLiteral@4..5
+        Int@4..5 "3""#]],
+        );
+    }
+
+    #[test]
+    fn parse_division_and_subtraction() {
+        check(
+            "10/9-8/7",
+            expect![[r#"
+Root@0..8
+  BinExpr@0..8
+    BinExpr@0..4
+      IntLiteral@0..2
+        Int@0..2 "10"
+      Slash@2..3 "/"
+      IntLiteral@3..4
+        Int@3..4 "9"
+    Hyphen@4..5 "-"
+    BinExpr@5..8
+      IntLiteral@5..6
+        Int@5..6 "8"
+      Slash@6..7 "/"
+      IntLiteral@7..8
+        Int@7..8 "7""#]],
         );
     }
 }
