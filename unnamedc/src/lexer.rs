@@ -21,12 +21,13 @@ impl<'a> Iterator for Lexer<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct Token<'a> {
-    text: &'a str,
-    kind: TokenKind,
+    pub(crate) text: &'a str,
+    pub(crate) kind: TokenKind,
 }
 
 #[derive(Debug, PartialEq, Logos)]
-enum TokenKind {
+#[repr(u16)]
+pub(crate) enum TokenKind {
     #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
 
