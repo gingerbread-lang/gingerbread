@@ -40,6 +40,7 @@ pub enum SyntaxKind {
     IntLiteral,
     BinExpr,
     ParenExpr,
+    VarDef,
 }
 
 impl From<TokenKind> for SyntaxKind {

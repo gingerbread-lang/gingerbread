@@ -5,11 +5,25 @@ use token::TokenKind;
 pub(crate) fn root(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
-    if !p.at_eof() {
+    if p.at(TokenKind::LetKw) {
+        parse_var_def(p);
+    } else if !p.at_eof() {
         parse_expr(p);
     }
 
     m.complete(p, SyntaxKind::Root);
+}
+
+fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::LetKw));
+    let m = p.start();
+    p.bump();
+
+    p.expect(TokenKind::Ident);
+    p.expect(TokenKind::Eq);
+    parse_expr(p);
+
+    m.complete(p, SyntaxKind::VarDef)
 }
 
 fn parse_expr(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
@@ -414,7 +428,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected identifier, integer literal or `(` but found an unrecognized token
+                error at 0..2: expected `let`, identifier, integer literal or `(` but found an unrecognized token
             "#]],
         );
     }
@@ -469,6 +483,25 @@ mod tests {
                       Error@16..17 "?"
                 error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
                 error at 16..17: expected identifier, integer literal or `(` but found an unrecognized token
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_def() {
+        check(
+            "let a = b",
+            expect![[r#"
+                Root@0..9
+                  VarDef@0..9
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "a"
+                    Whitespace@5..6 " "
+                    Eq@6..7 "="
+                    Whitespace@7..8 " "
+                    VarRef@8..9
+                      Ident@8..9 "b"
             "#]],
         );
     }
