@@ -33,6 +33,18 @@ enum TokenKind {
     #[regex("[0-9]+")]
     Int,
 
+    #[token("+")]
+    Plus,
+
+    #[token("-")]
+    Hyphen,
+
+    #[token("*")]
+    Asterisk,
+
+    #[token("/")]
+    Slash,
+
     #[regex("[ \n]+")]
     Whitespace,
 
@@ -101,5 +113,25 @@ mod tests {
         assert_eq!(tokens.next(), Some(Token { text: "92", kind: TokenKind::Int }));
         assert_eq!(tokens.next(), Some(Token { text: "foo", kind: TokenKind::Ident }));
         assert_eq!(tokens.next(), None);
+    }
+
+    #[test]
+    fn lex_plus() {
+        check("+", TokenKind::Plus);
+    }
+
+    #[test]
+    fn lex_hyphen() {
+        check("-", TokenKind::Hyphen);
+    }
+
+    #[test]
+    fn lex_asterisk() {
+        check("*", TokenKind::Asterisk);
+    }
+
+    #[test]
+    fn lex_slash() {
+        check("/", TokenKind::Slash);
     }
 }
