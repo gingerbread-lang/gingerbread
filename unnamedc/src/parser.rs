@@ -27,17 +27,20 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     fn parse(mut self) -> Vec<Event> {
-        self.events.push(Event::StartNode { kind: SyntaxKind::Root });
-        self.events.push(Event::StartNode { kind: SyntaxKind::VarRef });
+        let root_m = self.start();
+        let m = self.start();
         self.events.push(Event::Token);
-        self.events.push(Event::FinishNode);
-        self.events.push(Event::FinishNode);
+        m.complete(&mut self, SyntaxKind::VarRef);
+        root_m.complete(&mut self, SyntaxKind::Root);
 
         self.events
     }
 
-    fn start(&self) -> Marker {
-        Marker::new(self.events.len())
+    fn start(&mut self) -> Marker {
+        let pos = self.events.len();
+        self.events.push(Event::Placeholder);
+
+        Marker::new(pos)
     }
 }
 

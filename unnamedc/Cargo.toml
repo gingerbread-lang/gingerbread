@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
+drop_bomb = "0.1.5"
 expect-test = "1.1"
 logos = "0.12.0"
 rowan = "0.13.2"
