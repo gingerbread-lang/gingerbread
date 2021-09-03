@@ -22,6 +22,7 @@ pub type SyntaxNode = rowan::SyntaxNode<UnnamedLang>;
 #[derive(Debug, PartialEq)]
 #[repr(u16)]
 pub enum SyntaxKind {
+    LetKw,
     Ident,
     Int,
     Plus,

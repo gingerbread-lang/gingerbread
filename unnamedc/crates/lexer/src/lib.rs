@@ -33,6 +33,9 @@ impl<'a> Iterator for Lexer<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Logos)]
 #[repr(u16)]
 enum LexerTokenKind {
+    #[token("let")]
+    LetKw,
+
     #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
 
@@ -82,6 +85,11 @@ mod tests {
     #[test]
     fn lex_whitespace() {
         check("  \n ", TokenKind::Whitespace);
+    }
+
+    #[test]
+    fn lex_let_keyword() {
+        check("let", TokenKind::LetKw);
     }
 
     #[test]
