@@ -346,4 +346,19 @@ Root@0..4
 error at 1..4: expected `+`, `-`, `*`, `/` or `)`"#]],
         );
     }
+
+    #[test]
+    fn parse_unclosed_paren_expr_with_whitespace() {
+        check(
+            "(a ",
+            expect![[r#"
+Root@0..3
+  ParenExpr@0..3
+    LParen@0..1 "("
+    VarRef@1..3
+      Ident@1..2 "a"
+      Whitespace@2..3 " "
+error at 1..2: expected `+`, `-`, `*`, `/` or `)`"#]],
+        );
+    }
 }

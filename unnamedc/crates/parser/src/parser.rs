@@ -65,13 +65,18 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
                 // we use the current token’s range
                 //
                 // if we’re at the end of the input,
-                // we use the last token’s range
+                // we use the last non-whitespace token’s range
                 //
                 // if the input is empty, we panic,
                 // since parsing an empty input should always succeed
                 current_token
                     .map(|token| token.range)
-                    .or_else(|| self.tokens.last().map(|last_token| last_token.range))
+                    .or_else(|| {
+                        self.tokens
+                            .iter()
+                            .rfind(|token| token.kind != TokenKind::Whitespace)
+                            .map(|last_token| last_token.range)
+                    })
                     .unwrap()
             },
         }));
