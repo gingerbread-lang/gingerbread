@@ -19,7 +19,7 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token<'a> {
     text: &'a str,
     kind: TokenKind,
@@ -27,8 +27,11 @@ pub struct Token<'a> {
 
 #[derive(Debug, PartialEq, Logos)]
 enum TokenKind {
-    #[regex("[a-zA-Z0-9_]+")]
+    #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
+
+    #[regex("[0-9]+")]
+    Int,
 
     #[regex("[ \n]+")]
     Whitespace,
@@ -84,5 +87,19 @@ mod tests {
     #[test]
     fn lex_ident_starting_with_underscore() {
         check("__main__", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_int() {
+        check("123", TokenKind::Int);
+    }
+
+    #[test]
+    fn dont_lex_ident_starting_with_int() {
+        let mut tokens = lex("92foo");
+
+        assert_eq!(tokens.next(), Some(Token { text: "92", kind: TokenKind::Int }));
+        assert_eq!(tokens.next(), Some(Token { text: "foo", kind: TokenKind::Ident }));
+        assert_eq!(tokens.next(), None);
     }
 }
