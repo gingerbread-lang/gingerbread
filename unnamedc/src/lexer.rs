@@ -1,6 +1,6 @@
 use logos::Logos;
 
-pub(crate) fn lex(text: &str) -> impl Iterator<Item = Token<'_>> {
+pub fn lex(text: &str) -> impl Iterator<Item = Token<'_>> {
     Lexer { inner: TokenKind::lexer(text) }
 }
 
@@ -20,13 +20,36 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Token<'a> {
+pub struct Token<'a> {
     text: &'a str,
     kind: TokenKind,
 }
 
-#[derive(Debug, Logos)]
+#[derive(Debug, PartialEq, Logos)]
 enum TokenKind {
+    #[regex("[ \n]+")]
+    Whitespace,
+
     #[error]
     Error,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check(input: &str, expected_kind: TokenKind) {
+        let mut tokens = lex(input);
+
+        let token = tokens.next().unwrap();
+        assert!(tokens.next().is_none()); // we should only get one token
+
+        assert_eq!(token.kind, expected_kind);
+        assert_eq!(token.text, input); // the token should span the entire input
+    }
+
+    #[test]
+    fn lex_whitespace() {
+        check("  \n ", TokenKind::Whitespace);
+    }
 }

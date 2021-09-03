@@ -1,5 +1,3 @@
-mod lexer;
-
 use std::io;
 
 fn main() -> anyhow::Result<()> {
@@ -9,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     loop {
         stdin.read_line(&mut input)?;
 
-        let tokens = lexer::lex(&input);
+        let tokens = unnamedc::lex(&input);
         dbg!(tokens.collect::<Vec<_>>());
 
         input.clear();
