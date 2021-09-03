@@ -1,9 +1,9 @@
-use crate::lexer::TokenKind;
 use rowan::Language;
 use std::mem;
+use token::TokenKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) enum UnnamedLang {}
+pub enum UnnamedLang {}
 
 impl Language for UnnamedLang {
     type Kind = SyntaxKind;
@@ -17,11 +17,11 @@ impl Language for UnnamedLang {
     }
 }
 
-pub(crate) type SyntaxNode = rowan::SyntaxNode<UnnamedLang>;
+pub type SyntaxNode = rowan::SyntaxNode<UnnamedLang>;
 
 #[derive(Debug, PartialEq)]
 #[repr(u16)]
-pub(crate) enum SyntaxKind {
+pub enum SyntaxKind {
     Ident,
     Int,
     Plus,

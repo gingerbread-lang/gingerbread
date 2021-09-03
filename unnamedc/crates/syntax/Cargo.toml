@@ -1,0 +1,9 @@
+[package]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+name = "syntax"
+version = "0.1.0"
+
+[dependencies]
+rowan = "0.13.2"
+token = {path = "../token"}

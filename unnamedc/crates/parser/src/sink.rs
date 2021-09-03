@@ -1,11 +1,11 @@
 use super::Event;
-use crate::lexer::{Token, TokenKind};
-use crate::syntax::UnnamedLang;
 use crate::Parse;
 use rowan::{GreenNodeBuilder, Language};
 use std::mem;
+use syntax::UnnamedLang;
+use token::{Token, TokenKind};
 
-pub(super) struct Sink<'a> {
+pub(crate) struct Sink<'a> {
     events: Vec<Event>,
     tokens: Vec<Token<'a>>,
     token_idx: usize,
@@ -13,11 +13,11 @@ pub(super) struct Sink<'a> {
 }
 
 impl<'a> Sink<'a> {
-    pub(super) fn new(events: Vec<Event>, tokens: Vec<Token<'a>>) -> Self {
+    pub(crate) fn new(events: Vec<Event>, tokens: Vec<Token<'a>>) -> Self {
         Self { events, tokens, token_idx: 0, builder: GreenNodeBuilder::new() }
     }
 
-    pub(super) fn finish(mut self) -> Parse {
+    pub(crate) fn finish(mut self) -> Parse {
         for event_idx in 0..self.events.len() {
             match mem::replace(&mut self.events[event_idx], Event::Placeholder) {
                 Event::StartNode { kind } => {

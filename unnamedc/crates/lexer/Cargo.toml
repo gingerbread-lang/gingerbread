@@ -1,12 +1,9 @@
 [package]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-name = "unnamedc"
+name = "lexer"
 version = "0.1.0"
 
 [dependencies]
-anyhow = "1.0"
-drop_bomb = "0.1.5"
-expect-test = "1.1"
 logos = "0.12.0"
-rowan = "0.13.2"
+token = {path = "../token"}

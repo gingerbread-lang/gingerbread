@@ -5,9 +5,9 @@ mod sink;
 use self::event::Event;
 use self::marker::Marker;
 use self::sink::Sink;
-use crate::lexer::{Token, TokenKind};
-use crate::syntax::{SyntaxKind, SyntaxNode};
 use rowan::GreenNode;
+use syntax::{SyntaxKind, SyntaxNode};
+use token::{Token, TokenKind};
 
 pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
     let tokens: Vec<_> = tokens.collect();
@@ -82,11 +82,11 @@ pub struct Parse {
 }
 
 impl Parse {
-    fn syntax_node(&self) -> SyntaxNode {
+    pub fn syntax_node(&self) -> SyntaxNode {
         SyntaxNode::new_root(self.green_node.clone())
     }
 
-    fn debug_syntax_tree(&self) -> String {
+    pub fn debug_syntax_tree(&self) -> String {
         let mut tree = format!("{:#?}", self.syntax_node());
         tree.remove(tree.len() - 1);
 
@@ -97,8 +97,8 @@ impl Parse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lex;
     use expect_test::{expect, Expect};
+    use lexer::lex;
 
     fn check(input: &str, expect: Expect) {
         let parse = parse(lex(input));

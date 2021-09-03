@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     loop {
         stdin.read_line(&mut input)?;
 
-        let tokens = unnamedc::lex(&input);
+        let tokens = lexer::lex(&input);
         dbg!(tokens.collect::<Vec<_>>());
 
         input.clear();

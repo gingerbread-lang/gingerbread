@@ -1,11 +1,13 @@
 use logos::Logos;
+use std::mem;
+use token::Token;
 
 pub fn lex(text: &str) -> impl Iterator<Item = Token<'_>> {
-    Lexer { inner: TokenKind::lexer(text) }
+    Lexer { inner: LexerTokenKind::lexer(text) }
 }
 
 struct Lexer<'a> {
-    inner: logos::Lexer<'a, TokenKind>,
+    inner: logos::Lexer<'a, LexerTokenKind>,
 }
 
 impl<'a> Iterator for Lexer<'a> {
@@ -15,19 +17,13 @@ impl<'a> Iterator for Lexer<'a> {
         let kind = self.inner.next()?;
         let text = self.inner.slice();
 
-        Some(Token { text, kind })
+        Some(Token { text, kind: unsafe { mem::transmute(kind) } })
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Token<'a> {
-    pub(crate) text: &'a str,
-    pub(crate) kind: TokenKind,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Logos)]
 #[repr(u16)]
-pub(crate) enum TokenKind {
+enum LexerTokenKind {
     #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
 
@@ -56,6 +52,7 @@ pub(crate) enum TokenKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use token::TokenKind;
 
     fn check(input: &str, expected_kind: TokenKind) {
         let mut tokens = lex(input);
