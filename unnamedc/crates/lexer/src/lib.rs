@@ -1,5 +1,8 @@
 use logos::Logos;
+use std::convert::TryInto;
 use std::mem;
+use std::ops::Range as StdRange;
+use text_size::TextRange;
 use token::Token;
 
 pub fn lex(text: &str) -> impl Iterator<Item = Token<'_>> {
@@ -16,8 +19,14 @@ impl<'a> Iterator for Lexer<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let kind = self.inner.next()?;
         let text = self.inner.slice();
+        let range = {
+            let StdRange { start, end } = self.inner.span();
+            let start = start.try_into().unwrap();
+            let end = end.try_into().unwrap();
+            TextRange::new(start, end)
+        };
 
-        Some(Token { text, kind: unsafe { mem::transmute(kind) } })
+        Some(Token { text, kind: unsafe { mem::transmute(kind) }, range })
     }
 }
 
@@ -114,8 +123,24 @@ mod tests {
     fn dont_lex_ident_starting_with_int() {
         let mut tokens = lex("92foo");
 
-        assert_eq!(tokens.next(), Some(Token { text: "92", kind: TokenKind::Int }));
-        assert_eq!(tokens.next(), Some(Token { text: "foo", kind: TokenKind::Ident }));
+        assert_eq!(
+            tokens.next(),
+            Some(Token {
+                text: "92",
+                kind: TokenKind::Int,
+                range: TextRange::new(0.into(), 2.into())
+            })
+        );
+
+        assert_eq!(
+            tokens.next(),
+            Some(Token {
+                text: "foo",
+                kind: TokenKind::Ident,
+                range: TextRange::new(2.into(), 5.into())
+            })
+        );
+
         assert_eq!(tokens.next(), None);
     }
 

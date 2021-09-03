@@ -1,8 +1,10 @@
+mod error;
 mod event;
 mod grammar;
 mod parser;
 mod sink;
 
+use self::error::ParseError;
 use self::event::Event;
 use self::parser::Parser;
 use self::sink::Sink;
@@ -19,6 +21,7 @@ pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
 
 pub struct Parse {
     green_node: GreenNode,
+    errors: Vec<ParseError>,
 }
 
 impl Parse {
@@ -27,9 +30,14 @@ impl Parse {
     }
 
     pub fn debug_syntax_tree(&self) -> String {
-        let mut tree = format!("{:#?}", self.syntax_node());
-        tree.remove(tree.len() - 1);
+        let mut s = format!("{:#?}", self.syntax_node());
+        s.remove(s.len() - 1);
 
-        tree
+        for error in &self.errors {
+            s.push('\n');
+            s.push_str(&error.to_string());
+        }
+
+        s
     }
 }

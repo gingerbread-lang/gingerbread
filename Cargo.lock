@@ -74,6 +74,7 @@ name = "lexer"
 version = "0.1.0"
 dependencies = [
  "logos",
+ "text-size",
  "token",
 ]
 
@@ -125,6 +126,7 @@ dependencies = [
  "lexer",
  "rowan",
  "syntax",
+ "text-size",
  "token",
 ]
 
@@ -239,6 +241,9 @@ dependencies = [
 [[package]]
 name = "token"
 version = "0.1.0"
+dependencies = [
+ "text-size",
+]
 
 [[package]]
 name = "unicode-xid"

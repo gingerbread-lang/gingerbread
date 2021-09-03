@@ -5,3 +5,4 @@ name = "token"
 version = "0.1.0"
 
 [dependencies]
+text-size = "1.1"

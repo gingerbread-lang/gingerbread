@@ -1,4 +1,5 @@
 use super::Event;
+use crate::error::ParseError;
 use crate::Parse;
 use rowan::{GreenNodeBuilder, Language};
 use std::mem;
@@ -10,11 +11,12 @@ pub(crate) struct Sink<'a> {
     tokens: Vec<Token<'a>>,
     token_idx: usize,
     builder: GreenNodeBuilder<'static>,
+    errors: Vec<ParseError>,
 }
 
 impl<'a> Sink<'a> {
     pub(crate) fn new(events: Vec<Event>, tokens: Vec<Token<'a>>) -> Self {
-        Self { events, tokens, token_idx: 0, builder: GreenNodeBuilder::new() }
+        Self { events, tokens, token_idx: 0, builder: GreenNodeBuilder::new(), errors: Vec::new() }
     }
 
     pub(crate) fn finish(mut self) -> Parse {
@@ -25,13 +27,14 @@ impl<'a> Sink<'a> {
                 }
                 Event::FinishNode => self.builder.finish_node(),
                 Event::AddToken => self.add_token(),
+                Event::Error(error) => self.errors.push(error),
                 Event::Placeholder => unreachable!(),
             }
 
             self.skip_whitespace();
         }
 
-        Parse { green_node: self.builder.finish() }
+        Parse { green_node: self.builder.finish(), errors: self.errors }
     }
 
     fn skip_whitespace(&mut self) {
@@ -41,7 +44,7 @@ impl<'a> Sink<'a> {
     }
 
     fn add_token(&mut self) {
-        let Token { kind, text } = self.current_token().unwrap();
+        let Token { kind, text, .. } = self.current_token().unwrap();
         self.builder.token(UnnamedLang::kind_to_raw(kind.into()), text);
         self.token_idx += 1;
     }

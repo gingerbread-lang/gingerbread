@@ -1,6 +1,7 @@
 mod marker;
 
 pub(crate) use self::marker::{CompletedMarker, Marker};
+use crate::error::ParseError;
 use crate::event::Event;
 use token::{Token, TokenKind};
 
@@ -8,16 +9,25 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
+    expected_kinds: Vec<TokenKind>,
 }
 
 impl<'tokens, 'input> Parser<'tokens, 'input> {
     pub(crate) fn new(tokens: &'tokens [Token<'input>]) -> Self {
-        Self { tokens, token_idx: 0, events: Vec::new() }
+        Self { tokens, token_idx: 0, events: Vec::new(), expected_kinds: Vec::new() }
     }
 
     pub(crate) fn parse(mut self, grammar: impl Fn(&mut Self)) -> Vec<Event> {
         grammar(&mut self);
         self.events
+    }
+
+    pub(crate) fn expect(&mut self, kind: TokenKind) {
+        if self.at(kind) {
+            self.bump();
+        } else {
+            self.error();
+        }
     }
 
     pub(crate) fn start(&mut self) -> Marker {
@@ -28,6 +38,8 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
+        self.expected_kinds.push(kind);
+
         self.skip_whitespace();
         self.at_raw(kind)
     }
@@ -38,8 +50,31 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn bump(&mut self) {
+        self.expected_kinds.clear();
         self.events.push(Event::AddToken);
         self.token_idx += 1;
+    }
+
+    fn error(&mut self) {
+        let current_token = self.current_token();
+
+        self.events.push(Event::Error(ParseError {
+            expected: self.expected_kinds.clone(),
+            found: current_token.map(|token| token.kind),
+            range: {
+                // we use the current token’s range
+                //
+                // if we’re at the end of the input,
+                // we use the last token’s range
+                //
+                // if the input is empty, we panic,
+                // since parsing an empty input should always succeed
+                current_token
+                    .map(|token| token.range)
+                    .or_else(|| self.tokens.last().map(|last_token| last_token.range))
+                    .unwrap()
+            },
+        }));
     }
 
     fn skip_whitespace(&mut self) {
@@ -49,7 +84,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     fn at_raw(&self, kind: TokenKind) -> bool {
-        self.current_token().map_or(false, |token| token.kind == kind)
+        self.peek().map_or(false, |k| k == kind)
+    }
+
+    fn peek(&self) -> Option<TokenKind> {
+        self.current_token().map(|token| token.kind)
     }
 
     fn current_token(&self) -> Option<Token<'input>> {

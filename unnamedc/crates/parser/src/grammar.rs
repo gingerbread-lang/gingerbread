@@ -72,9 +72,7 @@ fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.bump();
 
     parse_expr(p);
-
-    assert!(p.at(TokenKind::RParen));
-    p.bump();
+    p.expect(TokenKind::RParen);
 
     m.complete(p, SyntaxKind::ParenExpr)
 }
@@ -332,6 +330,20 @@ Root@0..8
     Asterisk@6..7 "*"
     IntLiteral@7..8
       Int@7..8 "2""#]],
+        );
+    }
+
+    #[test]
+    fn parse_unclosed_paren_expr() {
+        check(
+            "(foo",
+            expect![[r#"
+Root@0..4
+  ParenExpr@0..4
+    LParen@0..1 "("
+    VarRef@1..4
+      Ident@1..4 "foo"
+error at 1..4: expected `+`, `-`, `*`, `/` or `)`"#]],
         );
     }
 }
