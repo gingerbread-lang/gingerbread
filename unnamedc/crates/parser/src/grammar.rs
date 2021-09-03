@@ -45,6 +45,8 @@ fn parse_lhs(p: &mut Parser<'_, '_>) -> CompletedMarker {
         parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
         parse_int_literal(p)
+    } else if p.at(TokenKind::LParen) {
+        parse_paren_expr(p)
     } else {
         panic!();
     }
@@ -62,6 +64,19 @@ fn parse_int_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::IntLiteral)
+}
+
+fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::LParen));
+    let m = p.start();
+    p.bump();
+
+    parse_expr(p);
+
+    assert!(p.at(TokenKind::RParen));
+    p.bump();
+
+    m.complete(p, SyntaxKind::ParenExpr)
 }
 
 #[cfg(test)]
@@ -258,6 +273,65 @@ Root@0..8
       Slash@6..7 "/"
       IntLiteral@7..8
         Int@7..8 "7""#]],
+        );
+    }
+
+    #[test]
+    fn parse_paren_expr() {
+        check(
+            "(5)",
+            expect![[r#"
+Root@0..3
+  ParenExpr@0..3
+    LParen@0..1 "("
+    IntLiteral@1..2
+      Int@1..2 "5"
+    RParen@2..3 ")""#]],
+        );
+    }
+
+    #[test]
+    fn parse_repeated_paren_expr() {
+        check(
+            "((((10))))",
+            expect![[r#"
+Root@0..10
+  ParenExpr@0..10
+    LParen@0..1 "("
+    ParenExpr@1..9
+      LParen@1..2 "("
+      ParenExpr@2..8
+        LParen@2..3 "("
+        ParenExpr@3..7
+          LParen@3..4 "("
+          IntLiteral@4..6
+            Int@4..6 "10"
+          RParen@6..7 ")"
+        RParen@7..8 ")"
+      RParen@8..9 ")"
+    RParen@9..10 ")""#]],
+        );
+    }
+
+    #[test]
+    fn parse_paren_expr_addition_and_multiplication() {
+        check(
+            "(42+4)*2",
+            expect![[r#"
+Root@0..8
+  BinExpr@0..8
+    ParenExpr@0..6
+      LParen@0..1 "("
+      BinExpr@1..5
+        IntLiteral@1..3
+          Int@1..3 "42"
+        Plus@3..4 "+"
+        IntLiteral@4..5
+          Int@4..5 "4"
+      RParen@5..6 ")"
+    Asterisk@6..7 "*"
+    IntLiteral@7..8
+      Int@7..8 "2""#]],
         );
     }
 }

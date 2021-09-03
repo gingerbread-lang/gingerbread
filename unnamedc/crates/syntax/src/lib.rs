@@ -28,6 +28,8 @@ pub enum SyntaxKind {
     Hyphen,
     Asterisk,
     Slash,
+    LParen,
+    RParen,
     Whitespace,
     Error,
 
@@ -35,6 +37,7 @@ pub enum SyntaxKind {
     VarRef,
     IntLiteral,
     BinExpr,
+    ParenExpr,
 }
 
 impl From<TokenKind> for SyntaxKind {

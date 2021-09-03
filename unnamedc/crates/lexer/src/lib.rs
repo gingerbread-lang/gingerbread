@@ -42,6 +42,12 @@ enum LexerTokenKind {
     #[token("/")]
     Slash,
 
+    #[token("(")]
+    LParen,
+
+    #[token(")")]
+    RParen,
+
     #[regex("[ \n]+")]
     Whitespace,
 
@@ -131,5 +137,15 @@ mod tests {
     #[test]
     fn lex_slash() {
         check("/", TokenKind::Slash);
+    }
+
+    #[test]
+    fn lex_l_paren() {
+        check("(", TokenKind::LParen);
+    }
+
+    #[test]
+    fn lex_r_paren() {
+        check(")", TokenKind::RParen);
     }
 }
