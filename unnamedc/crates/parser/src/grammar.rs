@@ -12,12 +12,12 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
     m.complete(p, SyntaxKind::Root);
 }
 
-fn parse_expr(p: &mut Parser<'_, '_>) {
+fn parse_expr(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     parse_expr_bp(p, 0)
 }
 
-fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) {
-    let mut lhs = parse_lhs(p);
+fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> {
+    let mut lhs = parse_lhs(p)?;
 
     loop {
         let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
@@ -38,18 +38,22 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) {
         parse_expr_bp(p, right_bp);
         lhs = m.complete(p, SyntaxKind::BinExpr);
     }
+
+    Some(lhs)
 }
 
-fn parse_lhs(p: &mut Parser<'_, '_>) -> CompletedMarker {
-    if p.at(TokenKind::Ident) {
+fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+    let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
         parse_int_literal(p)
     } else if p.at(TokenKind::LParen) {
         parse_paren_expr(p)
     } else {
-        panic!();
-    }
+        return p.error();
+    };
+
+    Some(completed_marker)
 }
 
 fn parse_var_ref(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -359,6 +363,88 @@ Root@0..3
       Ident@1..2 "a"
       Whitespace@2..3 " "
 error at 1..2: expected `+`, `-`, `*`, `/` or `)`"#]],
+        );
+    }
+
+    #[test]
+    fn parse_bin_expr_without_rhs() {
+        check(
+            "1+",
+            expect![[r#"
+Root@0..2
+  BinExpr@0..2
+    IntLiteral@0..1
+      Int@0..1 "1"
+    Plus@1..2 "+"
+error at 1..2: expected identifier, integer literal or `(`"#]],
+        );
+    }
+
+    #[test]
+    fn parse_bin_expr_with_broken_lhs() {
+        check(
+            "å*5",
+            expect![[r#"
+Root@0..4
+  BinExpr@0..4
+    Error@0..2
+      Error@0..2 "å"
+    Asterisk@2..3 "*"
+    IntLiteral@3..4
+      Int@3..4 "5"
+error at 0..2: expected identifier, integer literal or `(` but found an unrecognized token"#]],
+        );
+    }
+
+    #[test]
+    fn parse_bin_expr_with_broken_rhs() {
+        check(
+            "10 - %",
+            expect![[r#"
+Root@0..6
+  BinExpr@0..6
+    IntLiteral@0..3
+      Int@0..2 "10"
+      Whitespace@2..3 " "
+    Hyphen@3..4 "-"
+    Whitespace@4..5 " "
+    Error@5..6
+      Error@5..6 "%"
+error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token"#]],
+        );
+    }
+
+    #[test]
+    fn parse_nested_bin_expr_with_broken_lhs_and_rhs() {
+        check(
+            "5 * ($ - foo) / ?",
+            expect![[r#"
+Root@0..17
+  BinExpr@0..17
+    BinExpr@0..14
+      IntLiteral@0..2
+        Int@0..1 "5"
+        Whitespace@1..2 " "
+      Asterisk@2..3 "*"
+      Whitespace@3..4 " "
+      ParenExpr@4..14
+        LParen@4..5 "("
+        BinExpr@5..12
+          Error@5..7
+            Error@5..6 "$"
+            Whitespace@6..7 " "
+          Hyphen@7..8 "-"
+          Whitespace@8..9 " "
+          VarRef@9..12
+            Ident@9..12 "foo"
+        RParen@12..13 ")"
+        Whitespace@13..14 " "
+    Slash@14..15 "/"
+    Whitespace@15..16 " "
+    Error@16..17
+      Error@16..17 "?"
+error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
+error at 16..17: expected identifier, integer literal or `(` but found an unrecognized token"#]],
         );
     }
 }
