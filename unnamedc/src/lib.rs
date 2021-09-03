@@ -2,5 +2,5 @@ mod lexer;
 mod parser;
 mod syntax;
 
-pub use lexer::lex;
-pub use parser::{parse, Parse};
+pub use self::lexer::lex;
+pub use self::parser::{parse, Parse};

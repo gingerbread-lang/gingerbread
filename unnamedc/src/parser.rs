@@ -1,32 +1,43 @@
+mod event;
+mod marker;
+mod sink;
+
+use self::event::Event;
+use self::marker::Marker;
+use self::sink::Sink;
 use crate::lexer::Token;
-use crate::syntax::{SyntaxKind, SyntaxNode, UnnamedLang};
-use rowan::{GreenNode, GreenNodeBuilder, Language};
+use crate::syntax::{SyntaxKind, SyntaxNode};
+use rowan::GreenNode;
 
 pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
-    Parser::new(tokens).parse()
+    let tokens: Vec<_> = tokens.collect();
+    let events = Parser::new(&tokens).parse();
+
+    Sink::new(events, tokens).finish()
 }
 
-struct Parser<'a, I: Iterator<Item = Token<'a>>> {
-    tokens: I,
-    builder: GreenNodeBuilder<'static>,
+struct Parser<'tokens, 'input> {
+    tokens: &'tokens [Token<'input>],
+    events: Vec<Event>,
 }
 
-impl<'a, I: Iterator<Item = Token<'a>>> Parser<'a, I> {
-    fn new(tokens: I) -> Self {
-        Self { tokens, builder: GreenNodeBuilder::new() }
+impl<'tokens, 'input> Parser<'tokens, 'input> {
+    fn new(tokens: &'tokens [Token<'input>]) -> Self {
+        Self { tokens, events: Vec::new() }
     }
 
-    fn parse(mut self) -> Parse {
-        self.builder.start_node(UnnamedLang::kind_to_raw(SyntaxKind::Root));
-        self.builder.start_node(UnnamedLang::kind_to_raw(SyntaxKind::VarRef));
+    fn parse(mut self) -> Vec<Event> {
+        self.events.push(Event::StartNode { kind: SyntaxKind::Root });
+        self.events.push(Event::StartNode { kind: SyntaxKind::VarRef });
+        self.events.push(Event::Token);
+        self.events.push(Event::FinishNode);
+        self.events.push(Event::FinishNode);
 
-        let token = self.tokens.next().unwrap();
-        self.builder.token(UnnamedLang::kind_to_raw(token.kind.into()), token.text);
+        self.events
+    }
 
-        self.builder.finish_node();
-        self.builder.finish_node();
-
-        Parse { green_node: self.builder.finish() }
+    fn start(&self) -> Marker {
+        Marker::new(self.events.len())
     }
 }
 
@@ -66,6 +77,19 @@ mod tests {
 Root@0..3
   VarRef@0..3
     Ident@0..3 "foo""#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_ref_with_whitespace() {
+        check(
+            " foo   ",
+            expect![[r#"
+Root@0..7
+  Whitespace@0..1 " "
+  VarRef@1..7
+    Ident@1..4 "foo"
+    Whitespace@4..7 "   ""#]],
         );
     }
 }
