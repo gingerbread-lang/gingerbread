@@ -5,7 +5,7 @@ mod sink;
 use self::event::Event;
 use self::marker::Marker;
 use self::sink::Sink;
-use crate::lexer::Token;
+use crate::lexer::{Token, TokenKind};
 use crate::syntax::{SyntaxKind, SyntaxNode};
 use rowan::GreenNode;
 
@@ -18,22 +18,50 @@ pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
 
 struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
+    token_idx: usize,
     events: Vec<Event>,
 }
 
 impl<'tokens, 'input> Parser<'tokens, 'input> {
     fn new(tokens: &'tokens [Token<'input>]) -> Self {
-        Self { tokens, events: Vec::new() }
+        Self { tokens, token_idx: 0, events: Vec::new() }
     }
 
     fn parse(mut self) -> Vec<Event> {
         let root_m = self.start();
-        let m = self.start();
-        self.events.push(Event::Token);
-        m.complete(&mut self, SyntaxKind::VarRef);
+
+        if self.at(TokenKind::Ident) {
+            self.parse_var_ref();
+        }
+
         root_m.complete(&mut self, SyntaxKind::Root);
 
         self.events
+    }
+
+    fn parse_var_ref(&mut self) {
+        assert!(self.at(TokenKind::Ident));
+
+        let m = self.start();
+        self.add_token();
+
+        m.complete(self, SyntaxKind::VarRef);
+    }
+
+    fn at(&mut self, kind: TokenKind) -> bool {
+        self.skip_whitespace();
+
+        self.at_raw(kind)
+    }
+
+    fn skip_whitespace(&mut self) {
+        if self.at_raw(TokenKind::Whitespace) {
+            self.token_idx += 1;
+        }
+    }
+
+    fn at_raw(&self, kind: TokenKind) -> bool {
+        self.tokens.get(self.token_idx).map_or(false, |token| token.kind == kind)
     }
 
     fn start(&mut self) -> Marker {
@@ -41,6 +69,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.events.push(Event::Placeholder);
 
         Marker::new(pos)
+    }
+
+    fn add_token(&mut self) {
+        self.events.push(Event::AddToken);
+        self.token_idx += 1;
     }
 }
 
@@ -70,6 +103,11 @@ mod tests {
     fn check(input: &str, expect: Expect) {
         let parse = parse(lex(input));
         expect.assert_eq(&parse.debug_syntax_tree());
+    }
+
+    #[test]
+    fn parse_nothing() {
+        check("", expect![["Root@0..0"]]);
     }
 
     #[test]

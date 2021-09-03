@@ -24,7 +24,7 @@ impl<'a> Sink<'a> {
                     self.builder.start_node(UnnamedLang::kind_to_raw(kind))
                 }
                 Event::FinishNode => self.builder.finish_node(),
-                Event::Token => self.add_token(),
+                Event::AddToken => self.add_token(),
                 Event::Placeholder => unreachable!(),
             }
 
