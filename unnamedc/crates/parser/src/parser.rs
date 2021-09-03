@@ -3,6 +3,7 @@ mod marker;
 pub(crate) use self::marker::{CompletedMarker, Marker};
 use crate::error::ParseError;
 use crate::event::Event;
+use std::collections::BTreeSet;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
@@ -10,12 +11,12 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
-    expected_kinds: Vec<TokenKind>,
+    expected_kinds: BTreeSet<TokenKind>,
 }
 
 impl<'tokens, 'input> Parser<'tokens, 'input> {
     pub(crate) fn new(tokens: &'tokens [Token<'input>]) -> Self {
-        Self { tokens, token_idx: 0, events: Vec::new(), expected_kinds: Vec::new() }
+        Self { tokens, token_idx: 0, events: Vec::new(), expected_kinds: BTreeSet::new() }
     }
 
     pub(crate) fn parse(mut self, grammar: impl Fn(&mut Self)) -> Vec<Event> {
@@ -74,7 +75,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
-        self.expected_kinds.push(kind);
+        self.expected_kinds.insert(kind);
 
         self.skip_whitespace();
         self.at_raw(kind)

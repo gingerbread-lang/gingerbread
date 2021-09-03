@@ -1,10 +1,11 @@
+use std::collections::BTreeSet;
 use std::fmt;
 use text_size::TextRange;
 use token::TokenKind;
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct ParseError {
-    pub(crate) expected: Vec<TokenKind>,
+    pub(crate) expected: BTreeSet<TokenKind>,
     pub(crate) found: Option<TokenKind>,
     pub(crate) range: TextRange,
 }
@@ -65,7 +66,7 @@ mod tests {
         formatted: Expect,
     ) {
         let error = ParseError {
-            expected: expected.to_vec(),
+            expected: IntoIterator::into_iter(expected).collect(),
             found,
             range: TextRange::new(TextSize::from(from), TextSize::from(to)),
         };
@@ -96,7 +97,7 @@ mod tests {
             Some(TokenKind::Plus),
             92,
             100,
-            expect![[r#"error at 92..100: expected integer literal or identifier but found `+`"#]],
+            expect![[r#"error at 92..100: expected identifier or integer literal but found `+`"#]],
         );
     }
 
