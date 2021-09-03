@@ -554,4 +554,31 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn recover_on_let_token() {
+        check(
+            "let foo =\nlet bar = 92",
+            expect![[r#"
+                Root@0..22
+                  VarDef@0..10
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "foo"
+                    Whitespace@7..8 " "
+                    Eq@8..9 "="
+                    Whitespace@9..10 "\n"
+                  VarDef@10..22
+                    LetKw@10..13 "let"
+                    Whitespace@13..14 " "
+                    Ident@14..17 "bar"
+                    Whitespace@17..18 " "
+                    Eq@18..19 "="
+                    Whitespace@19..20 " "
+                    IntLiteral@20..22
+                      Int@20..22 "92"
+                error at 8..9: expected identifier, integer literal or `(`
+            "#]],
+        );
+    }
 }

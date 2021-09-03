@@ -7,6 +7,8 @@ use std::collections::BTreeSet;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
+const RECOVERY_SET: [TokenKind; 1] = [TokenKind::LetKw];
+
 pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
@@ -33,6 +35,21 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn error(&mut self) -> Option<CompletedMarker> {
+        // when we’re at EOF or at a token we shouldn’t skip,
+        // we use the *previous* non-whitespace token’s range
+        // and don’t create an error node
+
+        if self.at_eof() || self.at_set(RECOVERY_SET) {
+            let range = self.previous_token().range;
+            self.events.push(Event::Error(ParseError {
+                expected: self.expected_kinds.clone(),
+                found: None,
+                range,
+            }));
+
+            return None;
+        }
+
         let current_token = self.current_token();
 
         self.events.push(Event::Error(ParseError {
@@ -57,10 +74,6 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
                     .unwrap()
             },
         }));
-
-        if self.at_eof() {
-            return None;
-        }
 
         let m = self.start();
         self.bump();
@@ -90,6 +103,21 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.expected_kinds.clear();
         self.events.push(Event::AddToken);
         self.token_idx += 1;
+    }
+
+    fn at_set<const SET_LEN: usize>(&self, set: [TokenKind; SET_LEN]) -> bool {
+        self.peek().map_or(false, |kind| set.contains(&kind))
+    }
+
+    fn previous_token(&mut self) -> Token<'input> {
+        let mut previous_token_idx = self.token_idx - 1;
+        while let Some(Token { kind: TokenKind::Whitespace, .. }) =
+            self.tokens.get(previous_token_idx)
+        {
+            previous_token_idx -= 1;
+        }
+
+        self.tokens[previous_token_idx]
     }
 
     fn skip_whitespace(&mut self) {
