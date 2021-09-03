@@ -5,10 +5,16 @@ use token::TokenKind;
 pub(crate) fn root(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
-    if p.at(TokenKind::LetKw) {
-        parse_var_def(p);
-    } else if !p.at_eof() {
-        parse_expr(p);
+    loop {
+        if p.at_eof() {
+            break;
+        }
+
+        if p.at(TokenKind::LetKw) {
+            parse_var_def(p);
+        } else {
+            parse_expr(p);
+        }
     }
 
     m.complete(p, SyntaxKind::Root);
@@ -502,6 +508,49 @@ mod tests {
                     Whitespace@7..8 " "
                     VarRef@8..9
                       Ident@8..9 "b"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_2_var_defs() {
+        check(
+            "let b=c\nlet a=b",
+            expect![[r#"
+                Root@0..15
+                  VarDef@0..8
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "b"
+                    Eq@5..6 "="
+                    VarRef@6..8
+                      Ident@6..7 "c"
+                      Whitespace@7..8 "\n"
+                  VarDef@8..15
+                    LetKw@8..11 "let"
+                    Whitespace@11..12 " "
+                    Ident@12..13 "a"
+                    Eq@13..14 "="
+                    VarRef@14..15
+                      Ident@14..15 "b"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_2_exprs() {
+        check(
+            "2 4 6",
+            expect![[r#"
+                Root@0..5
+                  IntLiteral@0..2
+                    Int@0..1 "2"
+                    Whitespace@1..2 " "
+                  IntLiteral@2..4
+                    Int@2..3 "4"
+                    Whitespace@3..4 " "
+                  IntLiteral@4..5
+                    Int@4..5 "6"
             "#]],
         );
     }
