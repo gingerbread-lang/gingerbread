@@ -27,6 +27,9 @@ pub struct Token<'a> {
 
 #[derive(Debug, PartialEq, Logos)]
 enum TokenKind {
+    #[regex("[a-zA-Z0-9_]+")]
+    Ident,
+
     #[regex("[ \n]+")]
     Whitespace,
 
@@ -42,14 +45,44 @@ mod tests {
         let mut tokens = lex(input);
 
         let token = tokens.next().unwrap();
-        assert!(tokens.next().is_none()); // we should only get one token
-
         assert_eq!(token.kind, expected_kind);
         assert_eq!(token.text, input); // the token should span the entire input
+
+        assert!(tokens.next().is_none()); // we should only get one token
     }
 
     #[test]
     fn lex_whitespace() {
         check("  \n ", TokenKind::Whitespace);
+    }
+
+    #[test]
+    fn lex_lowercase_alphabetic_ident() {
+        check("abc", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_uppercase_alphabetic_ident() {
+        check("ABC", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_mixed_case_alphabetic_ident() {
+        check("abCdEFg", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_alphanumeric_ident() {
+        check("abc123def", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_ident_with_underscores() {
+        check("a_b_c", TokenKind::Ident);
+    }
+
+    #[test]
+    fn lex_ident_starting_with_underscore() {
+        check("__main__", TokenKind::Ident);
     }
 }
