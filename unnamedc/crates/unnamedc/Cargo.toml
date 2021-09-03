@@ -7,3 +7,4 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0"
 lexer = {path = "../lexer"}
+parser = {path = "../parser"}

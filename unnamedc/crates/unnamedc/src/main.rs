@@ -8,7 +8,10 @@ fn main() -> anyhow::Result<()> {
         stdin.read_line(&mut input)?;
 
         let tokens = lexer::lex(&input);
-        dbg!(tokens.collect::<Vec<_>>());
+        dbg!(lexer::lex(&input).collect::<Vec<_>>());
+
+        let parse = parser::parse(tokens);
+        dbg!(parse);
 
         input.clear();
     }
