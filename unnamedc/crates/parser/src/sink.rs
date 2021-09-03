@@ -26,6 +26,7 @@ impl<'a> Sink<'a> {
                 Event::FinishNode => self.builder.finish_node(),
                 Event::AddToken => self.add_token(),
                 Event::Placeholder => unreachable!(),
+                Event::Abandoned => {}
             }
 
             self.skip_whitespace();

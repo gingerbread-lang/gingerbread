@@ -20,4 +20,10 @@ impl Marker {
         assert_eq!(old_event, Event::Placeholder);
         p.events.push(Event::FinishNode);
     }
+
+    pub(crate) fn abandon(mut self, p: &mut Parser<'_, '_>) {
+        self.bomb.defuse();
+        let old_event = mem::replace(&mut p.events[self.pos], Event::Abandoned);
+        assert_eq!(old_event, Event::Placeholder);
+    }
 }

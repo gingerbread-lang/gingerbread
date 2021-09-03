@@ -32,6 +32,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.at_raw(kind)
     }
 
+    pub(crate) fn at_eof(&mut self) -> bool {
+        self.skip_whitespace();
+        self.current_token().is_none()
+    }
+
     pub(crate) fn bump(&mut self) {
         self.events.push(Event::AddToken);
         self.token_idx += 1;
@@ -44,6 +49,10 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     fn at_raw(&self, kind: TokenKind) -> bool {
-        self.tokens.get(self.token_idx).map_or(false, |token| token.kind == kind)
+        self.current_token().map_or(false, |token| token.kind == kind)
+    }
+
+    fn current_token(&self) -> Option<Token<'input>> {
+        self.tokens.get(self.token_idx).copied()
     }
 }

@@ -34,6 +34,7 @@ pub enum SyntaxKind {
     Root,
     VarRef,
     IntLiteral,
+    BinExpr,
 }
 
 impl From<TokenKind> for SyntaxKind {
