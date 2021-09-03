@@ -7,6 +7,8 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
 
     if p.at(TokenKind::Ident) {
         parse_var_ref(p);
+    } else if p.at(TokenKind::Int) {
+        parse_int_literal(p);
     }
 
     m.complete(p, SyntaxKind::Root);
@@ -14,11 +16,16 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
 
 fn parse_var_ref(p: &mut Parser<'_, '_>) {
     assert!(p.at(TokenKind::Ident));
-
     let m = p.start();
     p.bump();
-
     m.complete(p, SyntaxKind::VarRef);
+}
+
+fn parse_int_literal(p: &mut Parser<'_, '_>) {
+    assert!(p.at(TokenKind::Int));
+    let m = p.start();
+    p.bump();
+    m.complete(p, SyntaxKind::IntLiteral);
 }
 
 #[cfg(test)]
@@ -57,6 +64,17 @@ Root@0..7
   VarRef@1..7
     Ident@1..4 "foo"
     Whitespace@4..7 "   ""#]],
+        );
+    }
+
+    #[test]
+    fn parse_int_literal() {
+        check(
+            "123",
+            expect![[r#"
+Root@0..3
+  IntLiteral@0..3
+    Int@0..3 "123""#]],
         );
     }
 }
