@@ -46,6 +46,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Hyphen => "`-`",
         TokenKind::Asterisk => "`*`",
         TokenKind::Slash => "`/`",
+        TokenKind::Eq => "`=`",
         TokenKind::LParen => "`(`",
         TokenKind::RParen => "`)`",
         TokenKind::Whitespace => "whitespace",

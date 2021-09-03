@@ -31,6 +31,7 @@ pub enum TokenKind {
     Hyphen,
     Asterisk,
     Slash,
+    Eq,
     LParen,
     RParen,
     Whitespace,

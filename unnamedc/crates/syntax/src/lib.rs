@@ -29,6 +29,7 @@ pub enum SyntaxKind {
     Hyphen,
     Asterisk,
     Slash,
+    Eq,
     LParen,
     RParen,
     Whitespace,

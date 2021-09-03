@@ -54,6 +54,9 @@ enum LexerTokenKind {
     #[token("/")]
     Slash,
 
+    #[token("=")]
+    Eq,
+
     #[token("(")]
     LParen,
 
@@ -170,6 +173,11 @@ mod tests {
     #[test]
     fn lex_slash() {
         check("/", TokenKind::Slash);
+    }
+
+    #[test]
+    fn lex_eq() {
+        check("=", TokenKind::Eq);
     }
 
     #[test]
