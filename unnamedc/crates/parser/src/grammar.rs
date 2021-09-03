@@ -556,7 +556,7 @@ mod tests {
     }
 
     #[test]
-    fn recover_on_let_token() {
+    fn parse_var_defs_with_missing_value() {
         check(
             "let foo =\nlet bar = 92",
             expect![[r#"
@@ -578,6 +578,28 @@ mod tests {
                     IntLiteral@20..22
                       Int@20..22 "92"
                 error at 8..9: expected identifier, integer literal or `(`
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_broken_var_defs() {
+        check(
+            "let a let",
+            expect![[r#"
+                Root@0..9
+                  VarDef@0..6
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "a"
+                    Whitespace@5..6 " "
+                  VarDef@6..9
+                    LetKw@6..9 "let"
+                error at 4..5: expected `=`
+                error at 4..5: expected identifier, integer literal or `(`
+                error at 6..9: expected identifier
+                error at 6..9: expected `=`
+                error at 6..9: expected identifier, integer literal or `(`
             "#]],
         );
     }

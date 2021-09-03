@@ -4,6 +4,7 @@ pub(crate) use self::marker::{CompletedMarker, Marker};
 use crate::error::ParseError;
 use crate::event::Event;
 use std::collections::BTreeSet;
+use std::mem;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
@@ -35,17 +36,15 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn error(&mut self) -> Option<CompletedMarker> {
+        let expected = mem::take(&mut self.expected_kinds);
+
         // when we’re at EOF or at a token we shouldn’t skip,
         // we use the *previous* non-whitespace token’s range
         // and don’t create an error node
 
         if self.at_eof() || self.at_set(RECOVERY_SET) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(ParseError {
-                expected: self.expected_kinds.clone(),
-                found: None,
-                range,
-            }));
+            self.events.push(Event::Error(ParseError { expected, found: None, range }));
 
             return None;
         }
@@ -53,7 +52,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         let current_token = self.current_token();
 
         self.events.push(Event::Error(ParseError {
-            expected: self.expected_kinds.clone(),
+            expected,
             found: current_token.map(|token| token.kind),
             range: {
                 // we use the current token’s range
