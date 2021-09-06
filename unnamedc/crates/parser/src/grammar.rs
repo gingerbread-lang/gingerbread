@@ -10,6 +10,7 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
             break;
         }
 
+        let _guard = p.expected_name("statement");
         if p.at(TokenKind::LetKw) {
             parse_var_def(p);
         } else {
@@ -25,7 +26,11 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
 
-    p.expect(TokenKind::Ident);
+    {
+        let _guard = p.expected_name("variable name");
+        p.expect_with_recovery_set(TokenKind::Ident, [TokenKind::Eq]);
+    }
+
     p.expect(TokenKind::Eq);
     parse_expr(p);
 
@@ -40,6 +45,7 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> 
     let mut lhs = parse_lhs(p)?;
 
     loop {
+        let _guard = p.expected_name("binary operator");
         let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
             (1, 2)
         } else if p.at(TokenKind::Asterisk) || p.at(TokenKind::Slash) {
@@ -63,6 +69,7 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> 
 }
 
 fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+    let _guard = p.expected_name("expression");
     let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
@@ -386,7 +393,7 @@ mod tests {
                     LParen@0..1 "("
                     VarRef@1..4
                       Ident@1..4 "foo"
-                error at 1..4: expected `+`, `-`, `*`, `/` or `)`
+                error at 1..4: expected binary operator (`+`, `-`, `*` or `/`) or `)`
             "#]],
         );
     }
@@ -402,7 +409,7 @@ mod tests {
                     VarRef@1..3
                       Ident@1..2 "a"
                       Whitespace@2..3 " "
-                error at 1..2: expected `+`, `-`, `*`, `/` or `)`
+                error at 1..2: expected binary operator (`+`, `-`, `*` or `/`) or `)`
             "#]],
         );
     }
@@ -417,7 +424,7 @@ mod tests {
                     IntLiteral@0..1
                       Int@0..1 "1"
                     Plus@1..2 "+"
-                error at 1..2: expected identifier, integer literal or `(`
+                error at 1..2: expected expression (identifier, integer literal or `(`)
             "#]],
         );
     }
@@ -434,7 +441,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected `let`, identifier, integer literal or `(` but found an unrecognized token
+                error at 0..2: expected expression (identifier, integer literal or `(`) or statement (`let`) but found an unrecognized token
             "#]],
         );
     }
@@ -453,7 +460,7 @@ mod tests {
                     Whitespace@4..5 " "
                     Error@5..6
                       Error@5..6 "%"
-                error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
+                error at 5..6: expected expression (identifier, integer literal or `(`) but found an unrecognized token
             "#]],
         );
     }
@@ -487,8 +494,8 @@ mod tests {
                     Whitespace@15..16 " "
                     Error@16..17
                       Error@16..17 "?"
-                error at 5..6: expected identifier, integer literal or `(` but found an unrecognized token
-                error at 16..17: expected identifier, integer literal or `(` but found an unrecognized token
+                error at 5..6: expected expression (identifier, integer literal or `(`) but found an unrecognized token
+                error at 16..17: expected expression (identifier, integer literal or `(`) but found an unrecognized token
             "#]],
         );
     }
@@ -556,6 +563,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_var_def_with_missing_name() {
+        check(
+            "let = 92",
+            expect![[r#"
+                Root@0..8
+                  VarDef@0..8
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Eq@4..5 "="
+                    Whitespace@5..6 " "
+                    IntLiteral@6..8
+                      Int@6..8 "92"
+                error at 0..3: expected variable name (identifier)
+            "#]],
+        );
+    }
+
+    #[test]
     fn parse_var_defs_with_missing_value() {
         check(
             "let foo =\nlet bar = 92",
@@ -577,7 +602,7 @@ mod tests {
                     Whitespace@19..20 " "
                     IntLiteral@20..22
                       Int@20..22 "92"
-                error at 8..9: expected identifier, integer literal or `(`
+                error at 8..9: expected expression (identifier, integer literal or `(`)
             "#]],
         );
     }
@@ -596,10 +621,50 @@ mod tests {
                   VarDef@6..9
                     LetKw@6..9 "let"
                 error at 4..5: expected `=`
-                error at 4..5: expected identifier, integer literal or `(`
-                error at 6..9: expected identifier
+                error at 4..5: expected expression (identifier, integer literal or `(`)
+                error at 6..9: expected variable name (identifier)
                 error at 6..9: expected `=`
-                error at 6..9: expected identifier, integer literal or `(`
+                error at 6..9: expected expression (identifier, integer literal or `(`)
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_def_with_only_let() {
+        check(
+            "let",
+            expect![[r#"
+                Root@0..3
+                  VarDef@0..3
+                    LetKw@0..3 "let"
+                error at 0..3: expected variable name (identifier)
+                error at 0..3: expected `=`
+                error at 0..3: expected expression (identifier, integer literal or `(`)
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_defs_first_with_only_let() {
+        check(
+            "let let a = b",
+            expect![[r#"
+                Root@0..13
+                  VarDef@0..4
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                  VarDef@4..13
+                    LetKw@4..7 "let"
+                    Whitespace@7..8 " "
+                    Ident@8..9 "a"
+                    Whitespace@9..10 " "
+                    Eq@10..11 "="
+                    Whitespace@11..12 " "
+                    VarRef@12..13
+                      Ident@12..13 "b"
+                error at 0..3: expected variable name (identifier)
+                error at 0..3: expected `=`
+                error at 0..3: expected expression (identifier, integer literal or `(`)
             "#]],
         );
     }
