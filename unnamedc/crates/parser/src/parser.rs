@@ -5,6 +5,7 @@ use self::expected_syntax_name_guard::ExpectedSyntaxNameGuard;
 pub(crate) use self::marker::{CompletedMarker, Marker};
 use crate::error::{ExpectedSyntax, ParseError};
 use crate::event::Event;
+use crate::token_set::TokenSet;
 use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::mem;
@@ -12,7 +13,7 @@ use std::rc::Rc;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
-const DEFAULT_RECOVERY_SET: [TokenKind; 1] = [TokenKind::LetKw];
+const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([TokenKind::LetKw]);
 
 #[derive(Debug)]
 pub(crate) struct Parser<'tokens, 'input> {
@@ -43,22 +44,16 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.expect_with_recovery_set(kind, DEFAULT_RECOVERY_SET)
     }
 
-    pub(crate) fn expect_with_recovery_set<const LEN: usize>(
-        &mut self,
-        kind: TokenKind,
-        recovery_set: [TokenKind; LEN],
-    ) {
+    pub(crate) fn expect_with_recovery_set(&mut self, kind: TokenKind, recovery_set: TokenSet) {
         if self.at(kind) {
             self.bump();
         } else {
-            let mut recovery_set_with_defaults = DEFAULT_RECOVERY_SET.to_vec();
-            recovery_set_with_defaults.extend_from_slice(&recovery_set);
-            self.error_with_recovery_set(&recovery_set_with_defaults);
+            self.error_with_recovery_set(recovery_set | DEFAULT_RECOVERY_SET);
         }
     }
 
     pub(crate) fn error(&mut self) -> Option<CompletedMarker> {
-        self.error_with_recovery_set(&DEFAULT_RECOVERY_SET)
+        self.error_with_recovery_set(DEFAULT_RECOVERY_SET)
     }
 
     #[must_use]
@@ -103,7 +98,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.token_idx += 1;
     }
 
-    fn error_with_recovery_set(&mut self, recovery_set: &[TokenKind]) -> Option<CompletedMarker> {
+    fn error_with_recovery_set(&mut self, recovery_set: TokenSet) -> Option<CompletedMarker> {
         let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
         self.is_named_expected_syntax_active.set(false);
 
@@ -153,8 +148,8 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.is_named_expected_syntax_active.set(false);
     }
 
-    fn at_set(&self, set: &[TokenKind]) -> bool {
-        self.peek().map_or(false, |kind| set.contains(&kind))
+    fn at_set(&self, set: TokenSet) -> bool {
+        self.peek().map_or(false, |kind| set.contains(kind))
     }
 
     fn previous_token(&mut self) -> Token<'input> {

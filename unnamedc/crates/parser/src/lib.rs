@@ -3,6 +3,7 @@ mod event;
 mod grammar;
 mod parser;
 mod sink;
+mod token_set;
 
 use self::error::ParseError;
 use self::event::Event;

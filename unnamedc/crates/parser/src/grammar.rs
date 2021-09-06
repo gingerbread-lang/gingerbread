@@ -1,4 +1,5 @@
 use crate::parser::{CompletedMarker, Parser};
+use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
@@ -28,7 +29,7 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     {
         let _guard = p.expected_syntax_name("variable name");
-        p.expect_with_recovery_set(TokenKind::Ident, [TokenKind::Eq]);
+        p.expect_with_recovery_set(TokenKind::Ident, TokenSet::new([TokenKind::Eq]));
     }
 
     p.expect(TokenKind::Eq);
