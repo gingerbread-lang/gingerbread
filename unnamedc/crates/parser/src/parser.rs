@@ -1,9 +1,9 @@
-mod expected_name_guard;
+mod expected_syntax_name_guard;
 mod marker;
 
-use self::expected_name_guard::ExpectedNameGuard;
+use self::expected_syntax_name_guard::ExpectedSyntaxNameGuard;
 pub(crate) use self::marker::{CompletedMarker, Marker};
-use crate::error::{ExpectedGroup, ParseError};
+use crate::error::{ExpectedSyntax, ParseError};
 use crate::event::Event;
 use std::cell::Cell;
 use std::collections::BTreeSet;
@@ -19,8 +19,8 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
-    expected_groups: Vec<ExpectedGroup>,
-    current_expected_group: Rc<Cell<Option<usize>>>,
+    expected_syntaxes: Vec<ExpectedSyntax>,
+    is_named_expected_syntax_active: Rc<Cell<bool>>,
 }
 
 impl<'tokens, 'input> Parser<'tokens, 'input> {
@@ -29,8 +29,8 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             tokens,
             token_idx: 0,
             events: Vec::new(),
-            expected_groups: Vec::new(),
-            current_expected_group: Rc::new(Cell::new(None)),
+            expected_syntaxes: Vec::new(),
+            is_named_expected_syntax_active: Rc::new(Cell::new(false)),
         }
     }
 
@@ -62,11 +62,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     #[must_use]
-    pub(crate) fn expected_name(&mut self, name: &'static str) -> ExpectedNameGuard {
-        self.current_expected_group.set(Some(self.expected_groups.len()));
-        self.expected_groups.push(ExpectedGroup { name: Some(name), kinds: BTreeSet::new() });
+    pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxNameGuard {
+        self.is_named_expected_syntax_active.set(true);
+        self.expected_syntaxes.push(ExpectedSyntax::Named { name, kinds: BTreeSet::new() });
 
-        ExpectedNameGuard::new(Rc::clone(&self.current_expected_group))
+        ExpectedSyntaxNameGuard::new(Rc::clone(&self.is_named_expected_syntax_active))
     }
 
     pub(crate) fn start(&mut self) -> Marker {
@@ -77,8 +77,16 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
-        let group = self.ensure_expected_group_is_present();
-        group.kinds.insert(kind);
+        if self.is_named_expected_syntax_active.get() {
+            match self.expected_syntaxes.last_mut().unwrap() {
+                ExpectedSyntax::Named { kinds, .. } => {
+                    kinds.insert(kind);
+                }
+                ExpectedSyntax::One(_) => unreachable!(),
+            }
+        } else {
+            self.expected_syntaxes.push(ExpectedSyntax::One(kind));
+        }
 
         self.skip_whitespace();
         self.at_raw(kind)
@@ -90,14 +98,14 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn bump(&mut self) {
-        self.clear_expected_groups();
+        self.clear_expected_syntaxes();
         self.events.push(Event::AddToken);
         self.token_idx += 1;
     }
 
     fn error_with_recovery_set(&mut self, recovery_set: &[TokenKind]) -> Option<CompletedMarker> {
-        let expected_groups = mem::take(&mut self.expected_groups);
-        self.current_expected_group.set(None);
+        let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
+        self.is_named_expected_syntax_active.set(false);
 
         // when we’re at EOF or at a token we shouldn’t skip,
         // we use the *previous* non-whitespace token’s range
@@ -105,7 +113,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
         if self.at_eof() || self.at_set(recovery_set) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(ParseError::new(expected_groups, None, range)));
+            self.events.push(Event::Error(ParseError::new(expected_syntaxes, None, range)));
 
             return None;
         }
@@ -130,7 +138,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             .unwrap();
 
         self.events.push(Event::Error(ParseError::new(
-            expected_groups,
+            expected_syntaxes,
             current_token.map(|token| token.kind),
             range,
         )));
@@ -140,23 +148,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         Some(m.complete(self, SyntaxKind::Error))
     }
 
-    fn clear_expected_groups(&mut self) {
-        self.expected_groups.clear();
-        self.current_expected_group.set(None);
-    }
-
-    fn ensure_expected_group_is_present(&mut self) -> &mut ExpectedGroup {
-        let idx = if let Some(idx) = self.current_expected_group.get() {
-            idx
-        } else {
-            let idx = self.expected_groups.len();
-            self.current_expected_group.set(Some(idx));
-            self.expected_groups.push(ExpectedGroup { name: None, kinds: BTreeSet::new() });
-
-            idx
-        };
-
-        &mut self.expected_groups[idx]
+    fn clear_expected_syntaxes(&mut self) {
+        self.expected_syntaxes.clear();
+        self.is_named_expected_syntax_active.set(false);
     }
 
     fn at_set(&self, set: &[TokenKind]) -> bool {

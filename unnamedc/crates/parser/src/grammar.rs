@@ -10,7 +10,7 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
             break;
         }
 
-        let _guard = p.expected_name("statement");
+        let _guard = p.expected_syntax_name("statement");
         if p.at(TokenKind::LetKw) {
             parse_var_def(p);
         } else {
@@ -27,7 +27,7 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.bump();
 
     {
-        let _guard = p.expected_name("variable name");
+        let _guard = p.expected_syntax_name("variable name");
         p.expect_with_recovery_set(TokenKind::Ident, [TokenKind::Eq]);
     }
 
@@ -45,7 +45,7 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> 
     let mut lhs = parse_lhs(p)?;
 
     loop {
-        let _guard = p.expected_name("binary operator");
+        let _guard = p.expected_syntax_name("binary operator");
         let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
             (1, 2)
         } else if p.at(TokenKind::Asterisk) || p.at(TokenKind::Slash) {
@@ -69,7 +69,7 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> 
 }
 
 fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
-    let _guard = p.expected_name("expression");
+    let _guard = p.expected_syntax_name("expression");
     let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
