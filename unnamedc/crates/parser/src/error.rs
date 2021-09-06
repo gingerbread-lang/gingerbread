@@ -19,15 +19,7 @@ impl fmt::Display for ParseError {
             u32::from(self.range.end()),
         )?;
 
-        for (idx, &kind) in self.expected.iter().enumerate() {
-            if idx == 0 {
-                write!(f, " {}", format_kind(kind))?;
-            } else if idx == self.expected.len() - 1 {
-                write!(f, " or {}", format_kind(kind))?;
-            } else {
-                write!(f, ", {}", format_kind(kind))?;
-            }
-        }
+        format_comma_separated(f, self.expected.iter().map(|kind| format_kind(*kind)))?;
 
         if let Some(found) = self.found {
             write!(f, " but found {}", format_kind(found))?;
@@ -35,6 +27,25 @@ impl fmt::Display for ParseError {
 
         Ok(())
     }
+}
+
+fn format_comma_separated<'a>(
+    f: &'a mut fmt::Formatter<'_>,
+    items: impl ExactSizeIterator<Item = &'a str>,
+) -> fmt::Result {
+    let len = items.len();
+
+    for (idx, item) in items.enumerate() {
+        if idx == 0 {
+            write!(f, " {}", item)?;
+        } else if idx == len - 1 {
+            write!(f, " or {}", item)?;
+        } else {
+            write!(f, ", {}", item)?;
+        }
+    }
+
+    Ok(())
 }
 
 fn format_kind(kind: TokenKind) -> &'static str {
