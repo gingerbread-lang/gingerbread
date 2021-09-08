@@ -39,9 +39,10 @@ impl Evaluator {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs, exprs),
             hir::Expr::VarRef { name } => {
-                name.0.as_ref().and_then(|name| self.vars.get(name)).copied().unwrap_or(Val::Nil)
+                name.0.as_ref().and_then(|name| self.vars.get(name)).cloned().unwrap_or(Val::Nil)
             }
             hir::Expr::IntLiteral { value } => value.map_or(Val::Nil, Val::Int),
+            hir::Expr::StringLiteral { value } => value.clone().map_or(Val::Nil, Val::String),
         }
     }
 
@@ -73,10 +74,11 @@ impl Evaluator {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Val {
     Nil,
     Int(u32),
+    String(String),
 }
 
 #[cfg(test)]
@@ -95,6 +97,11 @@ mod tests {
     #[test]
     fn eval_int_literal() {
         check("92", Val::Int(92));
+    }
+
+    #[test]
+    fn eval_string_literal() {
+        check("\"foo\"", Val::String("foo".to_string()));
     }
 
     #[test]

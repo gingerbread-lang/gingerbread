@@ -62,6 +62,7 @@ pub enum SyntaxKind {
     Root,
     VarRef,
     IntLiteral,
+    StringLiteral,
     BinExpr,
     ParenExpr,
     VarDef,

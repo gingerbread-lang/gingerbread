@@ -75,6 +75,8 @@ fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
         parse_var_ref(p)
     } else if p.at(TokenKind::Int) {
         parse_int_literal(p)
+    } else if p.at(TokenKind::String) {
+        parse_string_literal(p)
     } else if p.at(TokenKind::LParen) {
         parse_paren_expr(p)
     } else {
@@ -96,6 +98,13 @@ fn parse_int_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::IntLiteral)
+}
+
+fn parse_string_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::String));
+    let m = p.start();
+    p.bump();
+    m.complete(p, SyntaxKind::StringLiteral)
 }
 
 fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -425,7 +434,7 @@ mod tests {
                     IntLiteral@0..1
                       Int@0..1 "1"
                     Plus@1..2 "+"
-                error at 1..2: expected expression (identifier, integer literal or `(`)
+                error at 1..2: expected expression (identifier, integer literal, string literal or `(`)
             "#]],
         );
     }
@@ -442,7 +451,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected expression (identifier, integer literal or `(`) or statement (`let`) but found an unrecognized token
+                error at 0..2: expected expression (identifier, integer literal, string literal or `(`) or statement (`let`) but found an unrecognized token
             "#]],
         );
     }
@@ -461,7 +470,7 @@ mod tests {
                     Whitespace@4..5 " "
                     Error@5..6
                       Error@5..6 "%"
-                error at 5..6: expected expression (identifier, integer literal or `(`) but found an unrecognized token
+                error at 5..6: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
             "#]],
         );
     }
@@ -495,8 +504,8 @@ mod tests {
                     Whitespace@15..16 " "
                     Error@16..17
                       Error@16..17 "?"
-                error at 5..6: expected expression (identifier, integer literal or `(`) but found an unrecognized token
-                error at 16..17: expected expression (identifier, integer literal or `(`) but found an unrecognized token
+                error at 5..6: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
+                error at 16..17: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
             "#]],
         );
     }
@@ -603,7 +612,7 @@ mod tests {
                     Whitespace@19..20 " "
                     IntLiteral@20..22
                       Int@20..22 "92"
-                error at 8..9: expected expression (identifier, integer literal or `(`)
+                error at 8..9: expected expression (identifier, integer literal, string literal or `(`)
             "#]],
         );
     }
@@ -622,10 +631,10 @@ mod tests {
                   VarDef@6..9
                     LetKw@6..9 "let"
                 error at 4..5: expected `=`
-                error at 4..5: expected expression (identifier, integer literal or `(`)
+                error at 4..5: expected expression (identifier, integer literal, string literal or `(`)
                 error at 6..9: expected variable name (identifier)
                 error at 6..9: expected `=`
-                error at 6..9: expected expression (identifier, integer literal or `(`)
+                error at 6..9: expected expression (identifier, integer literal, string literal or `(`)
             "#]],
         );
     }
@@ -640,7 +649,7 @@ mod tests {
                     LetKw@0..3 "let"
                 error at 0..3: expected variable name (identifier)
                 error at 0..3: expected `=`
-                error at 0..3: expected expression (identifier, integer literal or `(`)
+                error at 0..3: expected expression (identifier, integer literal, string literal or `(`)
             "#]],
         );
     }
@@ -665,7 +674,19 @@ mod tests {
                       Ident@12..13 "b"
                 error at 0..3: expected variable name (identifier)
                 error at 0..3: expected `=`
-                error at 0..3: expected expression (identifier, integer literal or `(`)
+                error at 0..3: expected expression (identifier, integer literal, string literal or `(`)
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_string_literal() {
+        check(
+            "\"Hello, world!\"",
+            expect![[r#"
+                Root@0..15
+                  StringLiteral@0..15
+                    String@0..15 "\"Hello, world!\""
             "#]],
         );
     }

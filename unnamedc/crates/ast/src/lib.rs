@@ -75,6 +75,7 @@ impl AstNode for Stmt {
             SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
             SyntaxKind::VarRef => Some(Self::Expr(Expr::VarRef(VarRef(node)))),
             SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
+            SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
             _ => None,
         }
     }
@@ -104,6 +105,7 @@ pub enum Expr {
     Paren(ParenExpr),
     VarRef(VarRef),
     IntLiteral(IntLiteral),
+    StringLiteral(StringLiteral),
 }
 
 impl AstNode for Expr {
@@ -113,6 +115,7 @@ impl AstNode for Expr {
             SyntaxKind::ParenExpr => Some(Self::Paren(ParenExpr(node))),
             SyntaxKind::VarRef => Some(Self::VarRef(VarRef(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
+            SyntaxKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
             _ => None,
         }
     }
@@ -123,6 +126,7 @@ impl AstNode for Expr {
             Self::Paren(paren_expr) => paren_expr.syntax(),
             Self::VarRef(var_ref) => var_ref.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
+            Self::StringLiteral(string_literal) => string_literal.syntax(),
         }
     }
 }
@@ -167,6 +171,14 @@ impl IntLiteral {
     }
 }
 
+def_ast_node!(StringLiteral);
+
+impl StringLiteral {
+    pub fn value(&self) -> Option<String> {
+        token(self)
+    }
+}
+
 pub enum Op {
     Add(Plus),
     Sub(Hyphen),
@@ -201,6 +213,7 @@ def_ast_token!(Asterisk);
 def_ast_token!(Slash);
 def_ast_token!(Ident);
 def_ast_token!(Int);
+def_ast_token!(String);
 
 fn nodes<Parent: AstNode, Child: AstNode>(node: &Parent) -> impl Iterator<Item = Child> {
     node.syntax().children().filter_map(Child::cast)
@@ -364,5 +377,19 @@ mod tests {
         };
 
         assert_eq!(int_literal.value().unwrap().text(), "92");
+    }
+
+    #[test]
+    fn get_value_of_string_literal() {
+        let syntax = parser::parse(lexer::lex("\"👀\"")).syntax_node();
+        let root = Root::cast(syntax).unwrap();
+        let stmt = root.stmts().next().unwrap();
+
+        let string_literal = match stmt {
+            Stmt::Expr(Expr::StringLiteral(string_literal)) => string_literal,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(string_literal.value().unwrap().text(), "\"👀\"");
     }
 }

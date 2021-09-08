@@ -48,6 +48,13 @@ impl LowerCtx {
                 hir::Expr::IntLiteral { value: ast.value().and_then(|ast| ast.text().parse().ok()) }
             }
 
+            Some(ast::Expr::StringLiteral(ast)) => hir::Expr::StringLiteral {
+                value: ast.value().map(|ast| {
+                    let text = ast.text();
+                    text[1..text.len() - 1].to_string()
+                }),
+            },
+
             None => hir::Expr::Missing,
         };
 
@@ -129,6 +136,14 @@ mod tests {
         let ninety_two = exprs.alloc(hir::Expr::IntLiteral { value: Some(92) });
 
         check("92", exprs, [hir::Stmt::Expr(ninety_two)]);
+    }
+
+    #[test]
+    fn lower_string_literal() {
+        let mut exprs = Arena::new();
+        let hello = exprs.alloc(hir::Expr::StringLiteral { value: Some("hello".to_string()) });
+
+        check("\"hello\"", exprs, [hir::Stmt::Expr(hello)]);
     }
 
     #[test]
