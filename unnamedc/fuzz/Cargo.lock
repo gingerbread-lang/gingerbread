@@ -46,7 +46,7 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "fuzz"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "lexer",
  "libfuzzer-sys",
@@ -61,7 +61,7 @@ checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 
 [[package]]
 name = "lexer"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "logos",
  "text-size",
@@ -120,7 +120,7 @@ checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 
 [[package]]
 name = "parser"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "drop_bomb",
  "rowan",
@@ -185,7 +185,7 @@ dependencies = [
 
 [[package]]
 name = "syntax"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "rowan",
  "token",
@@ -199,7 +199,7 @@ checksum = "288cb548dbe72b652243ea797201f3d481a0609a967980fcc5b2315ea811560a"
 
 [[package]]
 name = "token"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "text-size",
 ]
