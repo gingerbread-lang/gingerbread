@@ -22,7 +22,10 @@ fn main() -> anyhow::Result<()> {
         }
 
         let program = hir_lower::lower(&root);
-        dbg!(program);
+        dbg!(&program);
+
+        let result = eval::eval(program);
+        dbg!(result);
 
         input.clear();
     }
