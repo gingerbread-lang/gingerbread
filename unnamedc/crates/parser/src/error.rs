@@ -87,6 +87,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::LetKw => "`let`",
         TokenKind::Ident => "identifier",
         TokenKind::Int => "integer literal",
+        TokenKind::String => "string literal",
         TokenKind::Plus => "`+`",
         TokenKind::Hyphen => "`-`",
         TokenKind::Asterisk => "`*`",

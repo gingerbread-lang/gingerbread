@@ -27,6 +27,7 @@ pub enum TokenKind {
     LetKw,
     Ident,
     Int,
+    String,
     Plus,
     Hyphen,
     Asterisk,

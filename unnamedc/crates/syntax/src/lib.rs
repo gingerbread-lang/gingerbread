@@ -48,6 +48,7 @@ pub enum SyntaxKind {
     LetKw,
     Ident,
     Int,
+    String,
     Plus,
     Hyphen,
     Asterisk,

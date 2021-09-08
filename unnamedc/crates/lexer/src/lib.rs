@@ -42,6 +42,9 @@ enum LexerTokenKind {
     #[regex("[0-9]+")]
     Int,
 
+    #[regex("\"[^\"\n]*\"")]
+    String,
+
     #[token("+")]
     Plus,
 
@@ -153,6 +156,42 @@ mod tests {
         );
 
         assert_eq!(tokens.next(), None);
+    }
+
+    #[test]
+    fn lex_string() {
+        check("\"hello\"", TokenKind::String);
+    }
+
+    #[test]
+    fn dont_lex_multiline_string() {
+        let tokens = lex("\"foo\nbar\"");
+
+        assert_eq!(
+            tokens.collect::<Vec<_>>(),
+            [
+                Token {
+                    text: "\"foo",
+                    kind: TokenKind::Error,
+                    range: TextRange::new(0.into(), 4.into())
+                },
+                Token {
+                    text: "\n",
+                    kind: TokenKind::Whitespace,
+                    range: TextRange::new(4.into(), 5.into())
+                },
+                Token {
+                    text: "bar",
+                    kind: TokenKind::Ident,
+                    range: TextRange::new(5.into(), 8.into())
+                },
+                Token {
+                    text: "\"",
+                    kind: TokenKind::Error,
+                    range: TextRange::new(8.into(), 9.into())
+                }
+            ]
+        );
     }
 
     #[test]
