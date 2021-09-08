@@ -63,14 +63,13 @@ impl Evaluator {
             _ => return Val::Nil,
         };
 
-        let output = match op {
-            hir::BinOp::Add => lhs + rhs,
-            hir::BinOp::Sub => lhs - rhs,
-            hir::BinOp::Mul => lhs * rhs,
-            hir::BinOp::Div => lhs / rhs,
-        };
-
-        Val::Int(output)
+        match op {
+            hir::BinOp::Add => lhs.checked_add(rhs),
+            hir::BinOp::Sub => lhs.checked_sub(rhs),
+            hir::BinOp::Mul => lhs.checked_mul(rhs),
+            hir::BinOp::Div => lhs.checked_div(rhs),
+        }
+        .map_or(Val::Nil, Val::Int)
     }
 }
 
@@ -110,5 +109,30 @@ mod tests {
     #[test]
     fn eval_var_def_and_var_ref() {
         check("let a = 10\na", Val::Int(10));
+    }
+
+    #[test]
+    fn add_with_overflow() {
+        check("3000000000 + 3000000000", Val::Nil);
+    }
+
+    #[test]
+    fn subtract_from_zero() {
+        check("0 - 10", Val::Nil);
+    }
+
+    #[test]
+    fn subtract_with_overflow() {
+        check("10 - 20", Val::Nil);
+    }
+
+    #[test]
+    fn multiply_with_overflow() {
+        check("1000000000 * 5", Val::Nil);
+    }
+
+    #[test]
+    fn divide_by_zero() {
+        check("0 / 0", Val::Nil);
     }
 }
