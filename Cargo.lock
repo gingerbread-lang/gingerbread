@@ -79,6 +79,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 
 [[package]]
+name = "hir"
+version = "0.0.0"
+
+[[package]]
+name = "hir_lower"
+version = "0.0.0"
+dependencies = [
+ "ast",
+ "hir",
+ "lexer",
+ "parser",
+]
+
+[[package]]
 name = "lexer"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,13 @@
+[package]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+name = "hir_lower"
+version = "0.0.0"
+
+[dependencies]
+ast = {path = "../ast"}
+hir = {path = "../hir"}
+
+[dev-dependencies]
+lexer = {path = "../lexer"}
+parser = {path = "../parser"}
