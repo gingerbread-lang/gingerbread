@@ -47,6 +47,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
 
 [[package]]
+name = "eval"
+version = "0.0.0"
+dependencies = [
+ "hir",
+]
+
+[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -57,6 +64,7 @@ name = "fuzz"
 version = "0.0.0"
 dependencies = [
  "ast",
+ "eval",
  "hir_lower",
  "lexer",
  "libfuzzer-sys",
