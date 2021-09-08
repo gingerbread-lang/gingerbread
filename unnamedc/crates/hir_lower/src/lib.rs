@@ -1,6 +1,6 @@
 use ast::AstToken;
 
-pub fn lower(ast: ast::Root) -> hir::Program {
+pub fn lower(ast: &ast::Root) -> hir::Program {
     hir::Program {
         stmts: ast
             .stmts()
@@ -52,7 +52,7 @@ mod tests {
     fn check<const LEN: usize>(input: &str, stmts: [hir::Stmt; LEN]) {
         let parse = parser::parse(lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        assert_eq!(lower(root), hir::Program { stmts: stmts.to_vec() });
+        assert_eq!(lower(&root), hir::Program { stmts: stmts.to_vec() });
     }
 
     #[test]

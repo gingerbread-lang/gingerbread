@@ -15,7 +15,13 @@ fn main() -> anyhow::Result<()> {
         dbg!(&parse);
 
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let program = hir_lower::lower(root);
+        let validation_errors = ast::validation::validate(&root);
+
+        for error in validation_errors {
+            println!("{}", error);
+        }
+
+        let program = hir_lower::lower(&root);
         dbg!(program);
 
         input.clear();
