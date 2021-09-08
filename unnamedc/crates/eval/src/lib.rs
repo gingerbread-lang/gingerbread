@@ -1,3 +1,4 @@
+use la_arena::Arena;
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -7,50 +8,57 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn eval(&mut self, mut program: hir::Program) -> Val {
+        let exprs = &program.exprs;
         let last_stmt = program.stmts.pop();
 
         for stmt in program.stmts {
-            self.eval_stmt(stmt);
+            self.eval_stmt(stmt, exprs);
         }
 
-        last_stmt.map_or(Val::Nil, |stmt| self.eval_stmt(stmt))
+        last_stmt.map_or(Val::Nil, |stmt| self.eval_stmt(stmt, exprs))
     }
 
-    fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
+    fn eval_stmt(&mut self, stmt: hir::Stmt, exprs: &Arena<hir::Expr>) -> Val {
         match stmt {
-            hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def),
-            hir::Stmt::Expr(expr) => self.eval_expr(expr),
+            hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def, exprs),
+            hir::Stmt::Expr(expr) => self.eval_expr(expr, exprs),
         }
     }
 
-    fn eval_var_def(&mut self, var_def: hir::VarDef) -> Val {
+    fn eval_var_def(&mut self, var_def: hir::VarDef, exprs: &Arena<hir::Expr>) -> Val {
         if let hir::Name(Some(name)) = var_def.name {
-            let value = self.eval_expr(var_def.value);
+            let value = self.eval_expr(var_def.value, exprs);
             self.vars.insert(name, value);
         }
 
         Val::Nil
     }
 
-    fn eval_expr(&mut self, expr: hir::Expr) -> Val {
-        match expr {
+    fn eval_expr(&mut self, expr: hir::ExprIdx, exprs: &Arena<hir::Expr>) -> Val {
+        match &exprs[expr] {
             hir::Expr::Missing => Val::Nil,
-            hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(op, *lhs, *rhs),
+            hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs, exprs),
             hir::Expr::VarRef { name } => {
-                name.0.and_then(|name| self.vars.get(&name)).copied().unwrap_or(Val::Nil)
+                name.0.as_ref().and_then(|name| self.vars.get(name)).copied().unwrap_or(Val::Nil)
             }
             hir::Expr::IntLiteral { value } => value.map_or(Val::Nil, Val::Int),
         }
     }
 
-    fn eval_bin_expr(&mut self, op: Option<hir::BinOp>, lhs: hir::Expr, rhs: hir::Expr) -> Val {
+    fn eval_bin_expr(
+        &mut self,
+        op: Option<hir::BinOp>,
+        lhs: hir::ExprIdx,
+        rhs: hir::ExprIdx,
+        exprs: &Arena<hir::Expr>,
+    ) -> Val {
         let op = if let Some(op) = op {
             op
         } else {
             return Val::Nil;
         };
 
-        let (lhs, rhs) = match (self.eval_expr(lhs), self.eval_expr(rhs)) {
+        let (lhs, rhs) = match (self.eval_expr(lhs, exprs), self.eval_expr(rhs, exprs)) {
             (Val::Int(lhs), Val::Int(rhs)) => (lhs, rhs),
             _ => return Val::Nil,
         };

@@ -1,29 +1,34 @@
+use la_arena::{Arena, Idx};
+
+pub type ExprIdx = Idx<Expr>;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
+    pub exprs: Arena<Expr>,
     pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     VarDef(VarDef),
-    Expr(Expr),
+    Expr(ExprIdx),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VarDef {
     pub name: Name,
-    pub value: Expr,
+    pub value: ExprIdx,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Missing,
-    Bin { lhs: Box<Expr>, rhs: Box<Expr>, op: Option<BinOp> },
+    Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
     VarRef { name: Name },
     IntLiteral { value: Option<u32> },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinOp {
     Add,
     Sub,

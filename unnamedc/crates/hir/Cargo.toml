@@ -3,3 +3,6 @@ edition = "2018"
 license = "MIT OR Apache-2.0"
 name = "hir"
 version = "0.0.0"
+
+[dependencies]
+la-arena = "0.2.1"
