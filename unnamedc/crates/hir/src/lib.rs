@@ -20,7 +20,7 @@ pub enum Expr {
     Missing,
     Bin { lhs: Box<Expr>, rhs: Box<Expr>, op: Option<BinOp> },
     VarRef { name: Name },
-    IntLiteral { value: u32 },
+    IntLiteral { value: Option<u32> },
 }
 
 #[derive(Debug, Clone, PartialEq)]

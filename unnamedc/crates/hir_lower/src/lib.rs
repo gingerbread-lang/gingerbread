@@ -4,35 +4,33 @@ pub fn lower(ast: &ast::Root) -> hir::Program {
     hir::Program {
         stmts: ast
             .stmts()
-            .filter_map(|stmt| match stmt {
-                ast::Stmt::VarDef(ast) => Some(hir::Stmt::VarDef(hir::VarDef {
+            .map(|stmt| match stmt {
+                ast::Stmt::VarDef(ast) => hir::Stmt::VarDef(hir::VarDef {
                     name: hir::Name(ast.name().map(|ast| ast.text().to_string())),
-                    value: lower_expr(ast.value())?,
-                })),
-                ast::Stmt::Expr(ast) => Some(hir::Stmt::Expr(lower_expr(Some(ast))?)),
+                    value: lower_expr(ast.value()),
+                }),
+                ast::Stmt::Expr(ast) => hir::Stmt::Expr(lower_expr(Some(ast))),
             })
             .collect(),
     }
 }
 
-fn lower_expr(ast: Option<ast::Expr>) -> Option<hir::Expr> {
-    let expr = match ast {
+fn lower_expr(ast: Option<ast::Expr>) -> hir::Expr {
+    match ast {
         Some(ast::Expr::Bin(ast)) => hir::Expr::Bin {
-            lhs: Box::new(lower_expr(ast.lhs())?),
-            rhs: Box::new(lower_expr(ast.rhs())?),
+            lhs: Box::new(lower_expr(ast.lhs())),
+            rhs: Box::new(lower_expr(ast.rhs())),
             op: ast.op().map(lower_op),
         },
-        Some(ast::Expr::Paren(ast)) => lower_expr(ast.inner())?,
+        Some(ast::Expr::Paren(ast)) => lower_expr(ast.inner()),
         Some(ast::Expr::VarRef(ast)) => {
             hir::Expr::VarRef { name: hir::Name(ast.name().map(|ast| ast.text().to_string())) }
         }
         Some(ast::Expr::IntLiteral(ast)) => {
-            hir::Expr::IntLiteral { value: ast.value()?.text().parse().unwrap() }
+            hir::Expr::IntLiteral { value: ast.value().and_then(|ast| ast.text().parse().ok()) }
         }
         None => hir::Expr::Missing,
-    };
-
-    Some(expr)
+    }
 }
 
 fn lower_op(ast: ast::Op) -> hir::BinOp {
@@ -72,11 +70,11 @@ mod tests {
             "10 - 5 + 1",
             [hir::Stmt::Expr(hir::Expr::Bin {
                 lhs: Box::new(hir::Expr::Bin {
-                    lhs: Box::new(hir::Expr::IntLiteral { value: 10 }),
-                    rhs: Box::new(hir::Expr::IntLiteral { value: 5 }),
+                    lhs: Box::new(hir::Expr::IntLiteral { value: Some(10) }),
+                    rhs: Box::new(hir::Expr::IntLiteral { value: Some(5) }),
                     op: Some(hir::BinOp::Sub),
                 }),
-                rhs: Box::new(hir::Expr::IntLiteral { value: 1 }),
+                rhs: Box::new(hir::Expr::IntLiteral { value: Some(1) }),
                 op: Some(hir::BinOp::Add),
             })],
         );
@@ -84,7 +82,7 @@ mod tests {
 
     #[test]
     fn lower_paren_expr() {
-        check("((((92))))", [hir::Stmt::Expr(hir::Expr::IntLiteral { value: 92 })]);
+        check("((((92))))", [hir::Stmt::Expr(hir::Expr::IntLiteral { value: Some(92) })]);
     }
 
     #[test]
@@ -97,7 +95,7 @@ mod tests {
 
     #[test]
     fn lower_int_literal() {
-        check("92", [hir::Stmt::Expr(hir::Expr::IntLiteral { value: 92 })]);
+        check("92", [hir::Stmt::Expr(hir::Expr::IntLiteral { value: Some(92) })]);
     }
 
     #[test]
@@ -111,7 +109,7 @@ mod tests {
                 }),
                 hir::Stmt::Expr(hir::Expr::Bin {
                     lhs: Box::new(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) }),
-                    rhs: Box::new(hir::Expr::IntLiteral { value: 4 }),
+                    rhs: Box::new(hir::Expr::IntLiteral { value: Some(4) }),
                     op: Some(hir::BinOp::Sub),
                 }),
             ],
@@ -135,8 +133,13 @@ mod tests {
             "let = 10",
             [hir::Stmt::VarDef(hir::VarDef {
                 name: hir::Name(None),
-                value: hir::Expr::IntLiteral { value: 10 },
+                value: hir::Expr::IntLiteral { value: Some(10) },
             })],
         );
+    }
+
+    #[test]
+    fn lower_too_big_int_literal() {
+        check("9999999999999999", [hir::Stmt::Expr(hir::Expr::IntLiteral { value: None })]);
     }
 }
