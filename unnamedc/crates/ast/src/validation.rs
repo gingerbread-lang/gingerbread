@@ -60,9 +60,12 @@ pub enum ValidationErrorKind {
 mod error_display_tests {
     use super::*;
     use expect_test::{expect, Expect};
+    use std::ops::Range as StdRange;
 
-    fn check(kind: ValidationErrorKind, from: u32, to: u32, formatted: Expect) {
-        let error = ValidationError { kind, range: TextRange::new(from.into(), to.into()) };
+    fn check(kind: ValidationErrorKind, range: StdRange<u32>, formatted: Expect) {
+        let error =
+            ValidationError { kind, range: TextRange::new(range.start.into(), range.end.into()) };
+
         formatted.assert_eq(&error.to_string());
     }
 
@@ -70,8 +73,7 @@ mod error_display_tests {
     fn int_literal_too_big() {
         check(
             ValidationErrorKind::IntLiteralTooBig,
-            0,
-            20,
+            0..20,
             expect![[r#"error at 0..20: integer literal too large"#]],
         );
     }
@@ -80,15 +82,16 @@ mod error_display_tests {
 #[cfg(test)]
 mod validation_tests {
     use super::*;
+    use std::ops::Range as StdRange;
 
     fn check<const LEN: usize>(
         input: &str,
-        expected_errors: [(ValidationErrorKind, u32, u32); LEN],
+        expected_errors: [(ValidationErrorKind, StdRange<u32>); LEN],
     ) {
         let errors: Vec<_> = IntoIterator::into_iter(expected_errors)
-            .map(|(kind, from, to)| ValidationError {
+            .map(|(kind, range)| ValidationError {
                 kind,
-                range: TextRange::new(from.into(), to.into()),
+                range: TextRange::new(range.start.into(), range.end.into()),
             })
             .collect();
 
@@ -110,7 +113,7 @@ mod validation_tests {
 
     #[test]
     fn validate_too_big_int_literal() {
-        check("4294967296", [(ValidationErrorKind::IntLiteralTooBig, 0, 10)]);
+        check("4294967296", [(ValidationErrorKind::IntLiteralTooBig, 0..10)]);
     }
 
     #[test]
@@ -118,8 +121,8 @@ mod validation_tests {
         check(
             "let b = 5000000000 let a = 9999999999999999999 + b",
             [
-                (ValidationErrorKind::IntLiteralTooBig, 8, 18),
-                (ValidationErrorKind::IntLiteralTooBig, 27, 46),
+                (ValidationErrorKind::IntLiteralTooBig, 8..18),
+                (ValidationErrorKind::IntLiteralTooBig, 27..46),
             ],
         );
     }

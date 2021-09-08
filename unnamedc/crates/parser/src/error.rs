@@ -103,19 +103,18 @@ fn format_kind(kind: TokenKind) -> &'static str {
 mod tests {
     use super::*;
     use expect_test::{expect, Expect};
-    use text_size::TextSize;
+    use std::ops::Range as StdRange;
 
     fn check<const NUM_EXPECTED: usize>(
         expected_syntaxes: [ExpectedSyntax; NUM_EXPECTED],
         found: Option<TokenKind>,
-        from: u32,
-        to: u32,
+        range: StdRange<u32>,
         formatted: Expect,
     ) {
         let error = ParseError::new(
             IntoIterator::into_iter(expected_syntaxes).collect(),
             found,
-            TextRange::new(TextSize::from(from), TextSize::from(to)),
+            TextRange::new(range.start.into(), range.end.into()),
         );
 
         formatted.assert_eq(&error.to_string());
@@ -126,8 +125,7 @@ mod tests {
         check(
             [ExpectedSyntax::One(TokenKind::Ident)],
             Some(TokenKind::Asterisk),
-            10,
-            20,
+            10..20,
             expect![[r#"error at 10..20: expected identifier but found `*`"#]],
         );
     }
@@ -137,8 +135,7 @@ mod tests {
         check(
             [ExpectedSyntax::One(TokenKind::LParen)],
             None,
-            1,
-            10,
+            1..10,
             expect![[r#"error at 1..10: expected `(`"#]],
         );
     }
@@ -148,8 +145,7 @@ mod tests {
         check(
             [ExpectedSyntax::One(TokenKind::Int), ExpectedSyntax::One(TokenKind::Ident)],
             Some(TokenKind::Plus),
-            92,
-            100,
+            92..100,
             expect![[r#"error at 92..100: expected identifier or integer literal but found `+`"#]],
         );
     }
@@ -164,8 +160,7 @@ mod tests {
                 ExpectedSyntax::One(TokenKind::Slash),
             ],
             Some(TokenKind::Error),
-            5,
-            6,
+            5..6,
             expect![[
                 r#"error at 5..6: expected `+`, `-`, `*` or `/` but found an unrecognized token"#
             ]],
@@ -192,8 +187,7 @@ mod tests {
                 },
             ],
             None,
-            5,
-            10,
+            5..10,
             expect![[
                 r#"error at 5..10: expected expression (identifier, integer literal or `(`), statement (`let`) or `*`"#
             ]],
