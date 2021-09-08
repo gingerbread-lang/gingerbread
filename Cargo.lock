@@ -133,7 +133,6 @@ dependencies = [
  "drop_bomb",
  "expect-test",
  "lexer",
- "rowan",
  "syntax",
  "text-size",
  "token",

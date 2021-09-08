@@ -9,7 +9,6 @@ use self::error::ParseError;
 use self::event::Event;
 use self::parser::Parser;
 use self::sink::Sink;
-use rowan::GreenNode;
 use std::fmt;
 use syntax::SyntaxNode;
 use token::Token;
@@ -22,13 +21,13 @@ pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
 }
 
 pub struct Parse {
-    green_node: GreenNode,
+    syntax_node: SyntaxNode,
     errors: Vec<ParseError>,
 }
 
 impl Parse {
     pub fn syntax_node(&self) -> SyntaxNode {
-        SyntaxNode::new_root(self.green_node.clone())
+        self.syntax_node.clone()
     }
 }
 

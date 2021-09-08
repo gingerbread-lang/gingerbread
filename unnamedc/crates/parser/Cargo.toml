@@ -6,7 +6,6 @@ version = "0.0.0"
 
 [dependencies]
 drop_bomb = "0.1.5"
-rowan = "0.13.2"
 syntax = {path = "../syntax"}
 text-size = "1.1"
 token = {path = "../token"}

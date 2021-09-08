@@ -1,30 +1,27 @@
 use super::Event;
 use crate::error::ParseError;
 use crate::Parse;
-use rowan::{GreenNodeBuilder, Language};
 use std::mem;
-use syntax::UnnamedLang;
+use syntax::SyntaxBuilder;
 use token::{Token, TokenKind};
 
 pub(crate) struct Sink<'a> {
     events: Vec<Event>,
     tokens: Vec<Token<'a>>,
     token_idx: usize,
-    builder: GreenNodeBuilder<'static>,
+    builder: SyntaxBuilder,
     errors: Vec<ParseError>,
 }
 
 impl<'a> Sink<'a> {
     pub(crate) fn new(events: Vec<Event>, tokens: Vec<Token<'a>>) -> Self {
-        Self { events, tokens, token_idx: 0, builder: GreenNodeBuilder::new(), errors: Vec::new() }
+        Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::default(), errors: Vec::new() }
     }
 
     pub(crate) fn finish(mut self) -> Parse {
         for event_idx in 0..self.events.len() {
             match mem::replace(&mut self.events[event_idx], Event::Placeholder) {
-                Event::StartNode { kind } => {
-                    self.builder.start_node(UnnamedLang::kind_to_raw(kind))
-                }
+                Event::StartNode { kind } => self.builder.start_node(kind),
                 Event::FinishNode => self.builder.finish_node(),
                 Event::AddToken => self.add_token(),
                 Event::Error(error) => self.errors.push(error),
@@ -34,7 +31,7 @@ impl<'a> Sink<'a> {
             self.skip_whitespace();
         }
 
-        Parse { green_node: self.builder.finish(), errors: self.errors }
+        Parse { syntax_node: self.builder.finish(), errors: self.errors }
     }
 
     fn skip_whitespace(&mut self) {
@@ -45,7 +42,7 @@ impl<'a> Sink<'a> {
 
     fn add_token(&mut self) {
         let Token { kind, text, .. } = self.current_token().unwrap();
-        self.builder.token(UnnamedLang::kind_to_raw(kind.into()), text);
+        self.builder.token(kind.into(), text);
         self.token_idx += 1;
     }
 
