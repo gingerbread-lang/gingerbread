@@ -8,6 +8,8 @@ version = "0.0.0"
 cargo-fuzz = true
 
 [dependencies]
+ast = {path = "../crates/ast"}
+hir_lower = {path = "../crates/hir_lower"}
 lexer = {path = "../crates/lexer"}
 libfuzzer-sys = "0.4.2"
 parser = {path = "../crates/parser"}

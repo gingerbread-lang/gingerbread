@@ -9,6 +9,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "577b08a4acd7b99869f863c50011b01eb73424ccc798ecd996f2e24817adfca7"
 
 [[package]]
+name = "ast"
+version = "0.0.0"
+dependencies = [
+ "syntax",
+ "text-size",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -48,6 +56,8 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 name = "fuzz"
 version = "0.0.0"
 dependencies = [
+ "ast",
+ "hir_lower",
  "lexer",
  "libfuzzer-sys",
  "parser",
@@ -58,6 +68,18 @@ name = "hashbrown"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
+
+[[package]]
+name = "hir"
+version = "0.0.0"
+
+[[package]]
+name = "hir_lower"
+version = "0.0.0"
+dependencies = [
+ "ast",
+ "hir",
+]
 
 [[package]]
 name = "lexer"
@@ -123,7 +145,6 @@ name = "parser"
 version = "0.0.0"
 dependencies = [
  "drop_bomb",
- "rowan",
  "syntax",
  "text-size",
  "token",
