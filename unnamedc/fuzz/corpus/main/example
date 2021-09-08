@@ -1,0 +1,5 @@
+let abcdef128_ABC = 92
+let foo = bar + (10 * 5 / bar) - 5
+let a = an_identifier * (an_identifier + an_identifier) / 2
+some_expressions
+10000 - 2 * hello

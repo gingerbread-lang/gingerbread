@@ -1,0 +1,19 @@
+[package]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+name = "fuzz"
+version = "0.1.0"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+lexer = {path = "../crates/lexer"}
+libfuzzer-sys = "0.4.2"
+parser = {path = "../crates/parser"}
+
+[workspace]
+
+[[bin]]
+name = "main"
+path = "fuzz_targets/main.rs"
