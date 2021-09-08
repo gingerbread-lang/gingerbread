@@ -1,4 +1,7 @@
+pub mod validation;
+
 use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
+use text_size::TextRange;
 
 pub trait AstNode: Sized {
     fn cast(node: SyntaxNode) -> Option<Self>;
@@ -12,6 +15,10 @@ pub trait AstToken: Sized {
 
     fn text(&self) -> &str {
         self.syntax().text()
+    }
+
+    fn range(&self) -> TextRange {
+        self.syntax().text_range()
     }
 }
 
