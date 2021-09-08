@@ -6,5 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
+ast = {path = "../ast"}
+hir_lower = {path = "../hir_lower"}
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}

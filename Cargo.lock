@@ -278,6 +278,8 @@ name = "unnamedc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ast",
+ "hir_lower",
  "lexer",
  "parser",
 ]

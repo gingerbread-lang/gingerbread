@@ -1,3 +1,4 @@
+use ast::AstNode;
 use std::io;
 
 fn main() -> anyhow::Result<()> {
@@ -11,7 +12,11 @@ fn main() -> anyhow::Result<()> {
         dbg!(lexer::lex(&input).collect::<Vec<_>>());
 
         let parse = parser::parse(tokens);
-        dbg!(parse);
+        dbg!(&parse);
+
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let program = hir_lower::lower(root);
+        dbg!(program);
 
         input.clear();
     }
