@@ -1,0 +1,14 @@
+[package]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+name = "eval"
+version = "0.0.0"
+
+[dependencies]
+hir = {path = "../hir"}
+
+[dev-dependencies]
+ast = {path = "../ast"}
+hir_lower = {path = "../hir_lower"}
+lexer = {path = "../lexer"}
+parser = {path = "../parser"}
