@@ -1,29 +1,21 @@
 use std::collections::HashMap;
 
-pub fn eval(mut program: hir::Program) -> Val {
-    let mut evaluator = Evaluator::default();
-
-    let last_stmt = program.stmts.pop();
-
-    for stmt in program.stmts {
-        evaluator.eval_stmt(stmt);
-    }
-
-    last_stmt.map_or(Val::Nil, |stmt| evaluator.eval_stmt(stmt))
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Val {
-    Nil,
-    Int(u32),
-}
-
 #[derive(Default)]
-struct Evaluator {
+pub struct Evaluator {
     vars: HashMap<String, Val>,
 }
 
 impl Evaluator {
+    pub fn eval(&mut self, mut program: hir::Program) -> Val {
+        let last_stmt = program.stmts.pop();
+
+        for stmt in program.stmts {
+            self.eval_stmt(stmt);
+        }
+
+        last_stmt.map_or(Val::Nil, |stmt| self.eval_stmt(stmt))
+    }
+
     fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
         match stmt {
             hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def),
@@ -73,6 +65,12 @@ impl Evaluator {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Val {
+    Nil,
+    Int(u32),
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,7 +81,7 @@ mod tests {
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let program = hir_lower::lower(&root);
 
-        assert_eq!(eval(program), val);
+        assert_eq!(Evaluator::default().eval(program), val);
     }
 
     #[test]
@@ -134,5 +132,20 @@ mod tests {
     #[test]
     fn divide_by_zero() {
         check("0 / 0", Val::Nil);
+    }
+
+    #[test]
+    fn preserve_variables_across_eval_calls() {
+        let mut evaluator = Evaluator::default();
+
+        let parse = parser::parse(lexer::lex("let foo = 100"));
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let program = hir_lower::lower(&root);
+        assert_eq!(evaluator.eval(program), Val::Nil);
+
+        let parse = parser::parse(lexer::lex("foo"));
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let program = hir_lower::lower(&root);
+        assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 }

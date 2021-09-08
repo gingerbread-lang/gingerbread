@@ -1,9 +1,11 @@
 use ast::AstNode;
+use eval::Evaluator;
 use std::io;
 
 fn main() -> anyhow::Result<()> {
     let stdin = io::stdin();
     let mut input = String::new();
+    let mut evaluator = Evaluator::default();
 
     loop {
         stdin.read_line(&mut input)?;
@@ -24,7 +26,7 @@ fn main() -> anyhow::Result<()> {
         let program = hir_lower::lower(&root);
         dbg!(&program);
 
-        let result = eval::eval(program);
+        let result = evaluator.eval(program);
         dbg!(result);
 
         input.clear();
