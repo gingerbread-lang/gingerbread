@@ -18,6 +18,8 @@ impl Language for UnnamedLang {
 }
 
 pub type SyntaxNode = rowan::SyntaxNode<UnnamedLang>;
+pub type SyntaxToken = rowan::SyntaxToken<UnnamedLang>;
+pub type SyntaxElement = rowan::SyntaxElement<UnnamedLang>;
 
 #[derive(Debug, PartialEq)]
 #[repr(u16)]
