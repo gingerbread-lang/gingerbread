@@ -112,4 +112,15 @@ mod validation_tests {
     fn validate_too_big_int_literal() {
         check("4294967296", [(ValidationErrorKind::IntLiteralTooBig, 0, 10)]);
     }
+
+    #[test]
+    fn validate_multiple_too_big_int_literals() {
+        check(
+            "let b = 5000000000 let a = 9999999999999999999 + b",
+            [
+                (ValidationErrorKind::IntLiteralTooBig, 8, 18),
+                (ValidationErrorKind::IntLiteralTooBig, 27, 46),
+            ],
+        );
+    }
 }
