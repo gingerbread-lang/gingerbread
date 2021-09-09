@@ -26,6 +26,9 @@ fn main() -> anyhow::Result<()> {
         let program = hir_lower::lower(&root);
         dbg!(&program);
 
+        let infer_result = hir_ty::infer(&program);
+        dbg!(infer_result);
+
         let result = evaluator.eval(program);
         dbg!(result);
 

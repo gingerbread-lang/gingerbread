@@ -9,5 +9,6 @@ anyhow = "1.0"
 ast = {path = "../ast"}
 eval = {path = "../eval"}
 hir_lower = {path = "../hir_lower"}
+hir_ty = {path = "../hir_ty"}
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}

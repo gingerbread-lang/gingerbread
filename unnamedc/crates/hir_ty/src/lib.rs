@@ -18,6 +18,7 @@ pub fn infer(program: &hir::Program) -> InferResult<'_> {
     infer_ctx.result
 }
 
+#[derive(Debug)]
 pub struct InferResult<'a> {
     pub expr_tys: HashMap<hir::ExprIdx, Ty>,
     pub var_tys: HashMap<&'a str, Ty>,
