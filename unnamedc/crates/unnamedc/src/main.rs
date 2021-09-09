@@ -25,8 +25,8 @@ fn main() -> anyhow::Result<()> {
             println!("{}", error);
         }
 
-        let program = hir_lower::lower(&root);
-        dbg!(&program);
+        let (program, source_map) = hir_lower::lower(&root);
+        dbg!(&program, source_map);
 
         let infer_result = hir_ty::infer_with_var_tys(&program, var_tys);
         dbg!(&infer_result);

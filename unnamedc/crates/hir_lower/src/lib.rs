@@ -1,20 +1,28 @@
 use ast::AstToken;
-use la_arena::Arena;
+use la_arena::{Arena, ArenaMap};
+use std::collections::HashMap;
 
-pub fn lower(ast: &ast::Root) -> hir::Program {
+pub fn lower(ast: &ast::Root) -> (hir::Program, SourceMap) {
     let mut lower_ctx = LowerCtx::default();
 
     for stmt in ast.stmts() {
         lower_ctx.lower_stmt(stmt);
     }
 
-    hir::Program { exprs: lower_ctx.exprs, stmts: lower_ctx.stmts }
+    (hir::Program { exprs: lower_ctx.exprs, stmts: lower_ctx.stmts }, lower_ctx.source_map)
+}
+
+#[derive(Debug, Default)]
+pub struct SourceMap {
+    pub expr_map: ArenaMap<hir::ExprIdx, ast::Expr>,
+    pub expr_map_back: HashMap<ast::Expr, hir::ExprIdx>,
 }
 
 #[derive(Default)]
 struct LowerCtx {
     exprs: Arena<hir::Expr>,
     stmts: Vec<hir::Stmt>,
+    source_map: SourceMap,
 }
 
 impl LowerCtx {
@@ -31,34 +39,41 @@ impl LowerCtx {
     }
 
     fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
-        let expr = match ast {
-            Some(ast::Expr::Bin(ast)) => hir::Expr::Bin {
+        let ast = match ast {
+            Some(ast) => ast,
+            None => return self.exprs.alloc(hir::Expr::Missing),
+        };
+
+        let expr = match &ast {
+            ast::Expr::Bin(ast) => hir::Expr::Bin {
                 lhs: self.lower_expr(ast.lhs()),
                 rhs: self.lower_expr(ast.rhs()),
                 op: ast.op().map(|op| self.lower_op(op)),
             },
 
-            Some(ast::Expr::Paren(ast)) => return self.lower_expr(ast.inner()),
+            ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
 
-            Some(ast::Expr::VarRef(ast)) => {
+            ast::Expr::VarRef(ast) => {
                 hir::Expr::VarRef { name: hir::Name(ast.name().map(|ast| ast.text().to_string())) }
             }
 
-            Some(ast::Expr::IntLiteral(ast)) => {
+            ast::Expr::IntLiteral(ast) => {
                 hir::Expr::IntLiteral { value: ast.value().and_then(|ast| ast.text().parse().ok()) }
             }
 
-            Some(ast::Expr::StringLiteral(ast)) => hir::Expr::StringLiteral {
+            ast::Expr::StringLiteral(ast) => hir::Expr::StringLiteral {
                 value: ast.value().map(|ast| {
                     let text = ast.text();
                     text[1..text.len() - 1].to_string()
                 }),
             },
-
-            None => hir::Expr::Missing,
         };
 
-        self.exprs.alloc(expr)
+        let expr = self.exprs.alloc(expr);
+        self.source_map.expr_map.insert(expr, ast.clone());
+        self.source_map.expr_map_back.insert(ast, expr);
+
+        expr
     }
 
     fn lower_op(&mut self, ast: ast::Op) -> hir::BinOp {
@@ -79,7 +94,8 @@ mod tests {
     fn check<const LEN: usize>(input: &str, exprs: Arena<hir::Expr>, stmts: [hir::Stmt; LEN]) {
         let parse = parser::parse(lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        assert_eq!(lower(&root), hir::Program { exprs, stmts: stmts.to_vec() });
+        let (program, _) = lower(&root);
+        assert_eq!(program, hir::Program { exprs, stmts: stmts.to_vec() });
     }
 
     #[test]
@@ -198,5 +214,35 @@ mod tests {
         let int_literal = exprs.alloc(hir::Expr::IntLiteral { value: None });
 
         check("9999999999999999", exprs, [hir::Stmt::Expr(int_literal)]);
+    }
+
+    #[test]
+    fn source_map() {
+        let parse = parser::parse(lexer::lex("10 - 5"));
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+
+        let bin_expr_ast = match root.stmts().next().unwrap() {
+            ast::Stmt::Expr(ast::Expr::Bin(bin_expr)) => bin_expr,
+            _ => unreachable!(),
+        };
+        let ten_ast = bin_expr_ast.lhs().unwrap();
+        let five_ast = bin_expr_ast.rhs().unwrap();
+        let bin_expr_ast = ast::Expr::Bin(bin_expr_ast);
+
+        let mut exprs = Arena::new();
+        let ten_hir = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
+        let five_hir = exprs.alloc(hir::Expr::IntLiteral { value: Some(5) });
+        let bin_expr_hir =
+            exprs.alloc(hir::Expr::Bin { lhs: ten_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
+
+        let (program, source_map) = lower(&root);
+        assert_eq!(program, hir::Program { exprs, stmts: vec![hir::Stmt::Expr(bin_expr_hir)] });
+
+        assert_eq!(source_map.expr_map[bin_expr_hir], bin_expr_ast);
+        assert_eq!(source_map.expr_map[ten_hir], ten_ast);
+        assert_eq!(source_map.expr_map[five_hir], five_ast);
+        assert_eq!(source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
+        assert_eq!(source_map.expr_map_back[&ten_ast], ten_hir);
+        assert_eq!(source_map.expr_map_back[&five_ast], five_hir);
     }
 }

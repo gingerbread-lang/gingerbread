@@ -89,7 +89,7 @@ mod tests {
     fn check(input: &str, val: Val) {
         let parse = parser::parse(lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let program = hir_lower::lower(&root);
+        let (program, _) = hir_lower::lower(&root);
 
         assert_eq!(Evaluator::default().eval(program), val);
     }
@@ -155,12 +155,12 @@ mod tests {
 
         let parse = parser::parse(lexer::lex("let foo = 100"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let program = hir_lower::lower(&root);
+        let (program, _) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program), Val::Nil);
 
         let parse = parser::parse(lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let program = hir_lower::lower(&root);
+        let (program, _) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 }
