@@ -1,4 +1,4 @@
-use la_arena::Arena;
+use la_arena::{Arena, ArenaMap};
 use std::collections::HashMap;
 
 pub fn infer(program: &hir::Program) -> InferResult {
@@ -7,7 +7,7 @@ pub fn infer(program: &hir::Program) -> InferResult {
 
 pub fn infer_with_var_tys(program: &hir::Program, var_tys: HashMap<String, Ty>) -> InferResult {
     let mut infer_ctx = InferCtx {
-        result: InferResult { expr_tys: HashMap::new(), var_tys, errors: Vec::new() },
+        result: InferResult { expr_tys: ArenaMap::default(), var_tys, errors: Vec::new() },
         exprs: &program.exprs,
     };
 
@@ -20,7 +20,7 @@ pub fn infer_with_var_tys(program: &hir::Program, var_tys: HashMap<String, Ty>) 
 
 #[derive(Debug)]
 pub struct InferResult {
-    pub expr_tys: HashMap<hir::ExprIdx, Ty>,
+    pub expr_tys: ArenaMap<hir::ExprIdx, Ty>,
     pub var_tys: HashMap<String, Ty>,
     pub errors: Vec<TyError>,
 }
@@ -119,7 +119,7 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten)] };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&ten], Ty::Int);
+        assert_eq!(result.expr_tys[ten], Ty::Int);
         assert_eq!(result.errors, []);
     }
 
@@ -131,7 +131,7 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(hello)] };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&hello], Ty::String);
+        assert_eq!(result.expr_tys[hello], Ty::String);
         assert_eq!(result.errors, []);
     }
 
@@ -146,9 +146,9 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten_times_twenty)] };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&ten], Ty::Int);
-        assert_eq!(result.expr_tys[&twenty], Ty::Int);
-        assert_eq!(result.expr_tys[&ten_times_twenty], Ty::Int);
+        assert_eq!(result.expr_tys[ten], Ty::Int);
+        assert_eq!(result.expr_tys[twenty], Ty::Int);
+        assert_eq!(result.expr_tys[ten_times_twenty], Ty::Int);
         assert_eq!(result.errors, []);
     }
 
@@ -163,9 +163,9 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(bin_expr)] };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&string], Ty::String);
-        assert_eq!(result.expr_tys[&int], Ty::Int);
-        assert_eq!(result.expr_tys[&bin_expr], Ty::Int);
+        assert_eq!(result.expr_tys[string], Ty::String);
+        assert_eq!(result.expr_tys[int], Ty::Int);
+        assert_eq!(result.expr_tys[bin_expr], Ty::Int);
         assert_eq!(
             result.errors,
             [TyError {
@@ -183,7 +183,7 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(a)] };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&a], Ty::Unknown);
+        assert_eq!(result.expr_tys[a], Ty::Unknown);
         assert_eq!(result.errors, [TyError { expr: a, kind: TyErrorKind::UndefinedVar }]);
     }
 
@@ -201,7 +201,7 @@ mod tests {
         };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&two], Ty::Int);
+        assert_eq!(result.expr_tys[two], Ty::Int);
         assert_eq!(result.var_tys["foo"], Ty::Int);
         assert_eq!(result.errors, []);
     }
@@ -228,13 +228,13 @@ mod tests {
         };
         let result = infer(&program);
 
-        assert_eq!(result.expr_tys[&string], Ty::String);
+        assert_eq!(result.expr_tys[string], Ty::String);
         assert_eq!(result.var_tys["a"], Ty::String);
-        assert_eq!(result.expr_tys[&a], Ty::String);
+        assert_eq!(result.expr_tys[a], Ty::String);
         assert_eq!(result.var_tys["b"], Ty::String);
-        assert_eq!(result.expr_tys[&b], Ty::String);
+        assert_eq!(result.expr_tys[b], Ty::String);
         assert_eq!(result.var_tys["c"], Ty::String);
-        assert_eq!(result.expr_tys[&c], Ty::String);
+        assert_eq!(result.expr_tys[c], Ty::String);
         assert_eq!(result.errors, []);
     }
 
@@ -253,7 +253,7 @@ mod tests {
             };
             let result = infer(&program);
 
-            assert_eq!(result.expr_tys[&six], Ty::Int);
+            assert_eq!(result.expr_tys[six], Ty::Int);
             assert_eq!(result.var_tys["idx"], Ty::Int);
             assert_eq!(result.errors, []);
 
@@ -266,7 +266,7 @@ mod tests {
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(idx)] };
         let result = infer_with_var_tys(&program, preserved_var_tys);
 
-        assert_eq!(result.expr_tys[&idx], Ty::Int);
+        assert_eq!(result.expr_tys[idx], Ty::Int);
         assert_eq!(result.var_tys["idx"], Ty::Int);
         assert_eq!(result.errors, []);
     }
