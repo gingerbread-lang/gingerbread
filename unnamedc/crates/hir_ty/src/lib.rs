@@ -1,13 +1,13 @@
 use la_arena::Arena;
 use std::collections::HashMap;
 
-pub fn infer(program: &hir::Program) -> InferResult<'_> {
+pub fn infer(program: &hir::Program) -> InferResult {
+    infer_with_var_tys(program, HashMap::new())
+}
+
+pub fn infer_with_var_tys(program: &hir::Program, var_tys: HashMap<String, Ty>) -> InferResult {
     let mut infer_ctx = InferCtx {
-        result: InferResult {
-            expr_tys: HashMap::new(),
-            var_tys: HashMap::new(),
-            errors: Vec::new(),
-        },
+        result: InferResult { expr_tys: HashMap::new(), var_tys, errors: Vec::new() },
         exprs: &program.exprs,
     };
 
@@ -19,9 +19,9 @@ pub fn infer(program: &hir::Program) -> InferResult<'_> {
 }
 
 #[derive(Debug)]
-pub struct InferResult<'a> {
+pub struct InferResult {
     pub expr_tys: HashMap<hir::ExprIdx, Ty>,
-    pub var_tys: HashMap<&'a str, Ty>,
+    pub var_tys: HashMap<String, Ty>,
     pub errors: Vec<TyError>,
 }
 
@@ -45,18 +45,18 @@ enum TyErrorKind {
 }
 
 struct InferCtx<'a> {
-    result: InferResult<'a>,
+    result: InferResult,
     exprs: &'a Arena<hir::Expr>,
 }
 
-impl<'a> InferCtx<'a> {
-    fn infer_stmt(&mut self, stmt: &'a hir::Stmt) {
+impl InferCtx<'_> {
+    fn infer_stmt(&mut self, stmt: &hir::Stmt) {
         match stmt {
             hir::Stmt::VarDef(var_def) => {
                 let value_ty = self.infer_expr(var_def.value);
 
                 if let hir::Name(Some(name)) = &var_def.name {
-                    self.result.var_tys.insert(name, value_ty);
+                    self.result.var_tys.insert(name.clone(), value_ty);
                 }
             }
             hir::Stmt::Expr(expr) => {
@@ -235,6 +235,39 @@ mod tests {
         assert_eq!(result.expr_tys[&b], Ty::String);
         assert_eq!(result.var_tys["c"], Ty::String);
         assert_eq!(result.expr_tys[&c], Ty::String);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_with_preserved_var_tys() {
+        let preserved_var_tys = {
+            let mut exprs = Arena::new();
+            let six = exprs.alloc(hir::Expr::IntLiteral { value: Some(6) });
+
+            let program = hir::Program {
+                exprs,
+                stmts: vec![hir::Stmt::VarDef(hir::VarDef {
+                    name: hir::Name(Some("idx".to_string())),
+                    value: six,
+                })],
+            };
+            let result = infer(&program);
+
+            assert_eq!(result.expr_tys[&six], Ty::Int);
+            assert_eq!(result.var_tys["idx"], Ty::Int);
+            assert_eq!(result.errors, []);
+
+            result.var_tys
+        };
+
+        let mut exprs = Arena::new();
+        let idx = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("idx".to_string())) });
+
+        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(idx)] };
+        let result = infer_with_var_tys(&program, preserved_var_tys);
+
+        assert_eq!(result.expr_tys[&idx], Ty::Int);
+        assert_eq!(result.var_tys["idx"], Ty::Int);
         assert_eq!(result.errors, []);
     }
 }
