@@ -67,6 +67,7 @@ dependencies = [
  "ast",
  "eval",
  "hir_lower",
+ "hir_ty",
  "lexer",
  "libfuzzer-sys",
  "parser",
@@ -90,6 +91,14 @@ name = "hir_lower"
 version = "0.0.0"
 dependencies = [
  "ast",
+ "hir",
+ "la-arena",
+]
+
+[[package]]
+name = "hir_ty"
+version = "0.0.0"
+dependencies = [
  "hir",
  "la-arena",
 ]
