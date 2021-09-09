@@ -1,0 +1,13 @@
+[package]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+name = "hir_ty"
+version = "0.0.0"
+
+[dependencies]
+hir = {path = "../hir"}
+la-arena = "0.2.1"
+
+[dev-dependencies]
+lexer = {path = "../lexer"}
+parser = {path = "../parser"}
