@@ -24,6 +24,7 @@ pub trait AstToken: Sized {
 
 macro_rules! def_ast_node {
     ($kind:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $kind(SyntaxNode);
 
         impl AstNode for $kind {
@@ -40,6 +41,7 @@ macro_rules! def_ast_node {
 
 macro_rules! def_ast_token {
     ($kind:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
         pub struct $kind(SyntaxToken);
 
         impl AstToken for $kind {
@@ -62,6 +64,7 @@ impl Root {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stmt {
     VarDef(VarDef),
     Expr(Expr),
@@ -100,6 +103,7 @@ impl VarDef {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Bin(BinExpr),
     Paren(ParenExpr),
@@ -179,6 +183,7 @@ impl StringLiteral {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Op {
     Add(Plus),
     Sub(Hyphen),

@@ -23,6 +23,7 @@ pub fn validate(root: &Root) -> Vec<ValidationError> {
     errors
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ValidatedRoot(Root);
 
 impl ValidatedRoot {
