@@ -67,6 +67,8 @@ impl InferCtx<'_> {
 
     fn infer_expr(&mut self, expr: hir::ExprIdx) -> Ty {
         let ty = match self.exprs[expr] {
+            hir::Expr::Missing => Ty::Unknown,
+
             hir::Expr::Bin { lhs, rhs, .. } => {
                 let lhs_ty = self.infer_expr(lhs);
                 let rhs_ty = self.infer_expr(rhs);
@@ -97,8 +99,6 @@ impl InferCtx<'_> {
             hir::Expr::IntLiteral { .. } => Ty::Int,
 
             hir::Expr::StringLiteral { .. } => Ty::String,
-
-            _ => todo!(),
         };
 
         self.result.expr_tys.insert(expr, ty);
@@ -269,5 +269,55 @@ mod tests {
         assert_eq!(result.expr_tys[idx], Ty::Int);
         assert_eq!(result.var_tys["idx"], Ty::Int);
         assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_missing_expr() {
+        let mut exprs = Arena::new();
+        let missing = exprs.alloc(hir::Expr::Missing);
+
+        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)] };
+        let result = infer(&program);
+
+        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn only_error_on_missing_expr_use() {
+        let mut exprs = Arena::new();
+        let missing = exprs.alloc(hir::Expr::Missing);
+        let user = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("user".to_string())) });
+        let four = exprs.alloc(hir::Expr::IntLiteral { value: Some(4) });
+        let user_plus_four =
+            exprs.alloc(hir::Expr::Bin { lhs: user, rhs: four, op: Some(hir::BinOp::Add) });
+
+        let program = hir::Program {
+            exprs,
+            stmts: vec![
+                hir::Stmt::VarDef(hir::VarDef {
+                    name: hir::Name(Some("user".to_string())),
+                    value: missing,
+                }),
+                hir::Stmt::Expr(user_plus_four),
+            ],
+        };
+        let result = infer(&program);
+
+        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.expr_tys[user], Ty::Unknown);
+        assert_eq!(result.expr_tys[four], Ty::Int);
+        assert_eq!(result.expr_tys[user_plus_four], Ty::Int);
+        assert_eq!(result.var_tys["user"], Ty::Unknown);
+
+        // we only get an error about `user`’s type not being known
+        // until we try to do an operation with it
+        assert_eq!(
+            result.errors,
+            [TyError {
+                expr: user,
+                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::Unknown }
+            }]
+        );
     }
 }
