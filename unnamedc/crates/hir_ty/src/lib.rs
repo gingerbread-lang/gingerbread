@@ -34,12 +34,12 @@ pub enum Ty {
 
 #[derive(Debug, PartialEq)]
 pub struct TyError {
-    expr: hir::ExprIdx,
-    kind: TyErrorKind,
+    pub expr: hir::ExprIdx,
+    pub kind: TyErrorKind,
 }
 
 #[derive(Debug, PartialEq)]
-enum TyErrorKind {
+pub enum TyErrorKind {
     Mismatch { expected: Ty, found: Ty },
     UndefinedVar,
 }

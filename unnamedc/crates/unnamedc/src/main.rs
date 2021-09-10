@@ -26,11 +26,15 @@ fn main() -> anyhow::Result<()> {
         }
 
         let (program, source_map) = hir_lower::lower(&root);
-        dbg!(&program, source_map);
+        dbg!(&program, &source_map);
 
         let infer_result = hir_ty::infer_with_var_tys(&program, var_tys);
         dbg!(&infer_result);
         var_tys = infer_result.var_tys;
+
+        for error in infer_result.errors {
+            dbg!(&source_map.expr_map[error.expr], &error.kind);
+        }
 
         let result = evaluator.eval(program);
         dbg!(result);
