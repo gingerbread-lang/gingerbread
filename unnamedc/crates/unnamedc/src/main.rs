@@ -13,6 +13,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut stdout = io::stdout();
     let mut input = String::new();
+    let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
     let mut var_tys = HashMap::new();
 
@@ -25,12 +26,29 @@ fn main() -> anyhow::Result<()> {
 
             match key_event {
                 KeyEvent { code: KeyCode::Char('d'), modifiers: KeyModifiers::CONTROL } => break,
-                KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => input.push(c),
+                KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
+                    input.insert(cursor_pos.into(), c);
+                    cursor_pos += 1;
+                }
                 KeyEvent { code: KeyCode::Backspace, modifiers: KeyModifiers::NONE } => {
-                    input.pop();
+                    if cursor_pos != 0 {
+                        cursor_pos -= 1;
+                        input.remove(cursor_pos.into());
+                    }
                 }
                 KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE } => {
                     pressed_enter = true;
+                    cursor_pos = 0;
+                }
+                KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE } => {
+                    if cursor_pos != 0 {
+                        cursor_pos -= 1;
+                    }
+                }
+                KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE } => {
+                    if usize::from(cursor_pos) < input.len() {
+                        cursor_pos += 1;
+                    }
                 }
                 _ => {}
             }
@@ -100,6 +118,8 @@ fn main() -> anyhow::Result<()> {
 
                 input.clear();
             }
+
+            queue!(stdout, cursor::MoveToColumn(3 + cursor_pos))?;
 
             stdout.flush()?;
         }
