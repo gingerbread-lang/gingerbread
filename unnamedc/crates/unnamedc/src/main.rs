@@ -91,18 +91,17 @@ fn main() -> anyhow::Result<()> {
                 write!(stdout, "{}", c)?;
             }
 
-            stdout.flush()?;
-
             if pressed_enter && error_ranges.is_empty() {
                 var_tys = infer_result.var_tys;
                 let result = evaluator.eval(program);
 
                 queue!(stdout, cursor::MoveToNextLine(0))?;
                 write!(stdout, "{:?}\r\n> ", result)?;
-                stdout.flush()?;
 
                 input.clear();
             }
+
+            stdout.flush()?;
         }
     }
 
