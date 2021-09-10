@@ -39,11 +39,22 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
 }
 
 fn parse_expr(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
-    parse_expr_bp(p, 0)
+    parse_expr_with_recovery_set(p, TokenSet::default())
 }
 
-fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> {
-    let mut lhs = parse_lhs(p)?;
+fn parse_expr_with_recovery_set(
+    p: &mut Parser<'_, '_>,
+    recovery_set: TokenSet,
+) -> Option<CompletedMarker> {
+    parse_expr_bp(p, 0, recovery_set)
+}
+
+fn parse_expr_bp(
+    p: &mut Parser<'_, '_>,
+    min_bp: u8,
+    recovery_set: TokenSet,
+) -> Option<CompletedMarker> {
+    let mut lhs = parse_lhs(p, recovery_set)?;
 
     loop {
         let _guard = p.expected_syntax_name("binary operator");
@@ -62,14 +73,14 @@ fn parse_expr_bp(p: &mut Parser<'_, '_>, min_bp: u8) -> Option<CompletedMarker> 
         p.bump();
 
         let m = lhs.precede(p);
-        parse_expr_bp(p, right_bp);
+        parse_expr_bp(p, right_bp, recovery_set);
         lhs = m.complete(p, SyntaxKind::BinExpr);
     }
 
     Some(lhs)
 }
 
-fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+fn parse_lhs(p: &mut Parser<'_, '_>, recovery_set: TokenSet) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("expression");
     let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
@@ -80,7 +91,7 @@ fn parse_lhs(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     } else if p.at(TokenKind::LParen) {
         parse_paren_expr(p)
     } else {
-        return p.error();
+        return p.error_with_recovery_set(recovery_set);
     };
 
     Some(completed_marker)
@@ -112,7 +123,7 @@ fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
 
-    parse_expr(p);
+    parse_expr_with_recovery_set(p, TokenSet::new([TokenKind::RParen]));
     p.expect(TokenKind::RParen);
 
     m.complete(p, SyntaxKind::ParenExpr)
@@ -403,7 +414,7 @@ mod tests {
                     LParen@0..1 "("
                     VarRef@1..4
                       Ident@1..4 "foo"
-                error at 1..4: expected binary operator (`+`, `-`, `*` or `/`) or `)`
+                error at 1..4: expected binary operator or `)`
             "#]],
         );
     }
@@ -419,7 +430,50 @@ mod tests {
                     VarRef@1..3
                       Ident@1..2 "a"
                       Whitespace@2..3 " "
-                error at 1..2: expected binary operator (`+`, `-`, `*` or `/`) or `)`
+                error at 1..2: expected binary operator or `)`
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_paren_expr_with_no_contents() {
+        check(
+            "()",
+            expect![[r#"
+                Root@0..2
+                  ParenExpr@0..2
+                    LParen@0..1 "("
+                    RParen@1..2 ")"
+                error at 0..1: expected expression
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_unclosed_paren_expr_recovery_on_var_def() {
+        check(
+            "(1+1 let foo = bar",
+            expect![[r#"
+                Root@0..18
+                  ParenExpr@0..5
+                    LParen@0..1 "("
+                    BinExpr@1..5
+                      IntLiteral@1..2
+                        Int@1..2 "1"
+                      Plus@2..3 "+"
+                      IntLiteral@3..5
+                        Int@3..4 "1"
+                        Whitespace@4..5 " "
+                  VarDef@5..18
+                    LetKw@5..8 "let"
+                    Whitespace@8..9 " "
+                    Ident@9..12 "foo"
+                    Whitespace@12..13 " "
+                    Eq@13..14 "="
+                    Whitespace@14..15 " "
+                    VarRef@15..18
+                      Ident@15..18 "bar"
+                error at 3..4: expected binary operator or `)`
             "#]],
         );
     }
@@ -434,7 +488,7 @@ mod tests {
                     IntLiteral@0..1
                       Int@0..1 "1"
                     Plus@1..2 "+"
-                error at 1..2: expected expression (identifier, integer literal, string literal or `(`)
+                error at 1..2: expected expression
             "#]],
         );
     }
@@ -451,7 +505,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected expression (identifier, integer literal, string literal or `(`) or statement (`let`) but found an unrecognized token
+                error at 0..2: expected expression or statement but found an unrecognized token
             "#]],
         );
     }
@@ -470,7 +524,7 @@ mod tests {
                     Whitespace@4..5 " "
                     Error@5..6
                       Error@5..6 "%"
-                error at 5..6: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
+                error at 5..6: expected expression but found an unrecognized token
             "#]],
         );
     }
@@ -504,8 +558,8 @@ mod tests {
                     Whitespace@15..16 " "
                     Error@16..17
                       Error@16..17 "?"
-                error at 5..6: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
-                error at 16..17: expected expression (identifier, integer literal, string literal or `(`) but found an unrecognized token
+                error at 5..6: expected expression but found an unrecognized token
+                error at 16..17: expected expression but found an unrecognized token
             "#]],
         );
     }
@@ -585,7 +639,7 @@ mod tests {
                     Whitespace@5..6 " "
                     IntLiteral@6..8
                       Int@6..8 "92"
-                error at 0..3: expected variable name (identifier)
+                error at 0..3: expected variable name
             "#]],
         );
     }
@@ -612,7 +666,7 @@ mod tests {
                     Whitespace@19..20 " "
                     IntLiteral@20..22
                       Int@20..22 "92"
-                error at 8..9: expected expression (identifier, integer literal, string literal or `(`)
+                error at 8..9: expected expression
             "#]],
         );
     }
@@ -631,10 +685,10 @@ mod tests {
                   VarDef@6..9
                     LetKw@6..9 "let"
                 error at 4..5: expected `=`
-                error at 4..5: expected expression (identifier, integer literal, string literal or `(`)
-                error at 6..9: expected variable name (identifier)
+                error at 4..5: expected expression
+                error at 6..9: expected variable name
                 error at 6..9: expected `=`
-                error at 6..9: expected expression (identifier, integer literal, string literal or `(`)
+                error at 6..9: expected expression
             "#]],
         );
     }
@@ -647,9 +701,9 @@ mod tests {
                 Root@0..3
                   VarDef@0..3
                     LetKw@0..3 "let"
-                error at 0..3: expected variable name (identifier)
+                error at 0..3: expected variable name
                 error at 0..3: expected `=`
-                error at 0..3: expected expression (identifier, integer literal, string literal or `(`)
+                error at 0..3: expected expression
             "#]],
         );
     }
@@ -672,9 +726,9 @@ mod tests {
                     Whitespace@11..12 " "
                     VarRef@12..13
                       Ident@12..13 "b"
-                error at 0..3: expected variable name (identifier)
+                error at 0..3: expected variable name
                 error at 0..3: expected `=`
-                error at 0..3: expected expression (identifier, integer literal, string literal or `(`)
+                error at 0..3: expected expression
             "#]],
         );
     }

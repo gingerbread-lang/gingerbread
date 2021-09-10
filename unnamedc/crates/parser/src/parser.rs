@@ -20,7 +20,7 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
-    expected_syntaxes: Vec<ExpectedSyntax>,
+    expected_syntaxes: BTreeSet<ExpectedSyntax>,
     is_named_expected_syntax_active: Rc<Cell<bool>>,
 }
 
@@ -30,7 +30,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             tokens,
             token_idx: 0,
             events: Vec::new(),
-            expected_syntaxes: Vec::new(),
+            expected_syntaxes: BTreeSet::new(),
             is_named_expected_syntax_active: Rc::new(Cell::new(false)),
         }
     }
@@ -41,64 +41,21 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn expect(&mut self, kind: TokenKind) {
-        self.expect_with_recovery_set(kind, DEFAULT_RECOVERY_SET)
+        self.expect_with_recovery_set(kind, TokenSet::default())
     }
 
     pub(crate) fn expect_with_recovery_set(&mut self, kind: TokenKind, recovery_set: TokenSet) {
         if self.at(kind) {
             self.bump();
         } else {
-            self.error_with_recovery_set(recovery_set | DEFAULT_RECOVERY_SET);
+            self.error_with_recovery_set(recovery_set);
         }
     }
 
-    pub(crate) fn error(&mut self) -> Option<CompletedMarker> {
-        self.error_with_recovery_set(DEFAULT_RECOVERY_SET)
-    }
-
-    #[must_use]
-    pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxNameGuard {
-        self.is_named_expected_syntax_active.set(true);
-        self.expected_syntaxes.push(ExpectedSyntax::Named { name, kinds: BTreeSet::new() });
-
-        ExpectedSyntaxNameGuard::new(Rc::clone(&self.is_named_expected_syntax_active))
-    }
-
-    pub(crate) fn start(&mut self) -> Marker {
-        let pos = self.events.len();
-        self.events.push(Event::Placeholder);
-
-        Marker::new(pos)
-    }
-
-    pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
-        if self.is_named_expected_syntax_active.get() {
-            match self.expected_syntaxes.last_mut().unwrap() {
-                ExpectedSyntax::Named { kinds, .. } => {
-                    kinds.insert(kind);
-                }
-                ExpectedSyntax::One(_) => unreachable!(),
-            }
-        } else {
-            self.expected_syntaxes.push(ExpectedSyntax::One(kind));
-        }
-
-        self.skip_whitespace();
-        self.at_raw(kind)
-    }
-
-    pub(crate) fn at_eof(&mut self) -> bool {
-        self.skip_whitespace();
-        self.current_token().is_none()
-    }
-
-    pub(crate) fn bump(&mut self) {
-        self.clear_expected_syntaxes();
-        self.events.push(Event::AddToken);
-        self.token_idx += 1;
-    }
-
-    fn error_with_recovery_set(&mut self, recovery_set: TokenSet) -> Option<CompletedMarker> {
+    pub(crate) fn error_with_recovery_set(
+        &mut self,
+        recovery_set: TokenSet,
+    ) -> Option<CompletedMarker> {
         let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
         self.is_named_expected_syntax_active.set(false);
 
@@ -106,9 +63,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         // we use the *previous* non-whitespace token’s range
         // and don’t create an error node
 
-        if self.at_eof() || self.at_set(recovery_set) {
+        if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET | recovery_set) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(ParseError::new(expected_syntaxes, None, range)));
+            self.events.push(Event::Error(ParseError { expected_syntaxes, found: None, range }));
 
             return None;
         }
@@ -132,15 +89,50 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             })
             .unwrap();
 
-        self.events.push(Event::Error(ParseError::new(
+        self.events.push(Event::Error(ParseError {
             expected_syntaxes,
-            current_token.map(|token| token.kind),
+            found: current_token.map(|token| token.kind),
             range,
-        )));
+        }));
 
         let m = self.start();
         self.bump();
         Some(m.complete(self, SyntaxKind::Error))
+    }
+
+    #[must_use]
+    pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxNameGuard {
+        self.is_named_expected_syntax_active.set(true);
+        self.expected_syntaxes.insert(ExpectedSyntax::Named(name));
+
+        ExpectedSyntaxNameGuard::new(Rc::clone(&self.is_named_expected_syntax_active))
+    }
+
+    pub(crate) fn start(&mut self) -> Marker {
+        let pos = self.events.len();
+        self.events.push(Event::Placeholder);
+
+        Marker::new(pos)
+    }
+
+    pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
+        if !self.is_named_expected_syntax_active.get() {
+            self.expected_syntaxes.insert(ExpectedSyntax::Unnamed(kind));
+        }
+
+        self.skip_whitespace();
+        self.at_raw(kind)
+    }
+
+    pub(crate) fn at_eof(&mut self) -> bool {
+        self.skip_whitespace();
+        self.current_token().is_none()
+    }
+
+    pub(crate) fn bump(&mut self) {
+        self.clear_expected_syntaxes();
+        self.events.push(Event::AddToken);
+        self.token_idx += 1;
     }
 
     fn clear_expected_syntaxes(&mut self) {

@@ -13,7 +13,7 @@ use token::TokenKind;
 //
 // This implementation is mostly stolen from rust-analyzer:
 // https://github.com/rust-analyzer/rust-analyzer/blob/b73b321478d3b2a98d380eb79de717e01620c4e9/crates/parser/src/token_set.rs
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct TokenSet(u16);
 
 impl TokenSet {
