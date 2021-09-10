@@ -13,3 +13,4 @@ hir_lower = {path = "../hir_lower"}
 hir_ty = {path = "../hir_ty"}
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}
+token = {path = "../token"}

@@ -496,6 +496,7 @@ dependencies = [
  "hir_ty",
  "lexer",
  "parser",
+ "token",
 ]
 
 [[package]]

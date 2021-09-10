@@ -1,11 +1,12 @@
 use ast::AstNode;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::style::Stylize;
+use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
 use eval::Evaluator;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{self, Write};
+use token::TokenKind;
 
 fn main() -> anyhow::Result<()> {
     terminal::enable_raw_mode()?;
@@ -68,11 +69,24 @@ fn main() -> anyhow::Result<()> {
                 let idx = idx.try_into().unwrap();
                 let is_in_error = error_ranges.iter().any(|range| range.contains(idx));
 
-                if is_in_error {
-                    write!(stdout, "{}", c.red().underlined())?;
-                } else {
-                    write!(stdout, "{}", c)?;
-                }
+                let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
+                let c = match token.kind {
+                    TokenKind::LetKw => c.magenta().bold(),
+                    TokenKind::Ident => c.blue(),
+                    TokenKind::Int => c.yellow(),
+                    TokenKind::String => c.green(),
+                    TokenKind::Plus
+                    | TokenKind::Hyphen
+                    | TokenKind::Asterisk
+                    | TokenKind::Slash => c.cyan(),
+                    TokenKind::Eq | TokenKind::LParen | TokenKind::RParen => c.dark_grey(),
+                    TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
+                    TokenKind::Error => c.red().bold(),
+                };
+
+                let c = if is_in_error { c.underlined() } else { c };
+
+                write!(stdout, "{}", c)?;
             }
 
             stdout.flush()?;
