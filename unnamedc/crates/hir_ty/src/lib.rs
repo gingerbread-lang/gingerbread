@@ -73,12 +73,17 @@ impl InferCtx<'_> {
                 let lhs_ty = self.infer_expr(lhs);
                 let rhs_ty = self.infer_expr(rhs);
 
-                for (expr, ty) in [(lhs, lhs_ty), (rhs, rhs_ty)] {
-                    if ty != Ty::Int {
-                        self.result.errors.push(TyError {
-                            expr,
-                            kind: TyErrorKind::Mismatch { expected: Ty::Int, found: ty },
-                        });
+                let is_lhs_missing = self.exprs[lhs] == hir::Expr::Missing;
+                let is_rhs_missing = self.exprs[rhs] == hir::Expr::Missing;
+                let is_anything_missing = is_lhs_missing || is_rhs_missing;
+                if !is_anything_missing {
+                    for (expr, ty) in [(lhs, lhs_ty), (rhs, rhs_ty)] {
+                        if ty != Ty::Int {
+                            self.result.errors.push(TyError {
+                                expr,
+                                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: ty },
+                            });
+                        }
                     }
                 }
 
@@ -319,5 +324,22 @@ mod tests {
                 kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::Unknown }
             }]
         );
+    }
+
+    #[test]
+    fn dont_error_on_missing_expr_in_bin_expr() {
+        let mut exprs = Arena::new();
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
+        let missing = exprs.alloc(hir::Expr::Missing);
+        let ten_times_missing =
+            exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: missing, op: Some(hir::BinOp::Mul) });
+
+        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten_times_missing)] };
+        let result = infer(&program);
+
+        assert_eq!(result.expr_tys[ten], Ty::Int);
+        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.expr_tys[ten_times_missing], Ty::Int);
+        assert_eq!(result.errors, []);
     }
 }
