@@ -2,6 +2,7 @@ use ast::AstNode;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
+use errors::Error;
 use eval::Evaluator;
 use hir_ty::Ty;
 use std::collections::HashMap;
@@ -77,20 +78,20 @@ fn render(
     evaluator: &mut Evaluator,
     cursor_pos: &mut u16,
 ) -> anyhow::Result<()> {
-    let mut error_ranges = Vec::new();
+    let mut errors = Vec::new();
 
     let tokens = lexer::lex(input);
     let parse = parser::parse(&tokens);
 
     for error in parse.errors() {
-        error_ranges.push(error.range);
+        errors.push(Error::from_parse_error(error.clone()));
     }
 
     let root = ast::Root::cast(parse.syntax_node()).unwrap();
     let validation_errors = ast::validation::validate(&root);
 
     for error in validation_errors {
-        error_ranges.push(error.range);
+        errors.push(Error::from_validation_error(error));
     }
 
     let (program, source_map) = hir_lower::lower(&root);
@@ -98,8 +99,7 @@ fn render(
     let infer_result = hir_ty::infer_with_var_tys(&program, var_tys.clone());
 
     for error in infer_result.errors {
-        let ast = &source_map.expr_map[error.expr];
-        error_ranges.push(ast.range());
+        errors.push(Error::from_ty_error(error, &source_map));
     }
 
     queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
@@ -107,7 +107,7 @@ fn render(
     write!(stdout, "> ")?;
     for (idx, c) in input.char_indices() {
         let idx = idx.try_into().unwrap();
-        let is_in_error = error_ranges.iter().any(|range| range.contains(idx));
+        let is_in_error = errors.iter().any(|error| error.range.contains(idx));
 
         let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
         let c = match token.kind {
@@ -129,18 +129,27 @@ fn render(
     }
 
     if pressed_enter {
-        if error_ranges.is_empty() {
+        if errors.is_empty() {
             *var_tys = infer_result.var_tys;
             let result = evaluator.eval(program);
 
             queue!(stdout, cursor::MoveToNextLine(1))?;
             write!(stdout, "{:?}", result)?;
+            queue!(stdout, cursor::MoveToNextLine(1))?;
 
             input.clear();
             *cursor_pos = 0;
+        } else {
+            queue!(stdout, cursor::MoveToNextLine(1))?;
+
+            for error in errors {
+                for line in error.display(input) {
+                    print!("{}", line);
+                    queue!(stdout, cursor::MoveToNextLine(1))?;
+                }
+            }
         }
 
-        queue!(stdout, cursor::MoveToNextLine(1))?;
         write!(stdout, "> ")?;
 
         render(input, stdout, var_tys, false, evaluator, cursor_pos)?;

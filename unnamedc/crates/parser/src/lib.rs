@@ -39,7 +39,7 @@ impl fmt::Debug for Parse {
         write!(f, "{}", &tree[0..tree.len() - 1])?;
 
         for error in &self.errors {
-            write!(f, "\n{}", error)?;
+            write!(f, "\n{:?}", error)?;
         }
 
         Ok(())

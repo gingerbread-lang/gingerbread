@@ -3,7 +3,7 @@ mod marker;
 
 use self::expected_syntax_name_guard::ExpectedSyntaxNameGuard;
 pub(crate) use self::marker::{CompletedMarker, Marker};
-use crate::error::{ExpectedSyntax, ParseError};
+use crate::error::{ExpectedSyntax, ParseError, ParseErrorData};
 use crate::event::Event;
 use crate::token_set::TokenSet;
 use std::cell::Cell;
@@ -65,7 +65,10 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
         if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET | recovery_set) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(ParseError { expected_syntaxes, found: None, range }));
+            self.events.push(Event::Error(ParseError {
+                range,
+                data: ParseErrorData { expected_syntaxes, found: None },
+            }));
 
             return None;
         }
@@ -90,9 +93,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             .unwrap();
 
         self.events.push(Event::Error(ParseError {
-            expected_syntaxes,
-            found: current_token.map(|token| token.kind),
             range,
+            data: ParseErrorData {
+                expected_syntaxes,
+                found: current_token.map(|token| token.kind),
+            },
         }));
 
         let m = self.start();

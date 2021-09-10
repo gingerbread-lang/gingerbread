@@ -413,7 +413,7 @@ mod tests {
                     LParen@0..1 "("
                     VarRef@1..4
                       Ident@1..4 "foo"
-                error at 1..4: expected binary operator or `)`
+                error at 1..4: expected binary operator, RParen
             "#]],
         );
     }
@@ -429,7 +429,7 @@ mod tests {
                     VarRef@1..3
                       Ident@1..2 "a"
                       Whitespace@2..3 " "
-                error at 1..2: expected binary operator or `)`
+                error at 1..2: expected binary operator, RParen
             "#]],
         );
     }
@@ -472,7 +472,7 @@ mod tests {
                     Whitespace@14..15 " "
                     VarRef@15..18
                       Ident@15..18 "bar"
-                error at 3..4: expected binary operator or `)`
+                error at 3..4: expected binary operator, RParen
             "#]],
         );
     }
@@ -504,7 +504,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected expression or statement but found an unrecognized token
+                error at 0..2: expected expression, statement but found Error
             "#]],
         );
     }
@@ -523,7 +523,7 @@ mod tests {
                     Whitespace@4..5 " "
                     Error@5..6
                       Error@5..6 "%"
-                error at 5..6: expected expression but found an unrecognized token
+                error at 5..6: expected expression but found Error
             "#]],
         );
     }
@@ -557,8 +557,8 @@ mod tests {
                     Whitespace@15..16 " "
                     Error@16..17
                       Error@16..17 "?"
-                error at 5..6: expected expression but found an unrecognized token
-                error at 16..17: expected expression but found an unrecognized token
+                error at 5..6: expected expression but found Error
+                error at 16..17: expected expression but found Error
             "#]],
         );
     }
@@ -683,10 +683,10 @@ mod tests {
                     Whitespace@5..6 " "
                   VarDef@6..9
                     LetKw@6..9 "let"
-                error at 4..5: expected `=`
+                error at 4..5: expected Eq
                 error at 4..5: expected expression
                 error at 6..9: expected variable name
-                error at 6..9: expected `=`
+                error at 6..9: expected Eq
                 error at 6..9: expected expression
             "#]],
         );
@@ -701,7 +701,7 @@ mod tests {
                   VarDef@0..3
                     LetKw@0..3 "let"
                 error at 0..3: expected variable name
-                error at 0..3: expected `=`
+                error at 0..3: expected Eq
                 error at 0..3: expected expression
             "#]],
         );
@@ -726,7 +726,7 @@ mod tests {
                     VarRef@12..13
                       Ident@12..13 "b"
                 error at 0..3: expected variable name
-                error at 0..3: expected `=`
+                error at 0..3: expected Eq
                 error at 0..3: expected expression
             "#]],
         );

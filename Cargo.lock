@@ -96,6 +96,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
 
 [[package]]
+name = "errors"
+version = "0.0.0"
+dependencies = [
+ "ast",
+ "expect-test",
+ "hir_lower",
+ "hir_ty",
+ "parser",
+ "text-size",
+ "token",
+]
+
+[[package]]
 name = "eval"
 version = "0.0.0"
 dependencies = [
@@ -491,6 +504,7 @@ dependencies = [
  "anyhow",
  "ast",
  "crossterm",
+ "errors",
  "eval",
  "hir_lower",
  "hir_ty",

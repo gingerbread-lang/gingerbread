@@ -41,7 +41,7 @@ pub struct TyError {
 #[derive(Debug, PartialEq)]
 pub enum TyErrorKind {
     Mismatch { expected: Ty, found: Ty },
-    UndefinedVar,
+    UndefinedVar { name: String },
 }
 
 struct InferCtx<'a> {
@@ -94,7 +94,10 @@ impl InferCtx<'_> {
                 hir::Name(Some(name)) => match self.result.var_tys.get(name.as_str()) {
                     Some(ty) => *ty,
                     None => {
-                        self.result.errors.push(TyError { expr, kind: TyErrorKind::UndefinedVar });
+                        self.result.errors.push(TyError {
+                            expr,
+                            kind: TyErrorKind::UndefinedVar { name: name.clone() },
+                        });
                         Ty::Unknown
                     }
                 },
@@ -189,7 +192,10 @@ mod tests {
         let result = infer(&program);
 
         assert_eq!(result.expr_tys[a], Ty::Unknown);
-        assert_eq!(result.errors, [TyError { expr: a, kind: TyErrorKind::UndefinedVar }]);
+        assert_eq!(
+            result.errors,
+            [TyError { expr: a, kind: TyErrorKind::UndefinedVar { name: "a".to_string() } }]
+        );
     }
 
     #[test]

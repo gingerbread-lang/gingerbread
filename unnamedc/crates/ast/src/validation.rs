@@ -1,5 +1,4 @@
 use crate::{AstNode, AstToken, IntLiteral, Root};
-use std::fmt;
 use text_size::TextRange;
 
 pub fn validate(root: &Root) -> Vec<ValidationError> {
@@ -38,46 +37,9 @@ pub struct ValidationError {
     pub range: TextRange,
 }
 
-impl fmt::Display for ValidationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "error at {}..{}: {}",
-            u32::from(self.range.start()),
-            u32::from(self.range.end()),
-            match self.kind {
-                ValidationErrorKind::IntLiteralTooBig => "integer literal too large",
-            }
-        )
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum ValidationErrorKind {
     IntLiteralTooBig,
-}
-
-#[cfg(test)]
-mod error_display_tests {
-    use super::*;
-    use expect_test::{expect, Expect};
-    use std::ops::Range as StdRange;
-
-    fn check(kind: ValidationErrorKind, range: StdRange<u32>, formatted: Expect) {
-        let error =
-            ValidationError { kind, range: TextRange::new(range.start.into(), range.end.into()) };
-
-        formatted.assert_eq(&error.to_string());
-    }
-
-    #[test]
-    fn int_literal_too_big() {
-        check(
-            ValidationErrorKind::IntLiteralTooBig,
-            0..20,
-            expect![[r#"error at 0..20: integer literal too large"#]],
-        );
-    }
 }
 
 #[cfg(test)]

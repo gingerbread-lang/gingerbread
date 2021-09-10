@@ -1,17 +1,16 @@
 [package]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-name = "unnamedc"
-version = "0.1.0"
+name = "errors"
+version = "0.0.0"
 
 [dependencies]
-anyhow = "1.0"
 ast = {path = "../ast"}
-crossterm = "0.21.0"
-errors = {path = "../errors"}
-eval = {path = "../eval"}
 hir_lower = {path = "../hir_lower"}
 hir_ty = {path = "../hir_ty"}
-lexer = {path = "../lexer"}
 parser = {path = "../parser"}
+text-size = "1.1"
 token = {path = "../token"}
+
+[dev-dependencies]
+expect-test = "1.1"
