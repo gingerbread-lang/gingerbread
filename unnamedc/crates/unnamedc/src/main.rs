@@ -3,6 +3,7 @@ use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
 use eval::Evaluator;
+use hir_ty::Ty;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -38,7 +39,6 @@ fn main() -> anyhow::Result<()> {
                 }
                 KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE } => {
                     pressed_enter = true;
-                    cursor_pos = 0;
                 }
                 KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE } => {
                     if cursor_pos != 0 {
@@ -53,79 +53,102 @@ fn main() -> anyhow::Result<()> {
                 _ => {}
             }
 
-            let mut error_ranges = Vec::new();
-
-            let tokens = lexer::lex(&input);
-            let parse = parser::parse(&tokens);
-
-            for error in parse.errors() {
-                error_ranges.push(error.range);
-            }
-
-            let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let validation_errors = ast::validation::validate(&root);
-
-            for error in validation_errors {
-                error_ranges.push(error.range);
-            }
-
-            let (program, source_map) = hir_lower::lower(&root);
-
-            let infer_result = hir_ty::infer_with_var_tys(&program, var_tys.clone());
-
-            for error in infer_result.errors {
-                let ast = &source_map.expr_map[error.expr];
-                error_ranges.push(ast.range());
-            }
-
-            queue!(
-                stdout,
-                terminal::Clear(terminal::ClearType::CurrentLine),
-                cursor::MoveToColumn(0)
+            render(
+                &mut input,
+                &mut stdout.lock(),
+                &mut var_tys,
+                pressed_enter,
+                &mut evaluator,
+                &mut cursor_pos,
             )?;
-
-            write!(stdout, "> ")?;
-            for (idx, c) in input.char_indices() {
-                let idx = idx.try_into().unwrap();
-                let is_in_error = error_ranges.iter().any(|range| range.contains(idx));
-
-                let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
-                let c = match token.kind {
-                    TokenKind::LetKw => c.magenta().bold(),
-                    TokenKind::Ident => c.blue(),
-                    TokenKind::Int => c.yellow(),
-                    TokenKind::String => c.green(),
-                    TokenKind::Plus
-                    | TokenKind::Hyphen
-                    | TokenKind::Asterisk
-                    | TokenKind::Slash => c.cyan(),
-                    TokenKind::Eq | TokenKind::LParen | TokenKind::RParen => c.dark_grey(),
-                    TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
-                    TokenKind::Error => c.red().bold(),
-                };
-
-                let c = if is_in_error { c.underlined() } else { c };
-
-                write!(stdout, "{}", c)?;
-            }
-
-            if pressed_enter && error_ranges.is_empty() {
-                var_tys = infer_result.var_tys;
-                let result = evaluator.eval(program);
-
-                queue!(stdout, cursor::MoveToNextLine(0))?;
-                write!(stdout, "{:?}\r\n> ", result)?;
-
-                input.clear();
-            }
-
-            queue!(stdout, cursor::MoveToColumn(3 + cursor_pos))?;
-
-            stdout.flush()?;
         }
     }
 
     terminal::disable_raw_mode()?;
+
+    Ok(())
+}
+
+fn render(
+    input: &mut String,
+    stdout: &mut io::StdoutLock<'_>,
+    var_tys: &mut HashMap<String, Ty>,
+    pressed_enter: bool,
+    evaluator: &mut Evaluator,
+    cursor_pos: &mut u16,
+) -> anyhow::Result<()> {
+    let mut error_ranges = Vec::new();
+
+    let tokens = lexer::lex(input);
+    let parse = parser::parse(&tokens);
+
+    for error in parse.errors() {
+        error_ranges.push(error.range);
+    }
+
+    let root = ast::Root::cast(parse.syntax_node()).unwrap();
+    let validation_errors = ast::validation::validate(&root);
+
+    for error in validation_errors {
+        error_ranges.push(error.range);
+    }
+
+    let (program, source_map) = hir_lower::lower(&root);
+
+    let infer_result = hir_ty::infer_with_var_tys(&program, var_tys.clone());
+
+    for error in infer_result.errors {
+        let ast = &source_map.expr_map[error.expr];
+        error_ranges.push(ast.range());
+    }
+
+    queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
+
+    write!(stdout, "> ")?;
+    for (idx, c) in input.char_indices() {
+        let idx = idx.try_into().unwrap();
+        let is_in_error = error_ranges.iter().any(|range| range.contains(idx));
+
+        let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
+        let c = match token.kind {
+            TokenKind::LetKw => c.magenta().bold(),
+            TokenKind::Ident => c.blue(),
+            TokenKind::Int => c.yellow(),
+            TokenKind::String => c.green(),
+            TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
+                c.cyan()
+            }
+            TokenKind::Eq | TokenKind::LParen | TokenKind::RParen => c.dark_grey(),
+            TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
+            TokenKind::Error => c.red().bold(),
+        };
+
+        let c = if is_in_error { c.underlined() } else { c };
+
+        write!(stdout, "{}", c)?;
+    }
+
+    if pressed_enter {
+        if error_ranges.is_empty() {
+            *var_tys = infer_result.var_tys;
+            let result = evaluator.eval(program);
+
+            queue!(stdout, cursor::MoveToNextLine(1))?;
+            write!(stdout, "{:?}", result)?;
+
+            input.clear();
+            *cursor_pos = 0;
+        }
+
+        queue!(stdout, cursor::MoveToNextLine(1))?;
+        write!(stdout, "> ")?;
+
+        render(input, stdout, var_tys, false, evaluator, cursor_pos)?;
+    }
+
+    queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
+
+    stdout.flush()?;
 
     Ok(())
 }
