@@ -4,10 +4,10 @@ use text_size::TextRange;
 use token::TokenKind;
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct ParseError {
-    pub(crate) expected_syntaxes: BTreeSet<ExpectedSyntax>,
-    pub(crate) found: Option<TokenKind>,
-    pub(crate) range: TextRange,
+pub struct ParseError {
+    pub expected_syntaxes: BTreeSet<ExpectedSyntax>,
+    pub found: Option<TokenKind>,
+    pub range: TextRange,
 }
 
 impl fmt::Display for ParseError {
@@ -30,7 +30,7 @@ impl fmt::Display for ParseError {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum ExpectedSyntax {
+pub enum ExpectedSyntax {
     Named(&'static str),
     Unnamed(TokenKind),
 }

@@ -34,8 +34,8 @@ impl ValidatedRoot {
 
 #[derive(Debug, PartialEq)]
 pub struct ValidationError {
-    kind: ValidationErrorKind,
-    range: TextRange,
+    pub kind: ValidationErrorKind,
+    pub range: TextRange,
 }
 
 impl fmt::Display for ValidationError {

@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 mod event;
 mod grammar;
 mod parser;
@@ -28,6 +28,10 @@ pub struct Parse {
 impl Parse {
     pub fn syntax_node(&self) -> SyntaxNode {
         self.syntax_node.clone()
+    }
+
+    pub fn errors(&self) -> &[ParseError] {
+        &self.errors
     }
 }
 

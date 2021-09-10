@@ -5,7 +5,12 @@ use text_size::TextRange;
 
 pub trait AstNode: Sized {
     fn cast(node: SyntaxNode) -> Option<Self>;
+
     fn syntax(&self) -> &SyntaxNode;
+
+    fn range(&self) -> TextRange {
+        self.syntax().text_range()
+    }
 }
 
 pub trait AstToken: Sized {
