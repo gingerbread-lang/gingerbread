@@ -5,8 +5,8 @@ use std::ops::Range as StdRange;
 use text_size::TextRange;
 use token::Token;
 
-pub fn lex(text: &str) -> impl Iterator<Item = Token<'_>> {
-    Lexer { inner: LexerTokenKind::lexer(text) }
+pub fn lex(text: &str) -> Vec<Token<'_>> {
+    Lexer { inner: LexerTokenKind::lexer(text) }.collect()
 }
 
 struct Lexer<'a> {
@@ -79,13 +79,12 @@ mod tests {
     use token::TokenKind;
 
     fn check(input: &str, expected_kind: TokenKind) {
-        let mut tokens = lex(input);
+        let tokens = lex(input);
 
-        let token = tokens.next().unwrap();
-        assert_eq!(token.kind, expected_kind);
-        assert_eq!(token.text, input); // the token should span the entire input
+        assert_eq!(tokens[0].kind, expected_kind);
+        assert_eq!(tokens[0].text, input); // the token should span the entire input
 
-        assert!(tokens.next().is_none()); // we should only get one token
+        assert_eq!(tokens.len(), 1); // we should only get one token
     }
 
     #[test]
@@ -135,27 +134,21 @@ mod tests {
 
     #[test]
     fn dont_lex_ident_starting_with_int() {
-        let mut tokens = lex("92foo");
-
         assert_eq!(
-            tokens.next(),
-            Some(Token {
-                text: "92",
-                kind: TokenKind::Int,
-                range: TextRange::new(0.into(), 2.into())
-            })
+            lex("92foo"),
+            [
+                Token {
+                    text: "92",
+                    kind: TokenKind::Int,
+                    range: TextRange::new(0.into(), 2.into())
+                },
+                Token {
+                    text: "foo",
+                    kind: TokenKind::Ident,
+                    range: TextRange::new(2.into(), 5.into())
+                }
+            ]
         );
-
-        assert_eq!(
-            tokens.next(),
-            Some(Token {
-                text: "foo",
-                kind: TokenKind::Ident,
-                range: TextRange::new(2.into(), 5.into())
-            })
-        );
-
-        assert_eq!(tokens.next(), None);
     }
 
     #[test]
@@ -165,10 +158,8 @@ mod tests {
 
     #[test]
     fn dont_lex_multiline_string() {
-        let tokens = lex("\"foo\nbar\"");
-
         assert_eq!(
-            tokens.collect::<Vec<_>>(),
+            lex("\"foo\nbar\""),
             [
                 Token {
                     text: "\"foo",

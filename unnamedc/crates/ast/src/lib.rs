@@ -241,23 +241,25 @@ fn token<Node: AstNode, Token: AstToken>(node: &Node) -> Option<Token> {
 mod tests {
     use super::*;
 
+    fn parse(input: &str) -> Root {
+        let syntax = parser::parse(&lexer::lex(input)).syntax_node();
+        Root::cast(syntax).unwrap()
+    }
+
     #[test]
     fn cast_root() {
-        let syntax = parser::parse(lexer::lex("")).syntax_node();
-        assert!(Root::cast(syntax).is_some());
+        parse("");
     }
 
     #[test]
     fn get_stmts() {
-        let syntax = parser::parse(lexer::lex("let a = b\na")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("let a = b\na");
         assert_eq!(root.stmts().count(), 2);
     }
 
     #[test]
     fn inspect_stmt_and_expr_kind() {
-        let syntax = parser::parse(lexer::lex("let foo = bar\nbaz * quuz")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("let foo = bar\nbaz * quuz");
         let mut stmts = root.stmts();
         let var_def = stmts.next().unwrap();
         let expr = stmts.next().unwrap();
@@ -276,8 +278,7 @@ mod tests {
 
     #[test]
     fn get_name_of_var_def() {
-        let syntax = parser::parse(lexer::lex("let a = 10")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("let a = 10");
         let stmt = root.stmts().next().unwrap();
 
         let var_def = match stmt {
@@ -290,8 +291,7 @@ mod tests {
 
     #[test]
     fn get_value_of_var_def() {
-        let syntax = parser::parse(lexer::lex("let foo = 5")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("let foo = 5");
         let stmt = root.stmts().next().unwrap();
 
         let var_def = match stmt {
@@ -307,8 +307,7 @@ mod tests {
 
     #[test]
     fn get_inner_expr_of_paren_expr() {
-        let syntax = parser::parse(lexer::lex("(1)")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("(1)");
         let stmt = root.stmts().next().unwrap();
 
         let paren_expr = match stmt {
@@ -324,8 +323,7 @@ mod tests {
 
     #[test]
     fn get_lhs_and_rhs_of_bin_expr() {
-        let syntax = parser::parse(lexer::lex("foo * 2")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("foo * 2");
         let stmt = root.stmts().next().unwrap();
 
         let bin_expr = match stmt {
@@ -346,8 +344,7 @@ mod tests {
 
     #[test]
     fn get_operator_of_bin_expr() {
-        let syntax = parser::parse(lexer::lex("a + b")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("a + b");
         let stmt = root.stmts().next().unwrap();
 
         let bin_expr = match stmt {
@@ -363,8 +360,7 @@ mod tests {
 
     #[test]
     fn get_name_of_var_ref() {
-        let syntax = parser::parse(lexer::lex("idx")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("idx");
         let stmt = root.stmts().next().unwrap();
 
         let var_ref = match stmt {
@@ -377,8 +373,7 @@ mod tests {
 
     #[test]
     fn get_value_of_int_literal() {
-        let syntax = parser::parse(lexer::lex("92")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("92");
         let stmt = root.stmts().next().unwrap();
 
         let int_literal = match stmt {
@@ -391,8 +386,7 @@ mod tests {
 
     #[test]
     fn get_value_of_string_literal() {
-        let syntax = parser::parse(lexer::lex("\"👀\"")).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let root = parse("\"👀\"");
         let stmt = root.stmts().next().unwrap();
 
         let string_literal = match stmt {

@@ -5,16 +5,16 @@ use std::mem;
 use syntax::SyntaxBuilder;
 use token::{Token, TokenKind};
 
-pub(crate) struct Sink<'a> {
+pub(crate) struct Sink<'tokens, 'input> {
     events: Vec<Event>,
-    tokens: Vec<Token<'a>>,
+    tokens: &'tokens [Token<'input>],
     token_idx: usize,
     builder: SyntaxBuilder,
     errors: Vec<ParseError>,
 }
 
-impl<'a> Sink<'a> {
-    pub(crate) fn new(events: Vec<Event>, tokens: Vec<Token<'a>>) -> Self {
+impl<'tokens, 'input> Sink<'tokens, 'input> {
+    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens [Token<'input>]) -> Self {
         Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::default(), errors: Vec::new() }
     }
 
@@ -46,7 +46,7 @@ impl<'a> Sink<'a> {
         self.token_idx += 1;
     }
 
-    fn current_token(&self) -> Option<Token<'a>> {
+    fn current_token(&self) -> Option<Token<'input>> {
         self.tokens.get(self.token_idx).copied()
     }
 }

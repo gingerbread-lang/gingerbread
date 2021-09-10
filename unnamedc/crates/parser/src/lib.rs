@@ -13,10 +13,8 @@ use std::fmt;
 use syntax::SyntaxNode;
 use token::Token;
 
-pub fn parse<'a>(tokens: impl Iterator<Item = Token<'a>>) -> Parse {
-    let tokens: Vec<_> = tokens.collect();
-    let events = Parser::new(&tokens).parse(grammar::root);
-
+pub fn parse(tokens: &[Token<'_>]) -> Parse {
+    let events = Parser::new(tokens).parse(grammar::root);
     Sink::new(events, tokens).finish()
 }
 

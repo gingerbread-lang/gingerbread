@@ -96,7 +96,7 @@ mod validation_tests {
             })
             .collect();
 
-        let syntax = parser::parse(lexer::lex(input)).syntax_node();
+        let syntax = parser::parse(&lexer::lex(input)).syntax_node();
         let root = Root::cast(syntax).unwrap();
 
         assert_eq!(validate(&root), errors);

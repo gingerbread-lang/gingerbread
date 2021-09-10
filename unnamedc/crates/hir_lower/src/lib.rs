@@ -92,7 +92,7 @@ mod tests {
     use ast::AstNode;
 
     fn check<const LEN: usize>(input: &str, exprs: Arena<hir::Expr>, stmts: [hir::Stmt; LEN]) {
-        let parse = parser::parse(lexer::lex(input));
+        let parse = parser::parse(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _) = lower(&root);
         assert_eq!(program, hir::Program { exprs, stmts: stmts.to_vec() });
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse(lexer::lex("10 - 5"));
+        let parse = parser::parse(&lexer::lex("10 - 5"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
 
         let bin_expr_ast = match root.stmts().next().unwrap() {

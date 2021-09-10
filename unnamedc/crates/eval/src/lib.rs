@@ -87,7 +87,7 @@ mod tests {
     use ast::AstNode;
 
     fn check(input: &str, val: Val) {
-        let parse = parser::parse(lexer::lex(input));
+        let parse = parser::parse(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _) = hir_lower::lower(&root);
 
@@ -153,12 +153,12 @@ mod tests {
     fn preserve_variables_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
-        let parse = parser::parse(lexer::lex("let foo = 100"));
+        let parse = parser::parse(&lexer::lex("let foo = 100"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program), Val::Nil);
 
-        let parse = parser::parse(lexer::lex("foo"));
+        let parse = parser::parse(&lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program), Val::Int(100));

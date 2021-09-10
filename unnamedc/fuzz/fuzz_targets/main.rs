@@ -5,7 +5,7 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|s: &str| {
     let tokens = lexer::lex(s);
-    let parse = parser::parse(tokens);
+    let parse = parser::parse(&tokens);
     let root = ast::Root::cast(parse.syntax_node()).unwrap();
     let _validation_errors = ast::validation::validate(&root);
     let (program, _source_map) = hir_lower::lower(&root);

@@ -134,8 +134,7 @@ mod tests {
     use expect_test::{expect, Expect};
 
     fn check(input: &str, expect: Expect) {
-        let tokens = lexer::lex(input);
-        let parse = crate::parse(tokens);
+        let parse = crate::parse(&lexer::lex(input));
         expect.assert_debug_eq(&parse);
     }
 

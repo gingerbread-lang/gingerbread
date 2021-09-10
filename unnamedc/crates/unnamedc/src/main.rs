@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
             let mut error_ranges = Vec::new();
 
             let tokens = lexer::lex(&input);
-            let parse = parser::parse(tokens);
+            let parse = parser::parse(&tokens);
 
             for error in parse.errors() {
                 error_ranges.push(error.range);
