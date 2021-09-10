@@ -50,8 +50,7 @@ fn main() -> anyhow::Result<()> {
 
             let (program, source_map) = hir_lower::lower(&root);
 
-            let infer_result = hir_ty::infer_with_var_tys(&program, var_tys);
-            var_tys = infer_result.var_tys;
+            let infer_result = hir_ty::infer_with_var_tys(&program, var_tys.clone());
 
             for error in infer_result.errors {
                 let ast = &source_map.expr_map[error.expr];
@@ -92,6 +91,7 @@ fn main() -> anyhow::Result<()> {
             stdout.flush()?;
 
             if pressed_enter && error_ranges.is_empty() {
+                var_tys = infer_result.var_tys;
                 let result = evaluator.eval(program);
 
                 queue!(stdout, cursor::MoveToNextLine(0))?;
