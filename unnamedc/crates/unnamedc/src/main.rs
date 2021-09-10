@@ -16,6 +16,9 @@ fn main() -> anyhow::Result<()> {
     let mut evaluator = Evaluator::default();
     let mut var_tys = HashMap::new();
 
+    write!(stdout, "> ")?;
+    stdout.flush()?;
+
     loop {
         if let Event::Key(key_event) = event::read()? {
             let mut pressed_enter = false;
@@ -95,7 +98,7 @@ fn main() -> anyhow::Result<()> {
                 let result = evaluator.eval(program);
 
                 queue!(stdout, cursor::MoveToNextLine(0))?;
-                writeln!(stdout, "{:?}\r", result)?;
+                write!(stdout, "{:?}\r\n> ", result)?;
                 stdout.flush()?;
 
                 input.clear();
