@@ -129,23 +129,20 @@ fn render(
     }
 
     if pressed_enter {
+        writeln!(stdout, "\r")?;
+
         if errors.is_empty() {
             *var_tys = infer_result.var_tys;
             let result = evaluator.eval(program);
 
-            queue!(stdout, cursor::MoveToNextLine(1))?;
-            write!(stdout, "{:?}", result)?;
-            queue!(stdout, cursor::MoveToNextLine(1))?;
+            writeln!(stdout, "{:?}\r", result)?;
 
             input.clear();
             *cursor_pos = 0;
         } else {
-            queue!(stdout, cursor::MoveToNextLine(1))?;
-
             for error in errors {
                 for line in error.display(input) {
-                    print!("{}", line);
-                    queue!(stdout, cursor::MoveToNextLine(1))?;
+                    writeln!(stdout, "{}\r", line)?;
                 }
             }
         }
