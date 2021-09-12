@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn infer_int_literal() {
         let mut exprs = Arena::new();
-        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
 
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten)] };
         let result = infer(&program);
@@ -134,7 +134,7 @@ mod tests {
     #[test]
     fn infer_string_literal() {
         let mut exprs = Arena::new();
-        let hello = exprs.alloc(hir::Expr::StringLiteral { value: Some("hello".to_string()) });
+        let hello = exprs.alloc(hir::Expr::StringLiteral { value: "hello".to_string() });
 
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(hello)] };
         let result = infer(&program);
@@ -146,8 +146,8 @@ mod tests {
     #[test]
     fn infer_bin_expr_on_ints() {
         let mut exprs = Arena::new();
-        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
-        let twenty = exprs.alloc(hir::Expr::IntLiteral { value: Some(20) });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
+        let twenty = exprs.alloc(hir::Expr::IntLiteral { value: 20 });
         let ten_times_twenty =
             exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: twenty, op: Some(hir::BinOp::Mul) });
 
@@ -163,8 +163,8 @@ mod tests {
     #[test]
     fn infer_bin_expr_on_string_and_int() {
         let mut exprs = Arena::new();
-        let string = exprs.alloc(hir::Expr::StringLiteral { value: Some("100".to_string()) });
-        let int = exprs.alloc(hir::Expr::IntLiteral { value: Some(7) });
+        let string = exprs.alloc(hir::Expr::StringLiteral { value: "100".to_string() });
+        let int = exprs.alloc(hir::Expr::IntLiteral { value: 7 });
         let bin_expr =
             exprs.alloc(hir::Expr::Bin { lhs: string, rhs: int, op: Some(hir::BinOp::Sub) });
 
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn infer_var_def() {
         let mut exprs = Arena::new();
-        let two = exprs.alloc(hir::Expr::IntLiteral { value: Some(2) });
+        let two = exprs.alloc(hir::Expr::IntLiteral { value: 2 });
 
         let program = hir::Program {
             exprs,
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn infer_chain_of_var_refs_and_defs() {
         let mut exprs = Arena::new();
-        let string = exprs.alloc(hir::Expr::StringLiteral { value: Some("test".to_string()) });
+        let string = exprs.alloc(hir::Expr::StringLiteral { value: "test".to_string() });
         let a = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) });
         let b = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("b".to_string())) });
         let c = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("c".to_string())) });
@@ -253,7 +253,7 @@ mod tests {
     fn infer_with_preserved_var_tys() {
         let preserved_var_tys = {
             let mut exprs = Arena::new();
-            let six = exprs.alloc(hir::Expr::IntLiteral { value: Some(6) });
+            let six = exprs.alloc(hir::Expr::IntLiteral { value: 6 });
 
             let program = hir::Program {
                 exprs,
@@ -299,7 +299,7 @@ mod tests {
         let mut exprs = Arena::new();
         let missing = exprs.alloc(hir::Expr::Missing);
         let user = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("user".to_string())) });
-        let four = exprs.alloc(hir::Expr::IntLiteral { value: Some(4) });
+        let four = exprs.alloc(hir::Expr::IntLiteral { value: 4 });
         let user_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: user, rhs: four, op: Some(hir::BinOp::Add) });
 
@@ -335,7 +335,7 @@ mod tests {
     #[test]
     fn dont_error_on_missing_expr_in_bin_expr() {
         let mut exprs = Arena::new();
-        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
         let missing = exprs.alloc(hir::Expr::Missing);
         let ten_times_missing =
             exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: missing, op: Some(hir::BinOp::Mul) });

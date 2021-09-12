@@ -25,8 +25,8 @@ pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
     VarRef { name: Name },
-    IntLiteral { value: Option<u32> },
-    StringLiteral { value: Option<String> },
+    IntLiteral { value: u32 },
+    StringLiteral { value: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

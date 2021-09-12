@@ -57,16 +57,18 @@ impl LowerCtx {
                 hir::Expr::VarRef { name: hir::Name(ast.name().map(|ast| ast.text().to_string())) }
             }
 
-            ast::Expr::IntLiteral(ast) => {
-                hir::Expr::IntLiteral { value: ast.value().and_then(|ast| ast.text().parse().ok()) }
-            }
+            ast::Expr::IntLiteral(ast) => ast
+                .value()
+                .and_then(|ast| ast.text().parse().ok())
+                .map_or(hir::Expr::Missing, |value| hir::Expr::IntLiteral { value }),
 
-            ast::Expr::StringLiteral(ast) => hir::Expr::StringLiteral {
-                value: ast.value().map(|ast| {
+            ast::Expr::StringLiteral(ast) => ast
+                .value()
+                .map(|ast| {
                     let text = ast.text();
-                    text[1..text.len() - 1].to_string()
-                }),
-            },
+                    hir::Expr::StringLiteral { value: text[1..text.len() - 1].to_string() }
+                })
+                .unwrap_or(hir::Expr::Missing),
         };
 
         let expr = self.exprs.alloc(expr);
@@ -116,11 +118,11 @@ mod tests {
     #[test]
     fn lower_bin_expr() {
         let mut exprs = Arena::new();
-        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
-        let five = exprs.alloc(hir::Expr::IntLiteral { value: Some(5) });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
+        let five = exprs.alloc(hir::Expr::IntLiteral { value: 5 });
         let ten_minus_five =
             exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: five, op: Some(hir::BinOp::Sub) });
-        let one = exprs.alloc(hir::Expr::IntLiteral { value: Some(1) });
+        let one = exprs.alloc(hir::Expr::IntLiteral { value: 1 });
         let ten_minus_five_plus_one = exprs.alloc(hir::Expr::Bin {
             lhs: ten_minus_five,
             rhs: one,
@@ -133,7 +135,7 @@ mod tests {
     #[test]
     fn lower_paren_expr() {
         let mut exprs = Arena::new();
-        let ninety_two = exprs.alloc(hir::Expr::IntLiteral { value: Some(92) });
+        let ninety_two = exprs.alloc(hir::Expr::IntLiteral { value: 92 });
 
         check("((((92))))", exprs, [hir::Stmt::Expr(ninety_two)]);
     }
@@ -149,7 +151,7 @@ mod tests {
     #[test]
     fn lower_int_literal() {
         let mut exprs = Arena::new();
-        let ninety_two = exprs.alloc(hir::Expr::IntLiteral { value: Some(92) });
+        let ninety_two = exprs.alloc(hir::Expr::IntLiteral { value: 92 });
 
         check("92", exprs, [hir::Stmt::Expr(ninety_two)]);
     }
@@ -157,7 +159,7 @@ mod tests {
     #[test]
     fn lower_string_literal() {
         let mut exprs = Arena::new();
-        let hello = exprs.alloc(hir::Expr::StringLiteral { value: Some("hello".to_string()) });
+        let hello = exprs.alloc(hir::Expr::StringLiteral { value: "hello".to_string() });
 
         check("\"hello\"", exprs, [hir::Stmt::Expr(hello)]);
     }
@@ -167,7 +169,7 @@ mod tests {
         let mut exprs = Arena::new();
         let b = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("b".to_string())) });
         let a = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) });
-        let four = exprs.alloc(hir::Expr::IntLiteral { value: Some(4) });
+        let four = exprs.alloc(hir::Expr::IntLiteral { value: 4 });
         let a_minus_four =
             exprs.alloc(hir::Expr::Bin { lhs: a, rhs: four, op: Some(hir::BinOp::Sub) });
 
@@ -199,7 +201,7 @@ mod tests {
     #[test]
     fn lower_var_def_without_name() {
         let mut exprs = Arena::new();
-        let ten = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
 
         check(
             "let = 10",
@@ -211,9 +213,9 @@ mod tests {
     #[test]
     fn lower_too_big_int_literal() {
         let mut exprs = Arena::new();
-        let int_literal = exprs.alloc(hir::Expr::IntLiteral { value: None });
+        let missing = exprs.alloc(hir::Expr::Missing);
 
-        check("9999999999999999", exprs, [hir::Stmt::Expr(int_literal)]);
+        check("9999999999999999", exprs, [hir::Stmt::Expr(missing)]);
     }
 
     #[test]
@@ -230,8 +232,8 @@ mod tests {
         let bin_expr_ast = ast::Expr::Bin(bin_expr_ast);
 
         let mut exprs = Arena::new();
-        let ten_hir = exprs.alloc(hir::Expr::IntLiteral { value: Some(10) });
-        let five_hir = exprs.alloc(hir::Expr::IntLiteral { value: Some(5) });
+        let ten_hir = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
+        let five_hir = exprs.alloc(hir::Expr::IntLiteral { value: 5 });
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: ten_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 

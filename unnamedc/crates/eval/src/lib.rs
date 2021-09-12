@@ -41,8 +41,8 @@ impl Evaluator {
             hir::Expr::VarRef { name } => {
                 name.0.as_ref().and_then(|name| self.vars.get(name)).cloned().unwrap_or(Val::Nil)
             }
-            hir::Expr::IntLiteral { value } => value.map_or(Val::Nil, Val::Int),
-            hir::Expr::StringLiteral { value } => value.clone().map_or(Val::Nil, Val::String),
+            hir::Expr::IntLiteral { value } => Val::Int(*value),
+            hir::Expr::StringLiteral { value } => Val::String(value.clone()),
         }
     }
 
