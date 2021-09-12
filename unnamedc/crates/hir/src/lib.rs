@@ -24,7 +24,7 @@ pub struct VarDef {
 pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
-    VarRef { name: Name },
+    VarRef { name: String },
     IntLiteral { value: u32 },
     StringLiteral { value: String },
 }

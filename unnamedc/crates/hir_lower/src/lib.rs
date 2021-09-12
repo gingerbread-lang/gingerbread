@@ -53,9 +53,9 @@ impl LowerCtx {
 
             ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
 
-            ast::Expr::VarRef(ast) => {
-                hir::Expr::VarRef { name: hir::Name(ast.name().map(|ast| ast.text().to_string())) }
-            }
+            ast::Expr::VarRef(ast) => ast.name().map_or(hir::Expr::Missing, |ast| {
+                hir::Expr::VarRef { name: ast.text().to_string() }
+            }),
 
             ast::Expr::IntLiteral(ast) => ast
                 .value()
@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn lower_var_def() {
         let mut exprs = Arena::new();
-        let bar = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("bar".to_string())) });
+        let bar = exprs.alloc(hir::Expr::VarRef { name: "bar".to_string() });
 
         check(
             "let foo = bar",
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn lower_var_ref() {
         let mut exprs = Arena::new();
-        let idx = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("idx".to_string())) });
+        let idx = exprs.alloc(hir::Expr::VarRef { name: "idx".to_string() });
 
         check("idx", exprs, [hir::Stmt::Expr(idx)]);
     }
@@ -167,8 +167,8 @@ mod tests {
     #[test]
     fn lower_multiple_stmts() {
         let mut exprs = Arena::new();
-        let b = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("b".to_string())) });
-        let a = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) });
+        let b = exprs.alloc(hir::Expr::VarRef { name: "b".to_string() });
+        let a = exprs.alloc(hir::Expr::VarRef { name: "a".to_string() });
         let four = exprs.alloc(hir::Expr::IntLiteral { value: 4 });
         let a_minus_four =
             exprs.alloc(hir::Expr::Bin { lhs: a, rhs: four, op: Some(hir::BinOp::Sub) });

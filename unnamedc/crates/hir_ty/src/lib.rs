@@ -90,18 +90,15 @@ impl InferCtx<'_> {
                 Ty::Int
             }
 
-            hir::Expr::VarRef { ref name } => match name {
-                hir::Name(Some(name)) => match self.result.var_tys.get(name.as_str()) {
-                    Some(ty) => *ty,
-                    None => {
-                        self.result.errors.push(TyError {
-                            expr,
-                            kind: TyErrorKind::UndefinedVar { name: name.clone() },
-                        });
-                        Ty::Unknown
-                    }
-                },
-                hir::Name(None) => Ty::Unknown,
+            hir::Expr::VarRef { ref name } => match self.result.var_tys.get(name.as_str()) {
+                Some(ty) => *ty,
+                None => {
+                    self.result.errors.push(TyError {
+                        expr,
+                        kind: TyErrorKind::UndefinedVar { name: name.clone() },
+                    });
+                    Ty::Unknown
+                }
             },
 
             hir::Expr::IntLiteral { .. } => Ty::Int,
@@ -186,7 +183,7 @@ mod tests {
     #[test]
     fn infer_undefined_var_ref() {
         let mut exprs = Arena::new();
-        let a = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) });
+        let a = exprs.alloc(hir::Expr::VarRef { name: "a".to_string() });
 
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(a)] };
         let result = infer(&program);
@@ -221,9 +218,9 @@ mod tests {
     fn infer_chain_of_var_refs_and_defs() {
         let mut exprs = Arena::new();
         let string = exprs.alloc(hir::Expr::StringLiteral { value: "test".to_string() });
-        let a = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("a".to_string())) });
-        let b = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("b".to_string())) });
-        let c = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("c".to_string())) });
+        let a = exprs.alloc(hir::Expr::VarRef { name: "a".to_string() });
+        let b = exprs.alloc(hir::Expr::VarRef { name: "b".to_string() });
+        let c = exprs.alloc(hir::Expr::VarRef { name: "c".to_string() });
 
         let program = hir::Program {
             exprs,
@@ -272,7 +269,7 @@ mod tests {
         };
 
         let mut exprs = Arena::new();
-        let idx = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("idx".to_string())) });
+        let idx = exprs.alloc(hir::Expr::VarRef { name: "idx".to_string() });
 
         let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(idx)] };
         let result = infer_with_var_tys(&program, preserved_var_tys);
@@ -298,7 +295,7 @@ mod tests {
     fn only_error_on_missing_expr_use() {
         let mut exprs = Arena::new();
         let missing = exprs.alloc(hir::Expr::Missing);
-        let user = exprs.alloc(hir::Expr::VarRef { name: hir::Name(Some("user".to_string())) });
+        let user = exprs.alloc(hir::Expr::VarRef { name: "user".to_string() });
         let four = exprs.alloc(hir::Expr::IntLiteral { value: 4 });
         let user_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: user, rhs: four, op: Some(hir::BinOp::Add) });

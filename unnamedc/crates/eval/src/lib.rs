@@ -38,9 +38,7 @@ impl Evaluator {
         match &exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs, exprs),
-            hir::Expr::VarRef { name } => {
-                name.0.as_ref().and_then(|name| self.vars.get(name)).cloned().unwrap_or(Val::Nil)
-            }
+            hir::Expr::VarRef { name } => self.vars.get(name).cloned().unwrap_or(Val::Nil),
             hir::Expr::IntLiteral { value } => Val::Int(*value),
             hir::Expr::StringLiteral { value } => Val::String(value.clone()),
         }
