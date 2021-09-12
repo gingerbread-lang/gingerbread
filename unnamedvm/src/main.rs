@@ -5,10 +5,9 @@ use thiserror::Error;
 fn main() -> anyhow::Result<()> {
     let mut args = env::args_os();
 
-    let path = if let Some(path) = args.nth(1) {
-        PathBuf::from(path)
-    } else {
-        return Err(UsageError::NoArgs.into());
+    let path = match args.nth(1) {
+        Some(path) => PathBuf::from(path),
+        None => return Err(UsageError::NoArgs.into()),
     };
 
     if args.next().is_some() {

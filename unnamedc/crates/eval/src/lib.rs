@@ -53,10 +53,9 @@ impl Evaluator {
         rhs: hir::ExprIdx,
         exprs: &Arena<hir::Expr>,
     ) -> Val {
-        let op = if let Some(op) = op {
-            op
-        } else {
-            return Val::Nil;
+        let op = match op {
+            Some(op) => op,
+            None => return Val::Nil,
         };
 
         let (lhs, rhs) = match (self.eval_expr(lhs, exprs), self.eval_expr(rhs, exprs)) {
