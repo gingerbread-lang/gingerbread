@@ -2,136 +2,175 @@ use ast::validation::{ValidationError, ValidationErrorKind};
 use ast::AstNode;
 use hir_lower::SourceMap;
 use hir_ty::{Ty, TyError, TyErrorKind};
-use parser::error::{ExpectedSyntax, ParseError, ParseErrorData};
+use parser::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
-pub struct Error {
-    pub range: TextRange,
-    pub kind: ErrorKind,
-}
+pub struct Error(ErrorRepr);
 
-pub enum ErrorKind {
-    Parse(ParseErrorData),
-    Validation(ValidationErrorKind),
-    Ty(TyErrorKind),
+enum ErrorRepr {
+    Parse(ParseError),
+    Validation(ValidationError),
+    Ty { kind: TyErrorKind, range: TextRange },
 }
 
 impl Error {
     pub fn from_parse_error(error: ParseError) -> Self {
-        Self { range: error.range, kind: ErrorKind::Parse(error.data) }
+        Self(ErrorRepr::Parse(error))
     }
 
     pub fn from_validation_error(error: ValidationError) -> Self {
-        Self { range: error.range, kind: ErrorKind::Validation(error.kind) }
+        Self(ErrorRepr::Validation(error))
     }
 
     pub fn from_ty_error(error: TyError, source_map: &SourceMap) -> Self {
-        Self { range: source_map.expr_map[error.expr].range(), kind: ErrorKind::Ty(error.kind) }
+        Self(ErrorRepr::Ty { kind: error.kind, range: source_map.expr_map[error.expr].range() })
     }
 
-    pub fn display(&self, original_file: &str) -> Vec<String> {
-        const PADDING: &str = "  ";
-        const POINTER_UP: &str = "^";
-        const POINTER_DOWN: &str = "v";
+    pub fn display(&self, input: &str) -> Vec<String> {
+        let range = self.range();
 
-        let start_line_column = text_size_to_line_column(self.range.start(), original_file);
+        let start_line_column = text_size_to_line_column(range.start(), input);
 
         // we subtract 1 since end_line_column is inclusive,
         // unlike TextRange which is always exclusive
-        let end_line_column =
-            text_size_to_line_column(self.range.end() - TextSize::from(1), original_file);
+        let end_line_column = text_size_to_line_column(range.end() - TextSize::from(1), input);
 
-        let header = match &self.kind {
-            ErrorKind::Parse(parse_error_data) => {
-                let mut header = format!("syntax error at {}: expected", start_line_column);
+        let mut lines = vec![self.header(&start_line_column)];
 
-                for (idx, expected_syntax) in parse_error_data.expected_syntaxes.iter().enumerate()
-                {
-                    if idx == 0 {
-                        header.push(' ');
-                    } else if idx == parse_error_data.expected_syntaxes.len() - 1 {
-                        header.push_str(" or ");
-                    } else {
-                        header.push_str(", ");
-                    }
-
-                    match expected_syntax {
-                        ExpectedSyntax::Named(name) => header.push_str(name),
-                        ExpectedSyntax::Unnamed(kind) => header.push_str(format_kind(*kind)),
-                    }
-                }
-
-                if let Some(found) = parse_error_data.found {
-                    header.push_str(&format!(" but found {}", format_kind(found)));
-                }
-
-                header
-            }
-
-            ErrorKind::Validation(validation_error_kind) => {
-                let mut header = format!("syntax error at {}: ", start_line_column);
-
-                match validation_error_kind {
-                    ValidationErrorKind::IntLiteralTooBig => {
-                        header.push_str("integer literal too large")
-                    }
-                }
-
-                header
-            }
-
-            ErrorKind::Ty(ty_error_kind) => match ty_error_kind {
-                TyErrorKind::Mismatch { expected, found } => format!(
-                    "type mismatch at {}: expected {} but found {}",
-                    start_line_column,
-                    format_ty(*expected),
-                    format_ty(*found)
-                ),
-
-                TyErrorKind::UndefinedVar { name } => format!(
-                    "undefined variable at {}: `{}` has not been defined",
-                    start_line_column, name
-                ),
-            },
-        };
-
-        let mut lines = vec![header];
-
-        let file_lines: Vec<_> = original_file.lines().collect();
-
-        let is_single_line = start_line_column.line == end_line_column.line;
-        if is_single_line {
-            lines.push(format!("{}{}", PADDING, file_lines[start_line_column.line]));
-
-            lines.push(format!(
-                "{}{}{}",
-                PADDING,
-                " ".repeat(start_line_column.column),
-                POINTER_UP.repeat(self.range.len().try_into().unwrap())
-            ));
-        } else {
-            let first_line = file_lines[start_line_column.line];
-            lines.push(format!(
-                "{}{}{}",
-                PADDING,
-                " ".repeat(start_line_column.column),
-                POINTER_DOWN.repeat(first_line.len() - start_line_column.column)
-            ));
-            lines.push(format!("{}{}", PADDING, first_line));
-
-            for line in &file_lines[start_line_column.line + 1..end_line_column.line] {
-                lines.push(format!("{}{}", PADDING, line));
-            }
-
-            let last_line = file_lines[end_line_column.line];
-            lines.push(format!("{}{}", PADDING, last_line));
-            lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_line_column.column + 1)));
-        }
+        input_snippet(input, start_line_column, end_line_column, range, &mut lines);
 
         lines
+    }
+
+    pub fn range(&self) -> TextRange {
+        match self.0 {
+            ErrorRepr::Parse(ParseError { kind: ParseErrorKind::Missing { offset }, .. }) => {
+                TextRange::new(offset, offset + TextSize::from(1))
+            }
+            ErrorRepr::Parse(ParseError {
+                kind: ParseErrorKind::Unexpected { range, .. }, ..
+            }) => range,
+            ErrorRepr::Validation(ValidationError { range, .. }) => range,
+            ErrorRepr::Ty { range, .. } => range,
+        }
+    }
+
+    fn header(&self, start_line_column: &LineColumn) -> String {
+        match &self.0 {
+            ErrorRepr::Parse(error) => parse_error_header(error, start_line_column),
+            ErrorRepr::Validation(error) => validation_error_header(error, start_line_column),
+            ErrorRepr::Ty { kind, .. } => ty_error_header(kind, start_line_column),
+        }
+    }
+}
+
+fn input_snippet(
+    input: &str,
+    start_line_column: LineColumn,
+    end_line_column: LineColumn,
+    range: TextRange,
+    lines: &mut Vec<String>,
+) {
+    const PADDING: &str = "  ";
+    const POINTER_UP: &str = "^";
+    const POINTER_DOWN: &str = "v";
+
+    let file_lines: Vec<_> = input.lines().collect();
+
+    let is_single_line = start_line_column.line == end_line_column.line;
+    if is_single_line {
+        lines.push(format!("{}{}", PADDING, file_lines[start_line_column.line]));
+
+        lines.push(format!(
+            "{}{}{}",
+            PADDING,
+            " ".repeat(start_line_column.column),
+            POINTER_UP.repeat(range.len().try_into().unwrap())
+        ));
+
+        return;
+    }
+
+    let first_line = file_lines[start_line_column.line];
+    lines.push(format!(
+        "{}{}{}",
+        PADDING,
+        " ".repeat(start_line_column.column),
+        POINTER_DOWN.repeat(first_line.len() - start_line_column.column)
+    ));
+    lines.push(format!("{}{}", PADDING, first_line));
+
+    for line in &file_lines[start_line_column.line + 1..end_line_column.line] {
+        lines.push(format!("{}{}", PADDING, line));
+    }
+
+    let last_line = file_lines[end_line_column.line];
+    lines.push(format!("{}{}", PADDING, last_line));
+    lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_line_column.column + 1)));
+}
+
+fn parse_error_header(parse_error: &ParseError, start_line_column: &LineColumn) -> String {
+    let mut header = format!("syntax error at {}: ", start_line_column);
+
+    let write_expected_syntaxes = |buf: &mut String| {
+        for (idx, expected_syntax) in parse_error.expected_syntaxes.iter().enumerate() {
+            if idx == 0 {
+            } else if idx == parse_error.expected_syntaxes.len() - 1 {
+                buf.push_str(" or ");
+            } else {
+                buf.push_str(", ");
+            }
+
+            match expected_syntax {
+                ExpectedSyntax::Named(name) => buf.push_str(name),
+                ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(*kind)),
+            }
+        }
+    };
+
+    match parse_error.kind {
+        ParseErrorKind::Missing { .. } => {
+            header.push_str("missing ");
+            write_expected_syntaxes(&mut header);
+        }
+        ParseErrorKind::Unexpected { found, .. } => {
+            header.push_str("expected ");
+            write_expected_syntaxes(&mut header);
+            header.push_str(&format!(" but found {}", format_kind(found)));
+        }
+    }
+
+    header
+}
+
+fn validation_error_header(
+    validation_error: &ValidationError,
+    start_line_column: &LineColumn,
+) -> String {
+    let mut header = format!("syntax error at {}: ", start_line_column);
+
+    match validation_error.kind {
+        ValidationErrorKind::IntLiteralTooBig => header.push_str("integer literal too large"),
+    }
+
+    header
+}
+
+fn ty_error_header(ty_error_kind: &TyErrorKind, start_line_column: &LineColumn) -> String {
+    match ty_error_kind {
+        TyErrorKind::Mismatch { expected, found } => format!(
+            "type mismatch at {}: expected {} but found {}",
+            start_line_column,
+            format_ty(*expected),
+            format_ty(*found)
+        ),
+
+        TyErrorKind::UndefinedVar { name } => {
+            format!("undefined variable at {}: `{}` has not been defined", start_line_column, name)
+        }
     }
 }
 
@@ -197,62 +236,55 @@ mod tests {
     use super::*;
     use expect_test::{expect, Expect};
     use hir_ty::Ty;
-    use parser::error::ExpectedSyntax;
+    use parser::error::{ExpectedSyntax, ParseErrorKind};
     use std::ops::Range as StdRange;
 
     fn check_parse_error<const NUM_EXPECTED: usize>(
-        original_file: &str,
+        input: &str,
         expected_syntaxes: [ExpectedSyntax; NUM_EXPECTED],
-        found: Option<TokenKind>,
-        range: StdRange<u32>,
+        kind: ParseErrorKind,
         formatted: Expect,
     ) {
-        let error = Error {
-            range: TextRange::new(range.start.into(), range.end.into()),
-            kind: ErrorKind::Parse(ParseErrorData {
-                expected_syntaxes: IntoIterator::into_iter(expected_syntaxes).collect(),
-                found,
-            }),
-        };
+        let error = Error::from_parse_error(ParseError {
+            expected_syntaxes: IntoIterator::into_iter(expected_syntaxes).collect(),
+            kind,
+        });
 
-        formatted.assert_eq(&format!("{}\n", error.display(original_file).join("\n")));
+        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
     }
 
     fn check_validation_error(
-        original_file: &str,
+        input: &str,
         kind: ValidationErrorKind,
         range: StdRange<u32>,
         formatted: Expect,
     ) {
-        let error = Error {
+        let error = Error::from_validation_error(ValidationError {
+            kind,
             range: TextRange::new(range.start.into(), range.end.into()),
-            kind: ErrorKind::Validation(kind),
-        };
+        });
 
-        formatted.assert_eq(&format!("{}\n", error.display(original_file).join("\n")));
+        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
     }
 
-    fn check_ty_error(
-        original_file: &str,
-        kind: TyErrorKind,
-        range: StdRange<u32>,
-        formatted: Expect,
-    ) {
-        let error = Error {
+    fn check_ty_error(input: &str, kind: TyErrorKind, range: StdRange<u32>, formatted: Expect) {
+        let error = Error(ErrorRepr::Ty {
+            kind,
             range: TextRange::new(range.start.into(), range.end.into()),
-            kind: ErrorKind::Ty(kind),
-        };
+        });
 
-        formatted.assert_eq(&format!("{}\n", error.display(original_file).join("\n")));
+        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
     }
 
     #[test]
-    fn parse_error_did_find_expected_1() {
+    fn parse_error_expected_1_unexpected() {
         check_parse_error(
             "let *",
             [ExpectedSyntax::Unnamed(TokenKind::Ident)],
-            Some(TokenKind::Asterisk),
-            4..5,
+            ParseErrorKind::Unexpected {
+                found: TokenKind::Asterisk,
+                range: TextRange::new(4.into(), 5.into()),
+            },
             expect![[r#"
                 syntax error at 1:5: expected identifier but found `*`
                   let *
@@ -262,27 +294,28 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_did_not_find_expected_1() {
+    fn parse_error_expected_1_missing() {
         check_parse_error(
             "let idx",
             [ExpectedSyntax::Unnamed(TokenKind::Eq)],
-            None,
-            4..7,
+            ParseErrorKind::Missing { offset: 7.into() },
             expect![[r#"
-                syntax error at 1:5: expected `=`
+                syntax error at 1:8: missing `=`
                   let idx
-                      ^^^
+                         ^
             "#]],
         );
     }
 
     #[test]
-    fn parse_error_did_find_expected_2() {
+    fn parse_error_expected_2_unexpected() {
         check_parse_error(
             "let a = 10\na + +",
             [ExpectedSyntax::Unnamed(TokenKind::Int), ExpectedSyntax::Unnamed(TokenKind::Ident)],
-            Some(TokenKind::Plus),
-            15..16,
+            ParseErrorKind::Unexpected {
+                found: TokenKind::Plus,
+                range: TextRange::new(15.into(), 16.into()),
+            },
             expect![[r#"
                 syntax error at 2:5: expected identifier or integer literal but found `+`
                   a + +
@@ -292,7 +325,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_did_not_find_expected_multiple() {
+    fn parse_error_expected_multiple_unexpected() {
         check_parse_error(
             "1000 @",
             [
@@ -301,8 +334,10 @@ mod tests {
                 ExpectedSyntax::Unnamed(TokenKind::Asterisk),
                 ExpectedSyntax::Unnamed(TokenKind::Slash),
             ],
-            Some(TokenKind::Error),
-            5..6,
+            ParseErrorKind::Unexpected {
+                found: TokenKind::Error,
+                range: TextRange::new(5.into(), 6.into()),
+            },
             expect![[r#"
                 syntax error at 1:6: expected `+`, `-`, `*` or `/` but found an unrecognized token
                   1000 @
@@ -312,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_multiple_expected_syntaxes() {
+    fn parse_error_expected_multiple_missing() {
         check_parse_error(
             "let bar = foo\nlet baz = bar\nbaz -",
             [
@@ -320,12 +355,11 @@ mod tests {
                 ExpectedSyntax::Unnamed(TokenKind::Asterisk),
                 ExpectedSyntax::Named("expression"),
             ],
-            None,
-            32..33,
+            ParseErrorKind::Missing { offset: 33.into() },
             expect![[r#"
-                syntax error at 3:5: expected expression, statement or `*`
+                syntax error at 3:6: missing expression, statement or `*`
                   baz -
-                      ^
+                       ^
             "#]],
         );
     }

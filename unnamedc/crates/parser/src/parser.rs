@@ -3,7 +3,7 @@ mod marker;
 
 use self::expected_syntax_name_guard::ExpectedSyntaxNameGuard;
 pub(crate) use self::marker::{CompletedMarker, Marker};
-use crate::error::{ExpectedSyntax, ParseError, ParseErrorData};
+use crate::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use crate::event::Event;
 use crate::token_set::TokenSet;
 use std::cell::Cell;
@@ -59,44 +59,24 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
         self.is_named_expected_syntax_active.set(false);
 
-        // when we’re at EOF or at a token we shouldn’t skip,
-        // we use the *previous* non-whitespace token’s range
-        // and don’t create an error node
-
         if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET | recovery_set) {
             let range = self.previous_token().range;
             self.events.push(Event::Error(ParseError {
-                range,
-                data: ParseErrorData { expected_syntaxes, found: None },
+                expected_syntaxes,
+                kind: ParseErrorKind::Missing { offset: range.end() },
             }));
 
             return None;
         }
 
-        let current_token = self.current_token();
-
-        // we use the current token’s range
-        //
-        // if we’re at the end of the input,
-        // we use the last non-whitespace token’s range
-        //
-        // if the input is empty, we panic,
-        // since parsing an empty input should always succeed
-        let range = current_token
-            .map(|token| token.range)
-            .or_else(|| {
-                self.tokens
-                    .iter()
-                    .rfind(|token| token.kind != TokenKind::Whitespace)
-                    .map(|last_token| last_token.range)
-            })
-            .unwrap();
+        // we can unwrap because we would have returned if we were at EOF
+        let current_token = self.current_token().unwrap();
 
         self.events.push(Event::Error(ParseError {
-            range,
-            data: ParseErrorData {
-                expected_syntaxes,
-                found: current_token.map(|token| token.kind),
+            expected_syntaxes,
+            kind: ParseErrorKind::Unexpected {
+                found: current_token.kind,
+                range: current_token.range,
             },
         }));
 

@@ -413,7 +413,7 @@ mod tests {
                     LParen@0..1 "("
                     VarRef@1..4
                       Ident@1..4 "foo"
-                error at 1..4: expected binary operator, RParen
+                error at 4: missing binary operator, RParen
             "#]],
         );
     }
@@ -429,7 +429,7 @@ mod tests {
                     VarRef@1..3
                       Ident@1..2 "a"
                       Whitespace@2..3 " "
-                error at 1..2: expected binary operator, RParen
+                error at 2: missing binary operator, RParen
             "#]],
         );
     }
@@ -443,7 +443,7 @@ mod tests {
                   ParenExpr@0..2
                     LParen@0..1 "("
                     RParen@1..2 ")"
-                error at 0..1: expected expression
+                error at 1: missing expression
             "#]],
         );
     }
@@ -472,7 +472,7 @@ mod tests {
                     Whitespace@14..15 " "
                     VarRef@15..18
                       Ident@15..18 "bar"
-                error at 3..4: expected binary operator, RParen
+                error at 4: missing binary operator, RParen
             "#]],
         );
     }
@@ -487,7 +487,7 @@ mod tests {
                     IntLiteral@0..1
                       Int@0..1 "1"
                     Plus@1..2 "+"
-                error at 1..2: expected expression
+                error at 2: missing expression
             "#]],
         );
     }
@@ -638,7 +638,7 @@ mod tests {
                     Whitespace@5..6 " "
                     IntLiteral@6..8
                       Int@6..8 "92"
-                error at 0..3: expected variable name
+                error at 3: missing variable name
             "#]],
         );
     }
@@ -665,7 +665,7 @@ mod tests {
                     Whitespace@19..20 " "
                     IntLiteral@20..22
                       Int@20..22 "92"
-                error at 8..9: expected expression
+                error at 9: missing expression
             "#]],
         );
     }
@@ -683,11 +683,11 @@ mod tests {
                     Whitespace@5..6 " "
                   VarDef@6..9
                     LetKw@6..9 "let"
-                error at 4..5: expected Eq
-                error at 4..5: expected expression
-                error at 6..9: expected variable name
-                error at 6..9: expected Eq
-                error at 6..9: expected expression
+                error at 5: missing Eq
+                error at 5: missing expression
+                error at 9: missing variable name
+                error at 9: missing Eq
+                error at 9: missing expression
             "#]],
         );
     }
@@ -700,9 +700,9 @@ mod tests {
                 Root@0..3
                   VarDef@0..3
                     LetKw@0..3 "let"
-                error at 0..3: expected variable name
-                error at 0..3: expected Eq
-                error at 0..3: expected expression
+                error at 3: missing variable name
+                error at 3: missing Eq
+                error at 3: missing expression
             "#]],
         );
     }
@@ -725,9 +725,9 @@ mod tests {
                     Whitespace@11..12 " "
                     VarRef@12..13
                       Ident@12..13 "b"
-                error at 0..3: expected variable name
-                error at 0..3: expected Eq
-                error at 0..3: expected expression
+                error at 3: missing variable name
+                error at 3: missing Eq
+                error at 3: missing expression
             "#]],
         );
     }

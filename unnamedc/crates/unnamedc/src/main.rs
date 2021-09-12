@@ -107,7 +107,7 @@ fn render(
     write!(stdout, "> ")?;
     for (idx, c) in input.char_indices() {
         let idx = idx.try_into().unwrap();
-        let is_in_error = errors.iter().any(|error| error.range.contains(idx));
+        let is_in_error = errors.iter().any(|error| error.range().contains(idx));
 
         let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
         let c = match token.kind {
