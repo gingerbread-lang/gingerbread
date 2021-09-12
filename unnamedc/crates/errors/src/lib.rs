@@ -365,6 +365,20 @@ mod tests {
     }
 
     #[test]
+    fn parse_error_expected_1_missing_at_end_of_line() {
+        check_parse_error(
+            "let a =\nlet b = a",
+            [ExpectedSyntax::Named("expression")],
+            ParseErrorKind::Missing { offset: 7.into() },
+            expect![[r#"
+                syntax error at 1:8: missing expression
+                  let a =
+                         ^
+            "#]],
+        );
+    }
+
+    #[test]
     fn validation_error_int_literal_too_big() {
         check_validation_error(
             "let a = 9999999999999999999",
