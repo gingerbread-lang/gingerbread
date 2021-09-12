@@ -111,12 +111,12 @@ fn render(
 
         let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
         let c = match token.kind {
-            TokenKind::LetKw => c.magenta().bold(),
-            TokenKind::Ident => c.blue(),
-            TokenKind::Int => c.yellow(),
-            TokenKind::String => c.green(),
+            TokenKind::LetKw => c.dark_magenta().bold(),
+            TokenKind::Ident => c.dark_blue(),
+            TokenKind::Int => c.dark_yellow(),
+            TokenKind::String => c.dark_green(),
             TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
-                c.cyan()
+                c.dark_cyan()
             }
             TokenKind::Eq | TokenKind::LParen | TokenKind::RParen => c.dark_grey(),
             TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
