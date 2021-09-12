@@ -1,13 +1,16 @@
 use la_arena::{Arena, ArenaMap};
-use std::collections::HashMap;
 
 pub fn infer(program: &hir::Program) -> InferResult {
-    infer_with_var_tys(program, HashMap::new())
+    infer_with_var_tys(program, ArenaMap::default())
 }
 
-pub fn infer_with_var_tys(program: &hir::Program, var_tys: HashMap<String, Ty>) -> InferResult {
+pub fn infer_with_var_tys(
+    program: &hir::Program,
+    var_tys: ArenaMap<hir::VarDefIdx, Ty>,
+) -> InferResult {
     let mut infer_ctx = InferCtx {
         result: InferResult { expr_tys: ArenaMap::default(), var_tys, errors: Vec::new() },
+        var_defs: &program.var_defs,
         exprs: &program.exprs,
     };
 
@@ -21,7 +24,7 @@ pub fn infer_with_var_tys(program: &hir::Program, var_tys: HashMap<String, Ty>) 
 #[derive(Debug)]
 pub struct InferResult {
     pub expr_tys: ArenaMap<hir::ExprIdx, Ty>,
-    pub var_tys: HashMap<String, Ty>,
+    pub var_tys: ArenaMap<hir::VarDefIdx, Ty>,
     pub errors: Vec<TyError>,
 }
 
@@ -41,11 +44,11 @@ pub struct TyError {
 #[derive(Debug, PartialEq)]
 pub enum TyErrorKind {
     Mismatch { expected: Ty, found: Ty },
-    UndefinedVar { name: String },
 }
 
 struct InferCtx<'a> {
     result: InferResult,
+    var_defs: &'a Arena<hir::VarDef>,
     exprs: &'a Arena<hir::Expr>,
 }
 
@@ -53,11 +56,8 @@ impl InferCtx<'_> {
     fn infer_stmt(&mut self, stmt: &hir::Stmt) {
         match stmt {
             hir::Stmt::VarDef(var_def) => {
-                let value_ty = self.infer_expr(var_def.value);
-
-                if let hir::Name(Some(name)) = &var_def.name {
-                    self.result.var_tys.insert(name.clone(), value_ty);
-                }
+                let value_ty = self.infer_expr(self.var_defs[*var_def].value);
+                self.result.var_tys.insert(*var_def, value_ty);
             }
             hir::Stmt::Expr(expr) => {
                 self.infer_expr(*expr);
@@ -90,16 +90,7 @@ impl InferCtx<'_> {
                 Ty::Int
             }
 
-            hir::Expr::VarRef { ref name } => match self.result.var_tys.get(name.as_str()) {
-                Some(ty) => *ty,
-                None => {
-                    self.result.errors.push(TyError {
-                        expr,
-                        kind: TyErrorKind::UndefinedVar { name: name.clone() },
-                    });
-                    Ty::Unknown
-                }
-            },
+            hir::Expr::VarRef { var_def } => self.result.var_tys[var_def],
 
             hir::Expr::IntLiteral { .. } => Ty::Int,
 
@@ -121,8 +112,11 @@ mod tests {
         let mut exprs = Arena::new();
         let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(ten)],
+        });
 
         assert_eq!(result.expr_tys[ten], Ty::Int);
         assert_eq!(result.errors, []);
@@ -133,8 +127,11 @@ mod tests {
         let mut exprs = Arena::new();
         let hello = exprs.alloc(hir::Expr::StringLiteral { value: "hello".to_string() });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(hello)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(hello)],
+        });
 
         assert_eq!(result.expr_tys[hello], Ty::String);
         assert_eq!(result.errors, []);
@@ -148,8 +145,11 @@ mod tests {
         let ten_times_twenty =
             exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: twenty, op: Some(hir::BinOp::Mul) });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten_times_twenty)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(ten_times_twenty)],
+        });
 
         assert_eq!(result.expr_tys[ten], Ty::Int);
         assert_eq!(result.expr_tys[twenty], Ty::Int);
@@ -165,8 +165,11 @@ mod tests {
         let bin_expr =
             exprs.alloc(hir::Expr::Bin { lhs: string, rhs: int, op: Some(hir::BinOp::Sub) });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(bin_expr)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(bin_expr)],
+        });
 
         assert_eq!(result.expr_tys[string], Ty::String);
         assert_eq!(result.expr_tys[int], Ty::Int);
@@ -181,101 +184,85 @@ mod tests {
     }
 
     #[test]
-    fn infer_undefined_var_ref() {
-        let mut exprs = Arena::new();
-        let a = exprs.alloc(hir::Expr::VarRef { name: "a".to_string() });
-
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(a)] };
-        let result = infer(&program);
-
-        assert_eq!(result.expr_tys[a], Ty::Unknown);
-        assert_eq!(
-            result.errors,
-            [TyError { expr: a, kind: TyErrorKind::UndefinedVar { name: "a".to_string() } }]
-        );
-    }
-
-    #[test]
     fn infer_var_def() {
+        let mut var_defs = Arena::new();
         let mut exprs = Arena::new();
-        let two = exprs.alloc(hir::Expr::IntLiteral { value: 2 });
 
-        let program = hir::Program {
-            exprs,
-            stmts: vec![hir::Stmt::VarDef(hir::VarDef {
-                name: hir::Name(Some("foo".to_string())),
-                value: two,
-            })],
-        };
-        let result = infer(&program);
+        let two = exprs.alloc(hir::Expr::IntLiteral { value: 2 });
+        let var_def = var_defs.alloc(hir::VarDef { value: two });
+
+        let result =
+            infer(&hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::VarDef(var_def)] });
 
         assert_eq!(result.expr_tys[two], Ty::Int);
-        assert_eq!(result.var_tys["foo"], Ty::Int);
+        assert_eq!(result.var_tys[var_def], Ty::Int);
         assert_eq!(result.errors, []);
     }
 
     #[test]
     fn infer_chain_of_var_refs_and_defs() {
+        let mut var_defs = Arena::new();
         let mut exprs = Arena::new();
-        let string = exprs.alloc(hir::Expr::StringLiteral { value: "test".to_string() });
-        let a = exprs.alloc(hir::Expr::VarRef { name: "a".to_string() });
-        let b = exprs.alloc(hir::Expr::VarRef { name: "b".to_string() });
-        let c = exprs.alloc(hir::Expr::VarRef { name: "c".to_string() });
 
-        let program = hir::Program {
+        let string = exprs.alloc(hir::Expr::StringLiteral { value: "test".to_string() });
+        let a_def = var_defs.alloc(hir::VarDef { value: string });
+        let a = exprs.alloc(hir::Expr::VarRef { var_def: a_def });
+        let b_def = var_defs.alloc(hir::VarDef { value: a });
+        let b = exprs.alloc(hir::Expr::VarRef { var_def: b_def });
+        let c_def = var_defs.alloc(hir::VarDef { value: b });
+        let c = exprs.alloc(hir::Expr::VarRef { var_def: c_def });
+
+        let result = infer(&hir::Program {
+            var_defs,
             exprs,
             stmts: vec![
-                hir::Stmt::VarDef(hir::VarDef {
-                    name: hir::Name(Some("a".to_string())),
-                    value: string,
-                }),
-                hir::Stmt::VarDef(hir::VarDef { name: hir::Name(Some("b".to_string())), value: a }),
-                hir::Stmt::VarDef(hir::VarDef { name: hir::Name(Some("c".to_string())), value: b }),
+                hir::Stmt::VarDef(a_def),
+                hir::Stmt::VarDef(b_def),
+                hir::Stmt::VarDef(c_def),
                 hir::Stmt::Expr(c),
             ],
-        };
-        let result = infer(&program);
+        });
 
         assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.var_tys["a"], Ty::String);
+        assert_eq!(result.var_tys[a_def], Ty::String);
         assert_eq!(result.expr_tys[a], Ty::String);
-        assert_eq!(result.var_tys["b"], Ty::String);
+        assert_eq!(result.var_tys[b_def], Ty::String);
         assert_eq!(result.expr_tys[b], Ty::String);
-        assert_eq!(result.var_tys["c"], Ty::String);
+        assert_eq!(result.var_tys[c_def], Ty::String);
         assert_eq!(result.expr_tys[c], Ty::String);
         assert_eq!(result.errors, []);
     }
 
     #[test]
     fn infer_with_preserved_var_tys() {
-        let preserved_var_tys = {
+        let (preserved_var_tys, var_defs, idx_def) = {
+            let mut var_defs = Arena::new();
             let mut exprs = Arena::new();
-            let six = exprs.alloc(hir::Expr::IntLiteral { value: 6 });
 
-            let program = hir::Program {
+            let six = exprs.alloc(hir::Expr::IntLiteral { value: 6 });
+            let idx_def = var_defs.alloc(hir::VarDef { value: six });
+
+            let result = infer(&hir::Program {
+                var_defs: var_defs.clone(),
                 exprs,
-                stmts: vec![hir::Stmt::VarDef(hir::VarDef {
-                    name: hir::Name(Some("idx".to_string())),
-                    value: six,
-                })],
-            };
-            let result = infer(&program);
+                stmts: vec![hir::Stmt::VarDef(idx_def)],
+            });
 
             assert_eq!(result.expr_tys[six], Ty::Int);
-            assert_eq!(result.var_tys["idx"], Ty::Int);
+            assert_eq!(result.var_tys[idx_def], Ty::Int);
             assert_eq!(result.errors, []);
 
-            result.var_tys
+            (result.var_tys, var_defs, idx_def)
         };
 
         let mut exprs = Arena::new();
-        let idx = exprs.alloc(hir::Expr::VarRef { name: "idx".to_string() });
+        let idx = exprs.alloc(hir::Expr::VarRef { var_def: idx_def });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(idx)] };
+        let program = hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::Expr(idx)] };
         let result = infer_with_var_tys(&program, preserved_var_tys);
 
         assert_eq!(result.expr_tys[idx], Ty::Int);
-        assert_eq!(result.var_tys["idx"], Ty::Int);
+        assert_eq!(result.var_tys[idx_def], Ty::Int);
         assert_eq!(result.errors, []);
     }
 
@@ -284,8 +271,11 @@ mod tests {
         let mut exprs = Arena::new();
         let missing = exprs.alloc(hir::Expr::Missing);
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(missing)],
+        });
 
         assert_eq!(result.expr_tys[missing], Ty::Unknown);
         assert_eq!(result.errors, []);
@@ -293,30 +283,27 @@ mod tests {
 
     #[test]
     fn only_error_on_missing_expr_use() {
+        let mut var_defs = Arena::new();
         let mut exprs = Arena::new();
+
         let missing = exprs.alloc(hir::Expr::Missing);
-        let user = exprs.alloc(hir::Expr::VarRef { name: "user".to_string() });
+        let user_def = var_defs.alloc(hir::VarDef { value: missing });
+        let user = exprs.alloc(hir::Expr::VarRef { var_def: user_def });
         let four = exprs.alloc(hir::Expr::IntLiteral { value: 4 });
         let user_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: user, rhs: four, op: Some(hir::BinOp::Add) });
 
-        let program = hir::Program {
+        let result = infer(&hir::Program {
+            var_defs,
             exprs,
-            stmts: vec![
-                hir::Stmt::VarDef(hir::VarDef {
-                    name: hir::Name(Some("user".to_string())),
-                    value: missing,
-                }),
-                hir::Stmt::Expr(user_plus_four),
-            ],
-        };
-        let result = infer(&program);
+            stmts: vec![hir::Stmt::VarDef(user_def), hir::Stmt::Expr(user_plus_four)],
+        });
 
         assert_eq!(result.expr_tys[missing], Ty::Unknown);
         assert_eq!(result.expr_tys[user], Ty::Unknown);
         assert_eq!(result.expr_tys[four], Ty::Int);
         assert_eq!(result.expr_tys[user_plus_four], Ty::Int);
-        assert_eq!(result.var_tys["user"], Ty::Unknown);
+        assert_eq!(result.var_tys[user_def], Ty::Unknown);
 
         // we only get an error about `user`’s type not being known
         // until we try to do an operation with it
@@ -337,8 +324,11 @@ mod tests {
         let ten_times_missing =
             exprs.alloc(hir::Expr::Bin { lhs: ten, rhs: missing, op: Some(hir::BinOp::Mul) });
 
-        let program = hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten_times_missing)] };
-        let result = infer(&program);
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(ten_times_missing)],
+        });
 
         assert_eq!(result.expr_tys[ten], Ty::Int);
         assert_eq!(result.expr_tys[missing], Ty::Unknown);

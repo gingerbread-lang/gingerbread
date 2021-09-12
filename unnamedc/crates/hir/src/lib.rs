@@ -1,22 +1,23 @@
 use la_arena::{Arena, Idx};
 
 pub type ExprIdx = Idx<Expr>;
+pub type VarDefIdx = Idx<VarDef>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
+    pub var_defs: Arena<VarDef>,
     pub exprs: Arena<Expr>,
     pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
-    VarDef(VarDef),
+    VarDef(VarDefIdx),
     Expr(ExprIdx),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct VarDef {
-    pub name: Name,
     pub value: ExprIdx,
 }
 
@@ -24,7 +25,7 @@ pub struct VarDef {
 pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
-    VarRef { name: String },
+    VarRef { var_def: VarDefIdx },
     IntLiteral { value: u32 },
     StringLiteral { value: String },
 }

@@ -1,6 +1,6 @@
 use ast::validation::{ValidationError, ValidationErrorKind};
 use ast::AstNode;
-use hir_lower::SourceMap;
+use hir_lower::{LowerError, LowerErrorKind, SourceMap};
 use hir_ty::{Ty, TyError, TyErrorKind};
 use parser::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use std::convert::{TryFrom, TryInto};
@@ -13,6 +13,7 @@ pub struct Error(ErrorRepr);
 enum ErrorRepr {
     Parse(ParseError),
     Validation(ValidationError),
+    Lower(LowerError),
     Ty { kind: TyErrorKind, range: TextRange },
 }
 
@@ -23,6 +24,10 @@ impl Error {
 
     pub fn from_validation_error(error: ValidationError) -> Self {
         Self(ErrorRepr::Validation(error))
+    }
+
+    pub fn from_lower_error(error: LowerError) -> Self {
+        Self(ErrorRepr::Lower(error))
     }
 
     pub fn from_ty_error(error: TyError, source_map: &SourceMap) -> Self {
@@ -54,6 +59,7 @@ impl Error {
                 kind: ParseErrorKind::Unexpected { range, .. }, ..
             }) => range,
             ErrorRepr::Validation(ValidationError { range, .. }) => range,
+            ErrorRepr::Lower(LowerError { range, .. }) => range,
             ErrorRepr::Ty { range, .. } => range,
         }
     }
@@ -62,6 +68,7 @@ impl Error {
         match &self.0 {
             ErrorRepr::Parse(error) => parse_error_header(error, start_line_column),
             ErrorRepr::Validation(error) => validation_error_header(error, start_line_column),
+            ErrorRepr::Lower(error) => lower_error_header(error, start_line_column),
             ErrorRepr::Ty { kind, .. } => ty_error_header(kind, start_line_column),
         }
     }
@@ -159,6 +166,14 @@ fn validation_error_header(
     header
 }
 
+fn lower_error_header(lower_error: &LowerError, start_line_column: &LineColumn) -> String {
+    match lower_error.kind {
+        LowerErrorKind::UndefinedVar { ref name } => {
+            format!("undefined variable at {}: `{}` has not been defined", start_line_column, name)
+        }
+    }
+}
+
 fn ty_error_header(ty_error_kind: &TyErrorKind, start_line_column: &LineColumn) -> String {
     match ty_error_kind {
         TyErrorKind::Mismatch { expected, found } => format!(
@@ -167,10 +182,6 @@ fn ty_error_header(ty_error_kind: &TyErrorKind, start_line_column: &LineColumn) 
             format_ty(*expected),
             format_ty(*found)
         ),
-
-        TyErrorKind::UndefinedVar { name } => {
-            format!("undefined variable at {}: `{}` has not been defined", start_line_column, name)
-        }
     }
 }
 
@@ -260,6 +271,20 @@ mod tests {
         formatted: Expect,
     ) {
         let error = Error::from_validation_error(ValidationError {
+            kind,
+            range: TextRange::new(range.start.into(), range.end.into()),
+        });
+
+        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
+    }
+
+    fn check_lower_error(
+        input: &str,
+        kind: LowerErrorKind,
+        range: StdRange<u32>,
+        formatted: Expect,
+    ) {
+        let error = Error::from_lower_error(LowerError {
             kind,
             range: TextRange::new(range.start.into(), range.end.into()),
         });
@@ -393,6 +418,20 @@ mod tests {
     }
 
     #[test]
+    fn lower_error_undefined_var() {
+        check_lower_error(
+            "let the_value = 10\nteh_value",
+            LowerErrorKind::UndefinedVar { name: "teh_value".to_string() },
+            19..28,
+            expect![[r#"
+                undefined variable at 2:1: `teh_value` has not been defined
+                  teh_value
+                  ^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
     fn ty_error_mismatch() {
         check_ty_error(
             "10 * \"a\"",
@@ -402,20 +441,6 @@ mod tests {
                 type mismatch at 1:6: expected integer but found string
                   10 * "a"
                        ^^^
-            "#]],
-        );
-    }
-
-    #[test]
-    fn ty_error_unknown_variable() {
-        check_ty_error(
-            "let the_value = 10\nteh_value",
-            TyErrorKind::UndefinedVar { name: "teh_value".to_string() },
-            19..28,
-            expect![[r#"
-                undefined variable at 2:1: `teh_value` has not been defined
-                  teh_value
-                  ^^^^^^^^^
             "#]],
         );
     }
