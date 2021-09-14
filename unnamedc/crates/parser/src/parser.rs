@@ -1,7 +1,5 @@
-mod expected_syntax_name_guard;
 mod marker;
 
-use self::expected_syntax_name_guard::ExpectedSyntaxNameGuard;
 pub(crate) use self::marker::{CompletedMarker, Marker};
 use crate::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use crate::event::Event;
@@ -21,7 +19,7 @@ pub(crate) struct Parser<'tokens, 'input> {
     token_idx: usize,
     events: Vec<Event>,
     expected_syntaxes: BTreeSet<ExpectedSyntax>,
-    is_named_expected_syntax_active: Rc<Cell<bool>>,
+    expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
 }
 
 impl<'tokens, 'input> Parser<'tokens, 'input> {
@@ -31,7 +29,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             token_idx: 0,
             events: Vec::new(),
             expected_syntaxes: BTreeSet::new(),
-            is_named_expected_syntax_active: Rc::new(Cell::new(false)),
+            expected_syntax_tracking_state: Rc::new(Cell::new(
+                ExpectedSyntaxTrackingState::Unnamed,
+            )),
         }
     }
 
@@ -57,9 +57,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         recovery_set: TokenSet,
     ) -> Option<CompletedMarker> {
         let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
-        self.is_named_expected_syntax_active.set(false);
+        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
 
-        if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET | recovery_set) {
+        if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET.union(recovery_set)) {
             let range = self.previous_token().range;
             self.events.push(Event::Error(ParseError {
                 expected_syntaxes,
@@ -86,11 +86,17 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     #[must_use]
-    pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxNameGuard {
-        self.is_named_expected_syntax_active.set(true);
+    pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxGuard {
+        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Named);
         self.expected_syntaxes.insert(ExpectedSyntax::Named(name));
 
-        ExpectedSyntaxNameGuard::new(Rc::clone(&self.is_named_expected_syntax_active))
+        ExpectedSyntaxGuard::new(Rc::clone(&self.expected_syntax_tracking_state))
+    }
+
+    #[must_use]
+    pub(crate) fn disable_expected_tracking(&mut self) -> ExpectedSyntaxGuard {
+        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Disabled);
+        ExpectedSyntaxGuard::new(Rc::clone(&self.expected_syntax_tracking_state))
     }
 
     pub(crate) fn start(&mut self) -> Marker {
@@ -101,7 +107,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
-        if !self.is_named_expected_syntax_active.get() {
+        if let ExpectedSyntaxTrackingState::Unnamed = self.expected_syntax_tracking_state.get() {
             self.expected_syntaxes.insert(ExpectedSyntax::Unnamed(kind));
         }
 
@@ -114,6 +120,11 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.current_token().is_none()
     }
 
+    pub(crate) fn at_set(&mut self, set: TokenSet) -> bool {
+        self.skip_whitespace();
+        self.peek().map_or(false, |kind| set.contains(kind))
+    }
+
     pub(crate) fn bump(&mut self) {
         self.clear_expected_syntaxes();
         self.events.push(Event::AddToken);
@@ -122,11 +133,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     fn clear_expected_syntaxes(&mut self) {
         self.expected_syntaxes.clear();
-        self.is_named_expected_syntax_active.set(false);
-    }
-
-    fn at_set(&self, set: TokenSet) -> bool {
-        self.peek().map_or(false, |kind| set.contains(kind))
+        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
     }
 
     fn previous_token(&mut self) -> Token<'input> {
@@ -157,4 +164,27 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     fn current_token(&self) -> Option<Token<'input>> {
         self.tokens.get(self.token_idx).copied()
     }
+}
+
+pub(crate) struct ExpectedSyntaxGuard {
+    expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
+}
+
+impl ExpectedSyntaxGuard {
+    fn new(expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>) -> Self {
+        Self { expected_syntax_tracking_state }
+    }
+}
+
+impl Drop for ExpectedSyntaxGuard {
+    fn drop(&mut self) {
+        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ExpectedSyntaxTrackingState {
+    Named,
+    Unnamed,
+    Disabled,
 }

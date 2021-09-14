@@ -229,6 +229,8 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Eq => "`=`",
         TokenKind::LParen => "`(`",
         TokenKind::RParen => "`)`",
+        TokenKind::LBrace => "`{`",
+        TokenKind::RBrace => "`}`",
         TokenKind::Whitespace => "whitespace",
         TokenKind::Error => "an unrecognized token",
     }

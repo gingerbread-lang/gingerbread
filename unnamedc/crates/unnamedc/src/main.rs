@@ -130,7 +130,11 @@ fn render(
             TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
                 c.dark_cyan()
             }
-            TokenKind::Eq | TokenKind::LParen | TokenKind::RParen => c.dark_grey(),
+            TokenKind::Eq
+            | TokenKind::LParen
+            | TokenKind::RParen
+            | TokenKind::LBrace
+            | TokenKind::RBrace => c.dark_grey(),
             TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
             TokenKind::Error => c.red().bold(),
         };

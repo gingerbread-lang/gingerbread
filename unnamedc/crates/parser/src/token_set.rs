@@ -1,4 +1,3 @@
-use std::ops::BitOr;
 use token::TokenKind;
 
 // Each bit represents whether that bit’s TokenKind is in the set.
@@ -29,16 +28,12 @@ impl TokenSet {
         Self(value)
     }
 
-    pub(crate) fn contains(self, kind: TokenKind) -> bool {
+    pub(crate) const fn contains(self, kind: TokenKind) -> bool {
         self.0 & mask(kind) != 0
     }
-}
 
-impl BitOr for TokenSet {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
+    pub(crate) const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
     }
 }
 
@@ -61,7 +56,7 @@ fn it_works() {
     assert!(set.contains(TokenKind::Int));
     assert!(!set.contains(TokenKind::String));
 
-    let set = set | TokenSet::new([TokenKind::String]);
+    let set = set.union(TokenSet::new([TokenKind::String]));
     assert_eq!(set.0, 0b0000000000001101);
     //             pos:             32 0
 

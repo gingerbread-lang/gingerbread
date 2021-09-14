@@ -11,15 +11,22 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
             break;
         }
 
-        let _guard = p.expected_syntax_name("statement");
-        if p.at(TokenKind::LetKw) {
-            parse_var_def(p);
-        } else {
-            parse_expr(p);
-        }
+        parse_stmt(p);
     }
 
     m.complete(p, SyntaxKind::Root);
+}
+
+const STMT_FIRST: TokenSet = TokenSet::new([TokenKind::LetKw]).union(EXPR_FIRST);
+
+fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+    let _guard = p.expected_syntax_name("statement");
+
+    if p.at(TokenKind::LetKw) {
+        return Some(parse_var_def(p));
+    }
+
+    parse_expr(p)
 }
 
 fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -57,7 +64,7 @@ fn parse_expr_bp(
     let mut lhs = parse_lhs(p, recovery_set)?;
 
     loop {
-        let _guard = p.expected_syntax_name("binary operator");
+        let _guard = p.disable_expected_tracking();
         let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
             (1, 2)
         } else if p.at(TokenKind::Asterisk) || p.at(TokenKind::Slash) {
@@ -80,10 +87,20 @@ fn parse_expr_bp(
     Some(lhs)
 }
 
+const EXPR_FIRST: TokenSet = TokenSet::new([
+    TokenKind::Ident,
+    TokenKind::LBrace,
+    TokenKind::Int,
+    TokenKind::String,
+    TokenKind::LParen,
+]);
+
 fn parse_lhs(p: &mut Parser<'_, '_>, recovery_set: TokenSet) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("expression");
     let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
+    } else if p.at(TokenKind::LBrace) {
+        parse_block(p)
     } else if p.at(TokenKind::Int) {
         parse_int_literal(p)
     } else if p.at(TokenKind::String) {
@@ -102,6 +119,20 @@ fn parse_var_ref(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::VarRef)
+}
+
+fn parse_block(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::LBrace));
+    let m = p.start();
+    p.bump();
+
+    while !p.at(TokenKind::RBrace) && p.at_set(STMT_FIRST) {
+        parse_stmt(p);
+    }
+
+    p.expect(TokenKind::RBrace);
+
+    m.complete(p, SyntaxKind::Block)
 }
 
 fn parse_int_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -413,7 +444,7 @@ mod tests {
                     LParen@0..1 "("
                     VarRef@1..4
                       Ident@1..4 "foo"
-                error at 4: missing binary operator, RParen
+                error at 4: missing RParen
             "#]],
         );
     }
@@ -429,7 +460,7 @@ mod tests {
                     VarRef@1..3
                       Ident@1..2 "a"
                       Whitespace@2..3 " "
-                error at 2: missing binary operator, RParen
+                error at 2: missing RParen
             "#]],
         );
     }
@@ -472,7 +503,7 @@ mod tests {
                     Whitespace@14..15 " "
                     VarRef@15..18
                       Ident@15..18 "bar"
-                error at 4: missing binary operator, RParen
+                error at 4: missing RParen
             "#]],
         );
     }
@@ -740,6 +771,158 @@ mod tests {
                 Root@0..15
                   StringLiteral@0..15
                     String@0..15 "\"Hello, world!\""
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_empty_block() {
+        check(
+            "{}",
+            expect![[r#"
+                Root@0..2
+                  Block@0..2
+                    LBrace@0..1 "{"
+                    RBrace@1..2 "}"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_with_var_def() {
+        check(
+            "{ let zero = 0 }",
+            expect![[r#"
+                Root@0..16
+                  Block@0..16
+                    LBrace@0..1 "{"
+                    Whitespace@1..2 " "
+                    VarDef@2..15
+                      LetKw@2..5 "let"
+                      Whitespace@5..6 " "
+                      Ident@6..10 "zero"
+                      Whitespace@10..11 " "
+                      Eq@11..12 "="
+                      Whitespace@12..13 " "
+                      IntLiteral@13..15
+                        Int@13..14 "0"
+                        Whitespace@14..15 " "
+                    RBrace@15..16 "}"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_with_stmts() {
+        check(
+            "{let a=100 let b=a*10 b-1}",
+            expect![[r#"
+                Root@0..26
+                  Block@0..26
+                    LBrace@0..1 "{"
+                    VarDef@1..11
+                      LetKw@1..4 "let"
+                      Whitespace@4..5 " "
+                      Ident@5..6 "a"
+                      Eq@6..7 "="
+                      IntLiteral@7..11
+                        Int@7..10 "100"
+                        Whitespace@10..11 " "
+                    VarDef@11..22
+                      LetKw@11..14 "let"
+                      Whitespace@14..15 " "
+                      Ident@15..16 "b"
+                      Eq@16..17 "="
+                      BinExpr@17..22
+                        VarRef@17..18
+                          Ident@17..18 "a"
+                        Asterisk@18..19 "*"
+                        IntLiteral@19..22
+                          Int@19..21 "10"
+                          Whitespace@21..22 " "
+                    BinExpr@22..25
+                      VarRef@22..23
+                        Ident@22..23 "b"
+                      Hyphen@23..24 "-"
+                      IntLiteral@24..25
+                        Int@24..25 "1"
+                    RBrace@25..26 "}"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_with_unclosed_brace() {
+        check(
+            "{5",
+            expect![[r#"
+                Root@0..2
+                  Block@0..2
+                    LBrace@0..1 "{"
+                    IntLiteral@1..2
+                      Int@1..2 "5"
+                error at 2: missing RBrace
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_nested_block() {
+        check(
+            "{ let foo={let bar=23 bar*2} foo*2 }",
+            expect![[r#"
+                Root@0..36
+                  Block@0..36
+                    LBrace@0..1 "{"
+                    Whitespace@1..2 " "
+                    VarDef@2..29
+                      LetKw@2..5 "let"
+                      Whitespace@5..6 " "
+                      Ident@6..9 "foo"
+                      Eq@9..10 "="
+                      Block@10..29
+                        LBrace@10..11 "{"
+                        VarDef@11..22
+                          LetKw@11..14 "let"
+                          Whitespace@14..15 " "
+                          Ident@15..18 "bar"
+                          Eq@18..19 "="
+                          IntLiteral@19..22
+                            Int@19..21 "23"
+                            Whitespace@21..22 " "
+                        BinExpr@22..27
+                          VarRef@22..25
+                            Ident@22..25 "bar"
+                          Asterisk@25..26 "*"
+                          IntLiteral@26..27
+                            Int@26..27 "2"
+                        RBrace@27..28 "}"
+                        Whitespace@28..29 " "
+                    BinExpr@29..35
+                      VarRef@29..32
+                        Ident@29..32 "foo"
+                      Asterisk@32..33 "*"
+                      IntLiteral@33..35
+                        Int@33..34 "2"
+                        Whitespace@34..35 " "
+                    RBrace@35..36 "}"
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_block_closed_by_wrong_delimiter() {
+        check(
+            "{a)",
+            expect![[r#"
+                Root@0..3
+                  Block@0..3
+                    LBrace@0..1 "{"
+                    VarRef@1..2
+                      Ident@1..2 "a"
+                    Error@2..3
+                      RParen@2..3 ")"
+                error at 2..3: expected RBrace but found RParen
             "#]],
         );
     }

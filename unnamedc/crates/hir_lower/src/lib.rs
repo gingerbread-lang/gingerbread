@@ -305,7 +305,7 @@ mod tests {
     }
 
     #[test]
-    fn lower_with_preserved_var_defs() {
+    fn lower_with_preexisting_var_defs() {
         let mut var_defs = Arena::new();
         let mut exprs = Arena::new();
 

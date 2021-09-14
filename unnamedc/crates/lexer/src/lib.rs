@@ -66,6 +66,12 @@ enum LexerTokenKind {
     #[token(")")]
     RParen,
 
+    #[token("{")]
+    LBrace,
+
+    #[token("}")]
+    RBrace,
+
     #[regex("[ \n]+")]
     Whitespace,
 
@@ -218,5 +224,15 @@ mod tests {
     #[test]
     fn lex_r_paren() {
         check(")", TokenKind::RParen);
+    }
+
+    #[test]
+    fn lex_l_brace() {
+        check("{", TokenKind::LBrace);
+    }
+
+    #[test]
+    fn lex_r_brace() {
+        check("}", TokenKind::RBrace);
     }
 }

@@ -35,6 +35,8 @@ pub enum TokenKind {
     Eq,
     LParen,
     RParen,
+    LBrace,
+    RBrace,
     Whitespace,
     Error,
 }
