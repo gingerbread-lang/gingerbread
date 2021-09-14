@@ -50,7 +50,7 @@ impl EvalCtx<'_> {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
-            hir::Expr::Block { stmts } => match stmts.split_last() {
+            hir::Expr::Block(stmts) => match stmts.split_last() {
                 Some((last, rest)) => {
                     for stmt in rest {
                         self.eval_stmt(*stmt);
@@ -61,9 +61,9 @@ impl EvalCtx<'_> {
 
                 None => Val::Nil,
             },
-            hir::Expr::VarRef { var_def } => self.vars[*var_def].clone(),
-            hir::Expr::IntLiteral { value } => Val::Int(*value),
-            hir::Expr::StringLiteral { value } => Val::String(value.clone()),
+            hir::Expr::VarRef(var_def) => self.vars[*var_def].clone(),
+            hir::Expr::IntLiteral(value) => Val::Int(*value),
+            hir::Expr::StringLiteral(value) => Val::String(value.clone()),
         }
     }
 

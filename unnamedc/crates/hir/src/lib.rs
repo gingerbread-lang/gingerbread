@@ -25,10 +25,10 @@ pub struct VarDef {
 pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
-    Block { stmts: Vec<Stmt> },
-    VarRef { var_def: VarDefIdx },
-    IntLiteral { value: u32 },
-    StringLiteral { value: String },
+    Block(Vec<Stmt>),
+    VarRef(VarDefIdx),
+    IntLiteral(u32),
+    StringLiteral(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
