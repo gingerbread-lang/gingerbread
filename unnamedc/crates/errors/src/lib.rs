@@ -241,6 +241,7 @@ fn format_ty(ty: Ty) -> &'static str {
         Ty::Unknown => "an unknown type",
         Ty::Int => "integer",
         Ty::String => "string",
+        Ty::Unit => "unit",
     }
 }
 

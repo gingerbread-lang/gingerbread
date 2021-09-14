@@ -80,6 +80,7 @@ impl AstNode for Stmt {
         match node.kind() {
             SyntaxKind::VarDef => Some(Self::VarDef(VarDef(node))),
             SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
+            SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
             SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
             SyntaxKind::VarRef => Some(Self::Expr(Expr::VarRef(VarRef(node)))),
             SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
@@ -111,6 +112,7 @@ impl VarDef {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Bin(BinExpr),
+    Block(Block),
     Paren(ParenExpr),
     VarRef(VarRef),
     IntLiteral(IntLiteral),
@@ -121,6 +123,7 @@ impl AstNode for Expr {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
             SyntaxKind::BinExpr => Some(Self::Bin(BinExpr(node))),
+            SyntaxKind::Block => Some(Self::Block(Block(node))),
             SyntaxKind::ParenExpr => Some(Self::Paren(ParenExpr(node))),
             SyntaxKind::VarRef => Some(Self::VarRef(VarRef(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
@@ -132,6 +135,7 @@ impl AstNode for Expr {
     fn syntax(&self) -> &SyntaxNode {
         match self {
             Self::Bin(bin_expr) => bin_expr.syntax(),
+            Self::Block(block) => block.syntax(),
             Self::Paren(paren_expr) => paren_expr.syntax(),
             Self::VarRef(var_ref) => var_ref.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
@@ -153,6 +157,14 @@ impl BinExpr {
 
     pub fn op(&self) -> Option<Op> {
         token(self)
+    }
+}
+
+def_ast_node!(Block);
+
+impl Block {
+    pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
+        nodes(self)
     }
 }
 
@@ -395,5 +407,23 @@ mod tests {
         };
 
         assert_eq!(string_literal.value().unwrap().text(), "\"👀\"");
+    }
+
+    #[test]
+    fn get_block_stmts() {
+        let root = parse("{ let a = 10\nlet b = a * (a - 1)\nb + 5 }");
+        let stmt = root.stmts().next().unwrap();
+
+        let block = match stmt {
+            Stmt::Expr(Expr::Block(block)) => block,
+            _ => unreachable!(),
+        };
+
+        let mut stmts = block.stmts();
+
+        assert!(matches!(stmts.next(), Some(Stmt::VarDef(_))));
+        assert!(matches!(stmts.next(), Some(Stmt::VarDef(_))));
+        assert!(matches!(stmts.next(), Some(Stmt::Expr(Expr::Bin(_)))));
+        assert!(stmts.next().is_none());
     }
 }

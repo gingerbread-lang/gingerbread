@@ -14,21 +14,23 @@ pub fn lower_with_var_defs(
     var_defs: Arena<hir::VarDef>,
     var_def_names: HashMap<String, hir::VarDefIdx>,
 ) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
-    let mut lower_ctx = LowerCtx { var_defs, var_def_names, ..LowerCtx::default() };
+    let mut lower_store = LowerStore { var_defs, ..LowerStore::default() };
+    let mut lower_ctx = LowerCtx {
+        store: &mut lower_store,
+        var_def_names: VarDefNames { this: var_def_names, parent: None },
+    };
+    let mut stmts = Vec::new();
 
     for stmt in ast.stmts() {
-        lower_ctx.lower_stmt(stmt);
+        stmts.push(lower_ctx.lower_stmt(stmt));
     }
 
+    let var_def_names = lower_ctx.var_def_names.this;
     (
-        hir::Program {
-            var_defs: lower_ctx.var_defs,
-            exprs: lower_ctx.exprs,
-            stmts: lower_ctx.stmts,
-        },
-        lower_ctx.source_map,
-        lower_ctx.errors,
-        lower_ctx.var_def_names,
+        hir::Program { var_defs: lower_store.var_defs, exprs: lower_store.exprs, stmts },
+        lower_store.source_map,
+        lower_store.errors,
+        var_def_names,
     )
 }
 
@@ -49,32 +51,33 @@ pub enum LowerErrorKind {
     UndefinedVar { name: String },
 }
 
+struct LowerCtx<'a> {
+    store: &'a mut LowerStore,
+    var_def_names: VarDefNames<'a>,
+}
+
 #[derive(Default)]
-struct LowerCtx {
+struct LowerStore {
     var_defs: Arena<hir::VarDef>,
-    var_def_names: HashMap<String, hir::VarDefIdx>,
     exprs: Arena<hir::Expr>,
-    stmts: Vec<hir::Stmt>,
     source_map: SourceMap,
     errors: Vec<LowerError>,
 }
 
-impl LowerCtx {
-    fn lower_stmt(&mut self, ast: ast::Stmt) {
-        let stmt = match ast {
+impl LowerCtx<'_> {
+    fn lower_stmt(&mut self, ast: ast::Stmt) -> hir::Stmt {
+        match ast {
             ast::Stmt::VarDef(ast) => hir::Stmt::VarDef(self.lower_var_def(ast)),
             ast::Stmt::Expr(ast) => hir::Stmt::Expr(self.lower_expr(Some(ast))),
-        };
-
-        self.stmts.push(stmt);
+        }
     }
 
     fn lower_var_def(&mut self, ast: ast::VarDef) -> hir::VarDefIdx {
         let value = self.lower_expr(ast.value());
-        let idx = self.var_defs.alloc(hir::VarDef { value });
+        let idx = self.store.var_defs.alloc(hir::VarDef { value });
 
         if let Some(name) = ast.name() {
-            self.var_def_names.insert(name.text().to_string(), idx);
+            self.var_def_names.this.insert(name.text().to_string(), idx);
         }
 
         idx
@@ -83,7 +86,7 @@ impl LowerCtx {
     fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
         let ast = match ast {
             Some(ast) => ast,
-            None => return self.exprs.alloc(hir::Expr::Missing),
+            None => return self.store.exprs.alloc(hir::Expr::Missing),
         };
 
         let expr = match &ast {
@@ -93,18 +96,24 @@ impl LowerCtx {
                 op: ast.op().map(|op| self.lower_op(op)),
             },
 
+            ast::Expr::Block(ast) => {
+                let mut child = self.new_child();
+                hir::Expr::Block { stmts: ast.stmts().map(|ast| child.lower_stmt(ast)).collect() }
+            }
+
             ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
 
             ast::Expr::VarRef(ast) => ast.name().map_or(hir::Expr::Missing, |ast| {
                 let name = ast.text();
 
-                match self.var_def_names.get(name) {
-                    Some(var_def) => hir::Expr::VarRef { var_def: *var_def },
+                match self.var_def_names.get_var_def(name) {
+                    Some(var_def) => hir::Expr::VarRef { var_def },
                     None => {
-                        self.errors.push(LowerError {
+                        self.store.errors.push(LowerError {
                             range: ast.range(),
                             kind: LowerErrorKind::UndefinedVar { name: name.to_string() },
                         });
+
                         hir::Expr::Missing
                     }
                 }
@@ -124,9 +133,9 @@ impl LowerCtx {
                 .unwrap_or(hir::Expr::Missing),
         };
 
-        let expr = self.exprs.alloc(expr);
-        self.source_map.expr_map.insert(expr, ast.clone());
-        self.source_map.expr_map_back.insert(ast, expr);
+        let expr = self.store.exprs.alloc(expr);
+        self.store.source_map.expr_map.insert(expr, ast.clone());
+        self.store.source_map.expr_map_back.insert(ast, expr);
 
         expr
     }
@@ -138,6 +147,28 @@ impl LowerCtx {
             ast::Op::Mul(_) => hir::BinOp::Mul,
             ast::Op::Div(_) => hir::BinOp::Div,
         }
+    }
+
+    // must use LowerCtx instead of Self due to lifetime
+    fn new_child(&mut self) -> LowerCtx<'_> {
+        LowerCtx {
+            store: self.store,
+            var_def_names: VarDefNames { this: HashMap::new(), parent: Some(&self.var_def_names) },
+        }
+    }
+}
+
+struct VarDefNames<'a> {
+    this: HashMap<String, hir::VarDefIdx>,
+    parent: Option<&'a Self>,
+}
+
+impl VarDefNames<'_> {
+    fn get_var_def(&self, name: &str) -> Option<hir::VarDefIdx> {
+        self.this
+            .get(name)
+            .copied()
+            .or_else(|| self.parent.and_then(|parent| parent.get_var_def(name)))
     }
 }
 
@@ -335,6 +366,93 @@ mod tests {
 
         assert_eq!(program, hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::Expr(a)] });
         assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn lower_block() {
+        let mut var_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let one_hundred = exprs.alloc(hir::Expr::IntLiteral { value: 100 });
+        let ten = exprs.alloc(hir::Expr::IntLiteral { value: 10 });
+        let one_hundred_minus_ten =
+            exprs.alloc(hir::Expr::Bin { lhs: one_hundred, rhs: ten, op: Some(hir::BinOp::Sub) });
+        let foo_def = var_defs.alloc(hir::VarDef { value: one_hundred_minus_ten });
+        let foo = exprs.alloc(hir::Expr::VarRef { var_def: foo_def });
+        let two = exprs.alloc(hir::Expr::IntLiteral { value: 2 });
+        let foo_plus_two =
+            exprs.alloc(hir::Expr::Bin { lhs: foo, rhs: two, op: Some(hir::BinOp::Add) });
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::VarDef(foo_def), hir::Stmt::Expr(foo_plus_two)],
+        });
+
+        check("{ let foo = 100 - 10\nfoo + 2 }", var_defs, exprs, [hir::Stmt::Expr(block)], []);
+    }
+
+    #[test]
+    fn lower_block_with_same_var_names_inside_as_outside() {
+        let mut var_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let zero = exprs.alloc(hir::Expr::IntLiteral { value: 0 });
+        let outer_count_def = var_defs.alloc(hir::VarDef { value: zero });
+        let string = exprs.alloc(hir::Expr::StringLiteral { value: "hello there".to_string() });
+        let inner_count_def = var_defs.alloc(hir::VarDef { value: string });
+        let inner_count = exprs.alloc(hir::Expr::VarRef { var_def: inner_count_def });
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::VarDef(inner_count_def), hir::Stmt::Expr(inner_count)],
+        });
+        let outer_count = exprs.alloc(hir::Expr::VarRef { var_def: outer_count_def });
+
+        check(
+            r#"
+                let count = 0
+                {
+                    let count = "hello there"
+                    count
+                }
+                count
+            "#,
+            var_defs,
+            exprs,
+            [
+                hir::Stmt::VarDef(outer_count_def),
+                hir::Stmt::Expr(block),
+                hir::Stmt::Expr(outer_count),
+            ],
+            [],
+        );
+    }
+
+    #[test]
+    fn lower_block_that_refers_to_outside_vars() {
+        let mut var_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let eight = exprs.alloc(hir::Expr::IntLiteral { value: 8 });
+        let a_def = var_defs.alloc(hir::VarDef { value: eight });
+        let sixteen = exprs.alloc(hir::Expr::IntLiteral { value: 16 });
+        let b_def = var_defs.alloc(hir::VarDef { value: sixteen });
+        let a = exprs.alloc(hir::Expr::VarRef { var_def: a_def });
+        let b = exprs.alloc(hir::Expr::VarRef { var_def: b_def });
+        let a_times_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Mul) });
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::VarDef(b_def), hir::Stmt::Expr(a_times_b)],
+        });
+
+        check(
+            r#"
+                let a = 8
+                {
+                    let b = 16
+                    a * b
+                }
+            "#,
+            var_defs,
+            exprs,
+            [hir::Stmt::VarDef(a_def), hir::Stmt::Expr(block)],
+            [],
+        );
     }
 
     #[test]

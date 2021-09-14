@@ -10,7 +10,7 @@ pub struct Program {
     pub stmts: Vec<Stmt>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Stmt {
     VarDef(VarDefIdx),
     Expr(ExprIdx),
@@ -25,6 +25,7 @@ pub struct VarDef {
 pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
+    Block { stmts: Vec<Stmt> },
     VarRef { var_def: VarDefIdx },
     IntLiteral { value: u32 },
     StringLiteral { value: String },

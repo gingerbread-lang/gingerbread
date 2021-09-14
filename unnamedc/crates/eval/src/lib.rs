@@ -1,4 +1,5 @@
 use la_arena::{Arena, ArenaMap};
+use std::mem;
 
 #[derive(Default)]
 pub struct Evaluator {
@@ -10,42 +11,56 @@ impl Evaluator {
         let var_defs = &program.var_defs;
         let exprs = &program.exprs;
         let last_stmt = program.stmts.pop();
+        let mut eval_ctx = EvalCtx { vars: mem::take(&mut self.vars), var_defs, exprs };
 
         for stmt in program.stmts {
-            self.eval_stmt(stmt, var_defs, exprs);
+            eval_ctx.eval_stmt(stmt);
         }
 
-        last_stmt.map_or(Val::Nil, |stmt| self.eval_stmt(stmt, var_defs, exprs))
-    }
+        let result = last_stmt.map_or(Val::Nil, |stmt| eval_ctx.eval_stmt(stmt));
 
-    fn eval_stmt(
-        &mut self,
-        stmt: hir::Stmt,
-        var_defs: &Arena<hir::VarDef>,
-        exprs: &Arena<hir::Expr>,
-    ) -> Val {
+        self.vars = eval_ctx.vars;
+
+        result
+    }
+}
+
+struct EvalCtx<'program> {
+    vars: ArenaMap<hir::VarDefIdx, Val>,
+    var_defs: &'program Arena<hir::VarDef>,
+    exprs: &'program Arena<hir::Expr>,
+}
+
+impl EvalCtx<'_> {
+    fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
         match stmt {
-            hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def, var_defs, exprs),
-            hir::Stmt::Expr(expr) => self.eval_expr(expr, exprs),
+            hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def),
+            hir::Stmt::Expr(expr) => self.eval_expr(expr),
         }
     }
 
-    fn eval_var_def(
-        &mut self,
-        var_def: hir::VarDefIdx,
-        var_defs: &Arena<hir::VarDef>,
-        exprs: &Arena<hir::Expr>,
-    ) -> Val {
-        let value = self.eval_expr(var_defs[var_def].value, exprs);
+    fn eval_var_def(&mut self, var_def: hir::VarDefIdx) -> Val {
+        let value = self.eval_expr(self.var_defs[var_def].value);
         self.vars.insert(var_def, value);
 
         Val::Nil
     }
 
-    fn eval_expr(&mut self, expr: hir::ExprIdx, exprs: &Arena<hir::Expr>) -> Val {
-        match &exprs[expr] {
+    fn eval_expr(&mut self, expr: hir::ExprIdx) -> Val {
+        match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
-            hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs, exprs),
+            hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
+            hir::Expr::Block { stmts } => match stmts.split_last() {
+                Some((last, rest)) => {
+                    for stmt in rest {
+                        self.eval_stmt(*stmt);
+                    }
+
+                    self.eval_stmt(*last)
+                }
+
+                None => Val::Nil,
+            },
             hir::Expr::VarRef { var_def } => self.vars[*var_def].clone(),
             hir::Expr::IntLiteral { value } => Val::Int(*value),
             hir::Expr::StringLiteral { value } => Val::String(value.clone()),
@@ -57,14 +72,13 @@ impl Evaluator {
         op: Option<hir::BinOp>,
         lhs: hir::ExprIdx,
         rhs: hir::ExprIdx,
-        exprs: &Arena<hir::Expr>,
     ) -> Val {
         let op = match op {
             Some(op) => op,
             None => return Val::Nil,
         };
 
-        let (lhs, rhs) = match (self.eval_expr(lhs, exprs), self.eval_expr(rhs, exprs)) {
+        let (lhs, rhs) = match (self.eval_expr(lhs), self.eval_expr(rhs)) {
             (Val::Int(lhs), Val::Int(rhs)) => (lhs, rhs),
             _ => return Val::Nil,
         };
@@ -123,6 +137,41 @@ mod tests {
     #[test]
     fn eval_var_def_and_var_ref() {
         check("let a = 10\na", Val::Int(10));
+    }
+
+    #[test]
+    fn eval_empty_block() {
+        check("{}", Val::Nil);
+    }
+
+    #[test]
+    fn eval_block_ending_in_stmt() {
+        check("{ let foo = 10 }", Val::Nil);
+    }
+
+    #[test]
+    fn eval_block_ending_in_expr() {
+        check("{ 10 - 5 }", Val::Int(5));
+    }
+
+    #[test]
+    fn eval_block_with_nested_scope() {
+        check("{ let n = 5 \n n+2 }", Val::Int(7));
+    }
+
+    #[test]
+    fn vars_have_lexical_scope() {
+        check(
+            r#"
+                let foo = "foo"
+                let bar = {
+                    let foo = 10
+                    foo
+                }
+                foo
+            "#,
+            Val::String("foo".to_string()),
+        );
     }
 
     #[test]

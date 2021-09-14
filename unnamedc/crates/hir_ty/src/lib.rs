@@ -33,6 +33,7 @@ pub enum Ty {
     Unknown,
     Int,
     String,
+    Unit,
 }
 
 #[derive(Debug, PartialEq)]
@@ -53,15 +54,15 @@ struct InferCtx<'a> {
 }
 
 impl InferCtx<'_> {
-    fn infer_stmt(&mut self, stmt: &hir::Stmt) {
+    fn infer_stmt(&mut self, stmt: &hir::Stmt) -> Ty {
         match stmt {
             hir::Stmt::VarDef(var_def) => {
                 let value_ty = self.infer_expr(self.var_defs[*var_def].value);
                 self.result.var_tys.insert(*var_def, value_ty);
+
+                Ty::Unit
             }
-            hir::Stmt::Expr(expr) => {
-                self.infer_expr(*expr);
-            }
+            hir::Stmt::Expr(expr) => self.infer_expr(*expr),
         }
     }
 
@@ -89,6 +90,18 @@ impl InferCtx<'_> {
 
                 Ty::Int
             }
+
+            hir::Expr::Block { ref stmts } => match stmts.split_last() {
+                Some((last, rest)) => {
+                    for stmt in rest {
+                        self.infer_stmt(stmt);
+                    }
+
+                    self.infer_stmt(last)
+                }
+
+                None => Ty::Unit,
+            },
 
             hir::Expr::VarRef { var_def } => self.result.var_tys[var_def],
 
@@ -333,6 +346,59 @@ mod tests {
         assert_eq!(result.expr_tys[ten], Ty::Int);
         assert_eq!(result.expr_tys[missing], Ty::Unknown);
         assert_eq!(result.expr_tys[ten_times_missing], Ty::Int);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_empty_block() {
+        let mut exprs = Arena::new();
+        let block = exprs.alloc(hir::Expr::Block { stmts: Vec::new() });
+
+        let result = infer(&hir::Program {
+            var_defs: Arena::new(),
+            exprs,
+            stmts: vec![hir::Stmt::Expr(block)],
+        });
+
+        assert_eq!(result.expr_tys[block], Ty::Unit);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_block_ending_in_var_def() {
+        let mut var_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let string = exprs.alloc(hir::Expr::StringLiteral { value: "🌈".to_string() });
+        let var_def = var_defs.alloc(hir::VarDef { value: string });
+        let block = exprs.alloc(hir::Expr::Block { stmts: vec![hir::Stmt::VarDef(var_def)] });
+
+        let result = infer(&hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::Expr(block)] });
+
+        assert_eq!(result.expr_tys[string], Ty::String);
+        assert_eq!(result.var_tys[var_def], Ty::String);
+        assert_eq!(result.expr_tys[block], Ty::Unit);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_block_ending_in_expr() {
+        let mut var_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let seven = exprs.alloc(hir::Expr::IntLiteral { value: 7 });
+        let num_def = var_defs.alloc(hir::VarDef { value: seven });
+        let num = exprs.alloc(hir::Expr::VarRef { var_def: num_def });
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::VarDef(num_def), hir::Stmt::Expr(num)],
+        });
+
+        let result = infer(&hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::Expr(block)] });
+
+        assert_eq!(result.expr_tys[seven], Ty::Int);
+        assert_eq!(result.var_tys[num_def], Ty::Int);
+        assert_eq!(result.expr_tys[num], Ty::Int);
+        assert_eq!(result.expr_tys[block], Ty::Int);
         assert_eq!(result.errors, []);
     }
 }
