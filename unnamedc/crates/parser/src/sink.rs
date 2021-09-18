@@ -1,4 +1,4 @@
-use super::Event;
+use super::event::Event;
 use crate::error::ParseError;
 use crate::Parse;
 use std::mem;

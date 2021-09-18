@@ -6,7 +6,6 @@ mod sink;
 mod token_set;
 
 use self::error::ParseError;
-use self::event::Event;
 use self::parser::Parser;
 use self::sink::Sink;
 use std::fmt;
