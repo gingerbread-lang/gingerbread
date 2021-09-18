@@ -44,21 +44,13 @@ const fn mask(kind: TokenKind) -> u16 {
 #[cfg(test)]
 #[test]
 fn it_works() {
-    assert_eq!(TokenKind::LetKw as u16, 0);
-    assert_eq!(TokenKind::Int as u16, 2);
-    assert_eq!(TokenKind::String as u16, 3);
-
     let set = TokenSet::new([TokenKind::LetKw, TokenKind::Int]);
-    assert_eq!(set.0, 0b0000000000000101);
-    //             pos:              2 0
 
     assert!(set.contains(TokenKind::LetKw));
     assert!(set.contains(TokenKind::Int));
     assert!(!set.contains(TokenKind::String));
 
     let set = set.union(TokenSet::new([TokenKind::String]));
-    assert_eq!(set.0, 0b0000000000001101);
-    //             pos:             32 0
 
     assert!(set.contains(TokenKind::LetKw));
     assert!(set.contains(TokenKind::Int));
