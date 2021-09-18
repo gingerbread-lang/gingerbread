@@ -832,4 +832,27 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn parse_fnc_def_without_ret_ty() {
+        check(
+            "fnc nothing() -> {}",
+            expect![[r#"
+                Root@0..19
+                  FncDef@0..19
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..11 "nothing"
+                    Params@11..14
+                      LParen@11..12 "("
+                      RParen@12..13 ")"
+                      Whitespace@13..14 " "
+                    Arrow@14..16 "->"
+                    Whitespace@16..17 " "
+                    Block@17..19
+                      LBrace@17..18 "{"
+                      RBrace@18..19 "}"
+            "#]],
+        );
+    }
 }

@@ -12,7 +12,11 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.expect(TokenKind::Ident);
 
     parse_fnc_params(p);
-    parse_ret_ty(p);
+
+    if p.at(TokenKind::Colon) {
+        parse_ret_ty(p);
+    }
+
     p.expect(TokenKind::Arrow);
     parse_expr(p);
 
@@ -43,8 +47,9 @@ fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
 }
 
 fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::Colon));
     let m = p.start();
-    p.expect(TokenKind::Colon);
+    p.bump();
     parse_ty(p);
     m.complete(p, SyntaxKind::RetTy)
 }
