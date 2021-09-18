@@ -66,6 +66,9 @@ enum LexerTokenKind {
     #[token(":")]
     Colon,
 
+    #[token(",")]
+    Comma,
+
     #[token("(")]
     LParen,
 
@@ -230,6 +233,11 @@ mod tests {
     #[test]
     fn lex_colon() {
         check(":", TokenKind::Colon);
+    }
+
+    #[test]
+    fn lex_comma() {
+        check(",", TokenKind::Comma);
     }
 
     #[test]

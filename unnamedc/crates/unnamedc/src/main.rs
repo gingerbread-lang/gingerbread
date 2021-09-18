@@ -132,6 +132,7 @@ fn render(
             }
             TokenKind::Eq
             | TokenKind::Colon
+            | TokenKind::Comma
             | TokenKind::LParen
             | TokenKind::RParen
             | TokenKind::LBrace
