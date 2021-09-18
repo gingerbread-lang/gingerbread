@@ -73,6 +73,11 @@ pub enum SyntaxKind {
     BinExpr,
     ParenExpr,
     VarDef,
+    FncDef,
+    Params,
+    Param,
+    RetTy,
+    Ty,
 }
 
 impl From<TokenKind> for SyntaxKind {

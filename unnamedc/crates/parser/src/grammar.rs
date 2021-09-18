@@ -24,6 +24,8 @@ fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
 
     if p.at(TokenKind::LetKw) {
         return Some(parse_var_def(p));
+    } else if p.at(TokenKind::FncKw) {
+        return Some(parse_fnc_def(p));
     }
 
     parse_expr(p)
@@ -43,6 +45,61 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     parse_expr(p);
 
     m.complete(p, SyntaxKind::VarDef)
+}
+
+fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::FncKw));
+    let m = p.start();
+    p.bump();
+
+    p.expect(TokenKind::Ident);
+
+    parse_fnc_params(p);
+    parse_ret_ty(p);
+    p.expect(TokenKind::Arrow);
+    parse_expr(p);
+
+    m.complete(p, SyntaxKind::FncDef)
+}
+
+fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    let m = p.start();
+
+    p.expect(TokenKind::LParen);
+
+    loop {
+        if p.at(TokenKind::RParen) {
+            break;
+        }
+
+        parse_fnc_param(p);
+
+        if p.at(TokenKind::RParen) {
+            break;
+        }
+
+        p.expect(TokenKind::Comma);
+    }
+    p.expect(TokenKind::RParen);
+
+    m.complete(p, SyntaxKind::Params)
+}
+
+fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    let m = p.start();
+    p.expect(TokenKind::Colon);
+    parse_ty(p);
+    m.complete(p, SyntaxKind::RetTy)
+}
+
+fn parse_fnc_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    let m = p.start();
+
+    p.expect(TokenKind::Ident);
+    p.expect(TokenKind::Colon);
+    parse_ty(p);
+
+    m.complete(p, SyntaxKind::Param)
 }
 
 fn parse_expr(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
@@ -158,6 +215,12 @@ fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.expect(TokenKind::RParen);
 
     m.complete(p, SyntaxKind::ParenExpr)
+}
+
+fn parse_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    let m = p.start();
+    p.expect(TokenKind::Ident);
+    m.complete(p, SyntaxKind::Ty)
 }
 
 #[cfg(test)]
@@ -923,6 +986,53 @@ mod tests {
                     Error@2..3
                       RParen@2..3 ")"
                 error at 2..3: expected RBrace but found RParen
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def() {
+        check(
+            "fnc add(x: s32, y: s32): s32 -> x + y",
+            expect![[r#"
+                Root@0..37
+                  FncDef@0..37
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "add"
+                    Params@7..23
+                      LParen@7..8 "("
+                      Param@8..14
+                        Ident@8..9 "x"
+                        Colon@9..10 ":"
+                        Whitespace@10..11 " "
+                        Ty@11..14
+                          Ident@11..14 "s32"
+                      Comma@14..15 ","
+                      Whitespace@15..16 " "
+                      Param@16..22
+                        Ident@16..17 "y"
+                        Colon@17..18 ":"
+                        Whitespace@18..19 " "
+                        Ty@19..22
+                          Ident@19..22 "s32"
+                      RParen@22..23 ")"
+                    RetTy@23..29
+                      Colon@23..24 ":"
+                      Whitespace@24..25 " "
+                      Ty@25..29
+                        Ident@25..28 "s32"
+                        Whitespace@28..29 " "
+                    Arrow@29..31 "->"
+                    Whitespace@31..32 " "
+                    BinExpr@32..37
+                      VarRef@32..34
+                        Ident@32..33 "x"
+                        Whitespace@33..34 " "
+                      Plus@34..35 "+"
+                      Whitespace@35..36 " "
+                      VarRef@36..37
+                        Ident@36..37 "y"
             "#]],
         );
     }
