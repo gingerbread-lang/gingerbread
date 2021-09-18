@@ -228,6 +228,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Asterisk => "`*`",
         TokenKind::Slash => "`/`",
         TokenKind::Eq => "`=`",
+        TokenKind::Colon => "`:`",
         TokenKind::LParen => "`(`",
         TokenKind::RParen => "`)`",
         TokenKind::LBrace => "`{`",

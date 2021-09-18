@@ -131,6 +131,7 @@ fn render(
                 c.dark_cyan()
             }
             TokenKind::Eq
+            | TokenKind::Colon
             | TokenKind::LParen
             | TokenKind::RParen
             | TokenKind::LBrace

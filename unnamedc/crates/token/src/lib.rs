@@ -34,6 +34,7 @@ pub enum TokenKind {
     Asterisk,
     Slash,
     Eq,
+    Colon,
     LParen,
     RParen,
     LBrace,

@@ -55,6 +55,7 @@ pub enum SyntaxKind {
     Asterisk,
     Slash,
     Eq,
+    Colon,
     LParen,
     RParen,
     LBrace,

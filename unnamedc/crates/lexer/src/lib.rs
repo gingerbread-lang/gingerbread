@@ -63,6 +63,9 @@ enum LexerTokenKind {
     #[token("=")]
     Eq,
 
+    #[token(":")]
+    Colon,
+
     #[token("(")]
     LParen,
 
@@ -222,6 +225,11 @@ mod tests {
     #[test]
     fn lex_eq() {
         check("=", TokenKind::Eq);
+    }
+
+    #[test]
+    fn lex_colon() {
+        check(":", TokenKind::Colon);
     }
 
     #[test]

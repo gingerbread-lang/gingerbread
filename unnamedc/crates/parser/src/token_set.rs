@@ -13,7 +13,7 @@ use token::TokenKind;
 // This implementation is mostly stolen from rust-analyzer:
 // https://github.com/rust-analyzer/rust-analyzer/blob/b73b321478d3b2a98d380eb79de717e01620c4e9/crates/parser/src/token_set.rs
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct TokenSet(u16);
+pub(crate) struct TokenSet(u32);
 
 impl TokenSet {
     pub(crate) const fn new<const LEN: usize>(kinds: [TokenKind; LEN]) -> Self {
@@ -37,8 +37,8 @@ impl TokenSet {
     }
 }
 
-const fn mask(kind: TokenKind) -> u16 {
-    1 << kind as u16
+const fn mask(kind: TokenKind) -> u32 {
+    1 << kind as u32
 }
 
 #[cfg(test)]
