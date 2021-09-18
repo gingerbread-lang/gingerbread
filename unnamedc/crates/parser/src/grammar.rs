@@ -885,4 +885,125 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn parse_fnc_def_with_missing_param_name() {
+        check(
+            "fnc id(: foo) -> {}",
+            expect![[r#"
+                Root@0..19
+                  FncDef@0..19
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..6 "id"
+                    Params@6..14
+                      LParen@6..7 "("
+                      Param@7..12
+                        Colon@7..8 ":"
+                        Whitespace@8..9 " "
+                        Ty@9..12
+                          Ident@9..12 "foo"
+                      RParen@12..13 ")"
+                      Whitespace@13..14 " "
+                    Arrow@14..16 "->"
+                    Whitespace@16..17 " "
+                    Block@17..19
+                      LBrace@17..18 "{"
+                      RBrace@18..19 "}"
+                error at 7: missing parameter name
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def_with_missing_arrow() {
+        check(
+            "fnc five(): s32 5",
+            expect![[r#"
+                Root@0..17
+                  FncDef@0..17
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..8 "five"
+                    Params@8..10
+                      LParen@8..9 "("
+                      RParen@9..10 ")"
+                    RetTy@10..16
+                      Colon@10..11 ":"
+                      Whitespace@11..12 " "
+                      Ty@12..16
+                        Ident@12..15 "s32"
+                        Whitespace@15..16 " "
+                    IntLiteral@16..17
+                      Int@16..17 "5"
+                error at 15: missing Arrow
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def_with_missing_name() {
+        check(
+            "fnc (x: s32) -> x",
+            expect![[r#"
+                Root@0..17
+                  FncDef@0..17
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Params@4..13
+                      LParen@4..5 "("
+                      Param@5..11
+                        Ident@5..6 "x"
+                        Colon@6..7 ":"
+                        Whitespace@7..8 " "
+                        Ty@8..11
+                          Ident@8..11 "s32"
+                      RParen@11..12 ")"
+                      Whitespace@12..13 " "
+                    Arrow@13..15 "->"
+                    Whitespace@15..16 " "
+                    VarRef@16..17
+                      Ident@16..17 "x"
+                error at 3: missing function name
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_with_missing_params() {
+        check(
+            "fnc ten -> 10",
+            expect![[r#"
+                Root@0..13
+                  FncDef@0..13
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "ten"
+                    Whitespace@7..8 " "
+                    Params@8..8
+                    Arrow@8..10 "->"
+                    Whitespace@10..11 " "
+                    IntLiteral@11..13
+                      Int@11..13 "10"
+                error at 7: missing function parameters
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_with_only_keyword() {
+        check(
+            "fnc",
+            expect![[r#"
+                Root@0..3
+                  FncDef@0..3
+                    FncKw@0..3 "fnc"
+                    Params@3..3
+                error at 3: missing function name
+                error at 3: missing function parameters
+                error at 3: missing Arrow
+                error at 3: missing expression
+            "#]],
+        );
+    }
 }
