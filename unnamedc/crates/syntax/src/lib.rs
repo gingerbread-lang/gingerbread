@@ -46,6 +46,7 @@ impl SyntaxBuilder {
 #[repr(u16)]
 pub enum SyntaxKind {
     LetKw,
+    FunKw,
     Ident,
     Int,
     String,

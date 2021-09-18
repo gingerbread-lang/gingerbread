@@ -123,7 +123,7 @@ fn render(
 
         let token = tokens.iter().find(|token| token.range.contains(idx)).unwrap();
         let c = match token.kind {
-            TokenKind::LetKw => c.dark_magenta().bold(),
+            TokenKind::LetKw | TokenKind::FunKw => c.dark_magenta().bold(),
             TokenKind::Ident => c.dark_blue(),
             TokenKind::Int => c.dark_yellow(),
             TokenKind::String => c.dark_green(),

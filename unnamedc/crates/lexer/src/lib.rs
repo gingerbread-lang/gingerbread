@@ -36,6 +36,9 @@ enum LexerTokenKind {
     #[token("let")]
     LetKw,
 
+    #[token("fun")]
+    FunKw,
+
     #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
 
@@ -101,6 +104,11 @@ mod tests {
     #[test]
     fn lex_let_keyword() {
         check("let", TokenKind::LetKw);
+    }
+
+    #[test]
+    fn lex_fun_keyword() {
+        check("fun", TokenKind::FunKw);
     }
 
     #[test]
