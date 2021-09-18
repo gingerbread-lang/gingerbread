@@ -133,6 +133,7 @@ fn render(
             TokenKind::Eq
             | TokenKind::Colon
             | TokenKind::Comma
+            | TokenKind::Arrow
             | TokenKind::LParen
             | TokenKind::RParen
             | TokenKind::LBrace

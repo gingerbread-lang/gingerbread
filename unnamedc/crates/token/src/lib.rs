@@ -36,6 +36,7 @@ pub enum TokenKind {
     Eq,
     Colon,
     Comma,
+    Arrow,
     LParen,
     RParen,
     LBrace,
