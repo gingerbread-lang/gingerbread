@@ -219,7 +219,7 @@ impl fmt::Display for LineColumn {
 fn format_kind(kind: TokenKind) -> &'static str {
     match kind {
         TokenKind::LetKw => "`let`",
-        TokenKind::FunKw => "`fun`",
+        TokenKind::FncKw => "`fnc`",
         TokenKind::Ident => "identifier",
         TokenKind::Int => "integer literal",
         TokenKind::String => "string literal",

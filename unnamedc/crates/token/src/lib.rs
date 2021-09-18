@@ -25,7 +25,7 @@ impl fmt::Debug for Token<'_> {
 #[repr(u16)]
 pub enum TokenKind {
     LetKw,
-    FunKw,
+    FncKw,
     Ident,
     Int,
     String,
