@@ -855,4 +855,34 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn parse_fnc_def_with_trailing_comma_in_params() {
+        check(
+            "fnc drop(n: s32,) -> {}",
+            expect![[r#"
+                Root@0..23
+                  FncDef@0..23
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..8 "drop"
+                    Params@8..18
+                      LParen@8..9 "("
+                      Param@9..15
+                        Ident@9..10 "n"
+                        Colon@10..11 ":"
+                        Whitespace@11..12 " "
+                        Ty@12..15
+                          Ident@12..15 "s32"
+                      Comma@15..16 ","
+                      RParen@16..17 ")"
+                      Whitespace@17..18 " "
+                    Arrow@18..20 "->"
+                    Whitespace@20..21 " "
+                    Block@21..23
+                      LBrace@21..22 "{"
+                      RBrace@22..23 "}"
+            "#]],
+        );
+    }
 }
