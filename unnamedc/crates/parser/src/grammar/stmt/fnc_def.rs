@@ -1,5 +1,5 @@
 use crate::grammar::expr::{parse_expr, EXPR_FIRST};
-use crate::grammar::ty::parse_ty;
+use crate::grammar::ty::{parse_ty, parse_ty_with_recovery_set};
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
@@ -38,10 +38,7 @@ fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     p.expect(TokenKind::LParen);
 
-    let mut iters = 0;
     loop {
-        dbg!(&p);
-
         if should_stop_fnc_params(p) {
             break;
         }
@@ -53,27 +50,27 @@ fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
         }
 
         p.expect(TokenKind::Comma);
-
-        iters += 1;
-
-        if iters > 2 {
-            panic!()
-        }
     }
-    p.expect(TokenKind::RParen);
+
+    p.expect_with_recovery_set(TokenKind::RParen, TokenSet::new([TokenKind::Arrow]));
 
     m.complete(p, SyntaxKind::Params)
 }
 
 fn should_stop_fnc_params(p: &mut Parser<'_, '_>) -> bool {
-    p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow]))
+    p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow])) || p.at_eof()
 }
 
 fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Colon));
     let m = p.start();
     p.bump();
-    parse_ty(p);
+
+    {
+        let _guard = p.expected_syntax_name("return type");
+        parse_ty_with_recovery_set(p, TokenSet::new([TokenKind::Arrow]).union(EXPR_FIRST));
+    }
+
     m.complete(p, SyntaxKind::RetTy)
 }
 

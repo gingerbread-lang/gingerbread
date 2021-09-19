@@ -1006,4 +1006,118 @@ mod tests {
             "#]],
         );
     }
+
+    #[test]
+    fn parse_fnc_with_missing_closing_paren_on_params() {
+        check(
+            "fnc main(",
+            expect![[r#"
+                Root@0..9
+                  FncDef@0..9
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..8 "main"
+                    Params@8..9
+                      LParen@8..9 "("
+                error at 9: missing RParen
+                error at 9: missing Arrow
+                error at 9: missing function body
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_with_recovery_on_arrow_with_unclosed_params() {
+        check(
+            "fnc foo(bar: s32 -> {}",
+            expect![[r#"
+                Root@0..22
+                  FncDef@0..22
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "foo"
+                    Params@7..17
+                      LParen@7..8 "("
+                      Param@8..17
+                        Ident@8..11 "bar"
+                        Colon@11..12 ":"
+                        Whitespace@12..13 " "
+                        Ty@13..17
+                          Ident@13..16 "s32"
+                          Whitespace@16..17 " "
+                    Arrow@17..19 "->"
+                    Whitespace@19..20 " "
+                    Block@20..22
+                      LBrace@20..21 "{"
+                      RBrace@21..22 "}"
+                error at 16: missing RParen
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_with_missing_ret_ty_name() {
+        check(
+            "fnc five(): -> 5",
+            expect![[r#"
+                Root@0..16
+                  FncDef@0..16
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..8 "five"
+                    Params@8..10
+                      LParen@8..9 "("
+                      RParen@9..10 ")"
+                    RetTy@10..12
+                      Colon@10..11 ":"
+                      Whitespace@11..12 " "
+                      Ty@12..12
+                    Arrow@12..14 "->"
+                    Whitespace@14..15 " "
+                    IntLiteral@15..16
+                      Int@15..16 "5"
+                error at 11: missing return type
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_with_missing_ret_ty_name_and_arrow() {
+        check(
+            "fnc gen(): { let foo = 5\nfoo }",
+            expect![[r#"
+                Root@0..30
+                  FncDef@0..30
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "gen"
+                    Params@7..9
+                      LParen@7..8 "("
+                      RParen@8..9 ")"
+                    RetTy@9..11
+                      Colon@9..10 ":"
+                      Whitespace@10..11 " "
+                      Ty@11..11
+                    Block@11..30
+                      LBrace@11..12 "{"
+                      Whitespace@12..13 " "
+                      VarDef@13..25
+                        LetKw@13..16 "let"
+                        Whitespace@16..17 " "
+                        Ident@17..20 "foo"
+                        Whitespace@20..21 " "
+                        Eq@21..22 "="
+                        Whitespace@22..23 " "
+                        IntLiteral@23..25
+                          Int@23..24 "5"
+                          Whitespace@24..25 "\n"
+                      VarRef@25..29
+                        Ident@25..28 "foo"
+                        Whitespace@28..29 " "
+                      RBrace@29..30 "}"
+                error at 10: missing return type
+                error at 10: missing Arrow
+            "#]],
+        );
+    }
 }
