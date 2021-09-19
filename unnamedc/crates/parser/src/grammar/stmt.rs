@@ -18,7 +18,7 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
         return Some(parse_fnc_def(p));
     }
 
-    parse_expr(p)
+    parse_expr(p, "statement")
 }
 
 fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -32,7 +32,7 @@ fn parse_var_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     }
 
     p.expect(TokenKind::Eq);
-    parse_expr(p);
+    parse_expr(p, "variable value");
 
     m.complete(p, SyntaxKind::VarDef)
 }

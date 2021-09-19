@@ -122,20 +122,9 @@ fn input_snippet(
 fn parse_error_header(parse_error: &ParseError, start_line_column: &LineColumn) -> String {
     let mut header = format!("syntax error at {}: ", start_line_column);
 
-    let write_expected_syntaxes = |buf: &mut String| {
-        for (idx, expected_syntax) in parse_error.expected_syntaxes.iter().enumerate() {
-            if idx == 0 {
-            } else if idx == parse_error.expected_syntaxes.len() - 1 {
-                buf.push_str(" or ");
-            } else {
-                buf.push_str(", ");
-            }
-
-            match expected_syntax {
-                ExpectedSyntax::Named(name) => buf.push_str(name),
-                ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(*kind)),
-            }
-        }
+    let write_expected_syntaxes = |buf: &mut String| match parse_error.expected_syntax {
+        ExpectedSyntax::Named(name) => buf.push_str(name),
+        ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(kind)),
     };
 
     match parse_error.kind {
@@ -257,17 +246,13 @@ mod tests {
     use parser::error::{ExpectedSyntax, ParseErrorKind};
     use std::ops::Range as StdRange;
 
-    fn check_parse_error<const NUM_EXPECTED: usize>(
+    fn check_parse_error(
         input: &str,
-        expected_syntaxes: [ExpectedSyntax; NUM_EXPECTED],
+        expected_syntax: ExpectedSyntax,
         kind: ParseErrorKind,
         formatted: Expect,
     ) {
-        let error = Error::from_parse_error(ParseError {
-            expected_syntaxes: IntoIterator::into_iter(expected_syntaxes).collect(),
-            kind,
-        });
-
+        let error = Error::from_parse_error(ParseError { expected_syntax, kind });
         formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
     }
 
@@ -309,10 +294,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_expected_1_unexpected() {
+    fn parse_error_unexpected() {
         check_parse_error(
             "let *",
-            [ExpectedSyntax::Unnamed(TokenKind::Ident)],
+            ExpectedSyntax::Unnamed(TokenKind::Ident),
             ParseErrorKind::Unexpected {
                 found: TokenKind::Asterisk,
                 range: TextRange::new(4.into(), 5.into()),
@@ -326,10 +311,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_expected_1_missing() {
+    fn parse_error_missing() {
         check_parse_error(
             "let idx",
-            [ExpectedSyntax::Unnamed(TokenKind::Eq)],
+            ExpectedSyntax::Unnamed(TokenKind::Eq),
             ParseErrorKind::Missing { offset: 7.into() },
             expect![[r#"
                 syntax error at 1:8: missing `=`
@@ -340,67 +325,10 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_expected_2_unexpected() {
-        check_parse_error(
-            "let a = 10\na + +",
-            [ExpectedSyntax::Unnamed(TokenKind::Int), ExpectedSyntax::Unnamed(TokenKind::Ident)],
-            ParseErrorKind::Unexpected {
-                found: TokenKind::Plus,
-                range: TextRange::new(15.into(), 16.into()),
-            },
-            expect![[r#"
-                syntax error at 2:5: expected identifier or integer literal but found `+`
-                  a + +
-                      ^
-            "#]],
-        );
-    }
-
-    #[test]
-    fn parse_error_expected_multiple_unexpected() {
-        check_parse_error(
-            "1000 @",
-            [
-                ExpectedSyntax::Unnamed(TokenKind::Plus),
-                ExpectedSyntax::Unnamed(TokenKind::Hyphen),
-                ExpectedSyntax::Unnamed(TokenKind::Asterisk),
-                ExpectedSyntax::Unnamed(TokenKind::Slash),
-            ],
-            ParseErrorKind::Unexpected {
-                found: TokenKind::Error,
-                range: TextRange::new(5.into(), 6.into()),
-            },
-            expect![[r#"
-                syntax error at 1:6: expected `+`, `-`, `*` or `/` but found an unrecognized token
-                  1000 @
-                       ^
-            "#]],
-        );
-    }
-
-    #[test]
-    fn parse_error_expected_multiple_missing() {
-        check_parse_error(
-            "let bar = foo\nlet baz = bar\nbaz -",
-            [
-                ExpectedSyntax::Named("statement"),
-                ExpectedSyntax::Unnamed(TokenKind::Asterisk),
-                ExpectedSyntax::Named("expression"),
-            ],
-            ParseErrorKind::Missing { offset: 33.into() },
-            expect![[r#"
-                syntax error at 3:6: missing expression, statement or `*`
-                  baz -
-                       ^
-            "#]],
-        );
-    }
-
-    #[test]
-    fn parse_error_expected_1_missing_at_end_of_line() {
+    fn parse_error_missing_at_end_of_line() {
         check_parse_error(
             "let a =\nlet b = a",
-            [ExpectedSyntax::Named("expression")],
+            ExpectedSyntax::Named("expression"),
             ParseErrorKind::Missing { offset: 7.into() },
             expect![[r#"
                 syntax error at 1:8: missing expression

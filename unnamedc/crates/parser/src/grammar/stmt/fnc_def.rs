@@ -17,15 +17,12 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     parse_fnc_params(p);
 
-    if {
-        let _guard = p.disable_expected_tracking();
-        p.at(TokenKind::Colon)
-    } {
+    if p.at(TokenKind::Colon) {
         parse_ret_ty(p);
     }
 
     p.expect_with_recovery_set(TokenKind::Arrow, EXPR_FIRST);
-    parse_expr(p);
+    parse_expr(p, "function body");
 
     m.complete(p, SyntaxKind::FncDef)
 }
@@ -33,13 +30,10 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
 fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
 
-    {
-        let _guard = p.disable_expected_tracking();
-        if p.at(TokenKind::Arrow) || p.at_eof() {
-            let _guard = p.expected_syntax_name("function parameters");
-            p.expect_with_recovery_set(TokenKind::LParen, TokenSet::new([TokenKind::Arrow]));
-            return m.complete(p, SyntaxKind::Params);
-        }
+    if p.at(TokenKind::Arrow) || p.at_eof() {
+        let _guard = p.expected_syntax_name("function parameters");
+        p.expect_with_recovery_set(TokenKind::LParen, TokenSet::new([TokenKind::Arrow]));
+        return m.complete(p, SyntaxKind::Params);
     }
 
     p.expect(TokenKind::LParen);

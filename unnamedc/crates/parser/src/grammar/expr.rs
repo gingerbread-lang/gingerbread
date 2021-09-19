@@ -12,26 +12,30 @@ pub(super) const EXPR_FIRST: TokenSet = TokenSet::new([
     TokenKind::LParen,
 ]);
 
-pub(super) fn parse_expr(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
-    parse_expr_with_recovery_set(p, TokenSet::default())
+pub(super) fn parse_expr(
+    p: &mut Parser<'_, '_>,
+    expected_syntax_name: &'static str,
+) -> Option<CompletedMarker> {
+    parse_expr_with_recovery_set(p, TokenSet::default(), expected_syntax_name)
 }
 
 fn parse_expr_with_recovery_set(
     p: &mut Parser<'_, '_>,
     recovery_set: TokenSet,
+    expected_syntax_name: &'static str,
 ) -> Option<CompletedMarker> {
-    parse_expr_bp(p, 0, recovery_set)
+    parse_expr_bp(p, 0, recovery_set, expected_syntax_name)
 }
 
 fn parse_expr_bp(
     p: &mut Parser<'_, '_>,
     min_bp: u8,
     recovery_set: TokenSet,
+    expected_syntax_name: &'static str,
 ) -> Option<CompletedMarker> {
-    let mut lhs = parse_lhs(p, recovery_set)?;
+    let mut lhs = parse_lhs(p, recovery_set, expected_syntax_name)?;
 
     loop {
-        let _guard = p.disable_expected_tracking();
         let (left_bp, right_bp) = if p.at(TokenKind::Plus) || p.at(TokenKind::Hyphen) {
             (1, 2)
         } else if p.at(TokenKind::Asterisk) || p.at(TokenKind::Slash) {
@@ -47,15 +51,20 @@ fn parse_expr_bp(
         p.bump();
 
         let m = lhs.precede(p);
-        parse_expr_bp(p, right_bp, recovery_set);
+        parse_expr_bp(p, right_bp, recovery_set, "operand");
         lhs = m.complete(p, SyntaxKind::BinExpr);
     }
 
     Some(lhs)
 }
 
-fn parse_lhs(p: &mut Parser<'_, '_>, recovery_set: TokenSet) -> Option<CompletedMarker> {
-    let _guard = p.expected_syntax_name("expression");
+fn parse_lhs(
+    p: &mut Parser<'_, '_>,
+    recovery_set: TokenSet,
+    expected_syntax_name: &'static str,
+) -> Option<CompletedMarker> {
+    let _guard = p.expected_syntax_name(expected_syntax_name);
+
     let completed_marker = if p.at(TokenKind::Ident) {
         parse_var_ref(p)
     } else if p.at(TokenKind::LBrace) {
@@ -113,7 +122,7 @@ fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
 
-    parse_expr_with_recovery_set(p, TokenSet::new([TokenKind::RParen]));
+    parse_expr_with_recovery_set(p, TokenSet::new([TokenKind::RParen]), "inner expression");
     p.expect(TokenKind::RParen);
 
     m.complete(p, SyntaxKind::ParenExpr)

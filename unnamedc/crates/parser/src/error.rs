@@ -1,11 +1,10 @@
-use std::collections::BTreeSet;
 use std::fmt;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
 #[derive(Clone, PartialEq)]
 pub struct ParseError {
-    pub expected_syntaxes: BTreeSet<ExpectedSyntax>,
+    pub expected_syntax: ExpectedSyntax,
     pub kind: ParseErrorKind,
 }
 
@@ -26,29 +25,19 @@ impl fmt::Debug for ParseError {
         };
         write!(f, ": ")?;
 
-        let format_expected_syntaxes = |f: &mut fmt::Formatter<'_>| {
-            for (idx, expected_syntax) in self.expected_syntaxes.iter().enumerate() {
-                if idx != 0 {
-                    write!(f, ", ")?;
-                }
-
-                match expected_syntax {
-                    ExpectedSyntax::Named(name) => write!(f, "{}", name)?,
-                    ExpectedSyntax::Unnamed(kind) => write!(f, "{:?}", kind)?,
-                }
-            }
-
-            Ok(())
+        let format_expected_syntax = |f: &mut fmt::Formatter<'_>| match self.expected_syntax {
+            ExpectedSyntax::Named(name) => write!(f, "{}", name),
+            ExpectedSyntax::Unnamed(kind) => write!(f, "{:?}", kind),
         };
 
         match self.kind {
             ParseErrorKind::Missing { .. } => {
                 write!(f, "missing ")?;
-                format_expected_syntaxes(f)?;
+                format_expected_syntax(f)?;
             }
             ParseErrorKind::Unexpected { found, .. } => {
                 write!(f, "expected ")?;
-                format_expected_syntaxes(f)?;
+                format_expected_syntax(f)?;
                 write!(f, " but found {:?}", found)?;
             }
         }

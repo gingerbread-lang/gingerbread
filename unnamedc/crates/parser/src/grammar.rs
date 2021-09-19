@@ -333,7 +333,7 @@ mod tests {
                   ParenExpr@0..2
                     LParen@0..1 "("
                     RParen@1..2 ")"
-                error at 1: missing expression
+                error at 1: missing inner expression
             "#]],
         );
     }
@@ -377,7 +377,7 @@ mod tests {
                     IntLiteral@0..1
                       Int@0..1 "1"
                     Plus@1..2 "+"
-                error at 2: missing expression
+                error at 2: missing operand
             "#]],
         );
     }
@@ -394,7 +394,7 @@ mod tests {
                     Asterisk@2..3 "*"
                     IntLiteral@3..4
                       Int@3..4 "5"
-                error at 0..2: expected expression, statement but found Error
+                error at 0..2: expected statement but found Error
             "#]],
         );
     }
@@ -413,7 +413,7 @@ mod tests {
                     Whitespace@4..5 " "
                     Error@5..6
                       Error@5..6 "%"
-                error at 5..6: expected expression but found Error
+                error at 5..6: expected operand but found Error
             "#]],
         );
     }
@@ -447,8 +447,8 @@ mod tests {
                     Whitespace@15..16 " "
                     Error@16..17
                       Error@16..17 "?"
-                error at 5..6: expected expression but found Error
-                error at 16..17: expected expression but found Error
+                error at 5..6: expected inner expression but found Error
+                error at 16..17: expected operand but found Error
             "#]],
         );
     }
@@ -555,7 +555,7 @@ mod tests {
                     Whitespace@19..20 " "
                     IntLiteral@20..22
                       Int@20..22 "92"
-                error at 9: missing expression
+                error at 9: missing variable value
             "#]],
         );
     }
@@ -574,10 +574,10 @@ mod tests {
                   VarDef@6..9
                     LetKw@6..9 "let"
                 error at 5: missing Eq
-                error at 5: missing expression
+                error at 5: missing variable value
                 error at 9: missing variable name
                 error at 9: missing Eq
-                error at 9: missing expression
+                error at 9: missing variable value
             "#]],
         );
     }
@@ -592,7 +592,7 @@ mod tests {
                     LetKw@0..3 "let"
                 error at 3: missing variable name
                 error at 3: missing Eq
-                error at 3: missing expression
+                error at 3: missing variable value
             "#]],
         );
     }
@@ -617,7 +617,7 @@ mod tests {
                       Ident@12..13 "b"
                 error at 3: missing variable name
                 error at 3: missing Eq
-                error at 3: missing expression
+                error at 3: missing variable value
             "#]],
         );
     }
@@ -1002,7 +1002,7 @@ mod tests {
                 error at 3: missing function name
                 error at 3: missing function parameters
                 error at 3: missing Arrow
-                error at 3: missing expression
+                error at 3: missing function body
             "#]],
         );
     }

@@ -5,8 +5,6 @@ use crate::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use crate::event::Event;
 use crate::token_set::TokenSet;
 use std::cell::Cell;
-use std::collections::BTreeSet;
-use std::mem;
 use std::rc::Rc;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
@@ -18,7 +16,7 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
-    expected_syntaxes: BTreeSet<ExpectedSyntax>,
+    expected_syntax: Option<ExpectedSyntax>,
     expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
 }
 
@@ -28,7 +26,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             tokens,
             token_idx: 0,
             events: Vec::new(),
-            expected_syntaxes: BTreeSet::new(),
+            expected_syntax: None,
             expected_syntax_tracking_state: Rc::new(Cell::new(
                 ExpectedSyntaxTrackingState::Unnamed,
             )),
@@ -56,13 +54,14 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         &mut self,
         recovery_set: TokenSet,
     ) -> Option<CompletedMarker> {
-        let expected_syntaxes = mem::take(&mut self.expected_syntaxes);
+        // we must have been expecting something if there was an error
+        let expected_syntax = self.expected_syntax.take().unwrap();
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
 
         if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET.union(recovery_set)) {
             let range = self.previous_token().range;
             self.events.push(Event::Error(ParseError {
-                expected_syntaxes,
+                expected_syntax,
                 kind: ParseErrorKind::Missing { offset: range.end() },
             }));
 
@@ -73,7 +72,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         let current_token = self.current_token().unwrap();
 
         self.events.push(Event::Error(ParseError {
-            expected_syntaxes,
+            expected_syntax,
             kind: ParseErrorKind::Unexpected {
                 found: current_token.kind,
                 range: current_token.range,
@@ -88,14 +87,8 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     #[must_use]
     pub(crate) fn expected_syntax_name(&mut self, name: &'static str) -> ExpectedSyntaxGuard {
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Named);
-        self.expected_syntaxes.insert(ExpectedSyntax::Named(name));
+        self.expected_syntax = Some(ExpectedSyntax::Named(name));
 
-        ExpectedSyntaxGuard::new(Rc::clone(&self.expected_syntax_tracking_state))
-    }
-
-    #[must_use]
-    pub(crate) fn disable_expected_tracking(&mut self) -> ExpectedSyntaxGuard {
-        self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Disabled);
         ExpectedSyntaxGuard::new(Rc::clone(&self.expected_syntax_tracking_state))
     }
 
@@ -108,7 +101,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     pub(crate) fn at(&mut self, kind: TokenKind) -> bool {
         if let ExpectedSyntaxTrackingState::Unnamed = self.expected_syntax_tracking_state.get() {
-            self.expected_syntaxes.insert(ExpectedSyntax::Unnamed(kind));
+            self.expected_syntax = Some(ExpectedSyntax::Unnamed(kind));
         }
 
         self.skip_whitespace();
@@ -132,7 +125,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     fn clear_expected_syntaxes(&mut self) {
-        self.expected_syntaxes.clear();
+        self.expected_syntax = None;
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
     }
 
@@ -186,5 +179,4 @@ impl Drop for ExpectedSyntaxGuard {
 enum ExpectedSyntaxTrackingState {
     Named,
     Unnamed,
-    Disabled,
 }
