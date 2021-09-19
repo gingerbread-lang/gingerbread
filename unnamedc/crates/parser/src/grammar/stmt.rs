@@ -16,6 +16,8 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
         return Some(parse_var_def(p));
     } else if p.at(TokenKind::FncKw) {
         return Some(parse_fnc_def(p));
+    } else if p.at(TokenKind::RBrace) {
+        return p.error_with_recovery_set_no_default(TokenSet::default());
     }
 
     parse_expr(p, "statement")

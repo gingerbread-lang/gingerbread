@@ -9,7 +9,8 @@ use std::rc::Rc;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
-const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([TokenKind::LetKw]);
+const DEFAULT_RECOVERY_SET: TokenSet =
+    TokenSet::new([TokenKind::LetKw, TokenKind::LBrace, TokenKind::RBrace]);
 
 #[derive(Debug)]
 pub(crate) struct Parser<'tokens, 'input> {
@@ -54,11 +55,18 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         &mut self,
         recovery_set: TokenSet,
     ) -> Option<CompletedMarker> {
+        self.error_with_recovery_set_no_default(recovery_set.union(DEFAULT_RECOVERY_SET))
+    }
+
+    pub(crate) fn error_with_recovery_set_no_default(
+        &mut self,
+        recovery_set: TokenSet,
+    ) -> Option<CompletedMarker> {
         // we must have been expecting something if there was an error
         let expected_syntax = self.expected_syntax.take().unwrap();
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
 
-        if self.at_eof() || self.at_set(DEFAULT_RECOVERY_SET.union(recovery_set)) {
+        if self.at_eof() || self.at_set(recovery_set) {
             let range = self.previous_token().range;
             self.events.push(Event::Error(ParseError {
                 expected_syntax,

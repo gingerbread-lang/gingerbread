@@ -711,6 +711,24 @@ mod tests {
     }
 
     #[test]
+    fn parse_missing_operand_in_block() {
+        check(
+            "{1+}",
+            expect![[r#"
+                Root@0..4
+                  Block@0..4
+                    LBrace@0..1 "{"
+                    BinExpr@1..3
+                      IntLiteral@1..2
+                        Int@1..2 "1"
+                      Plus@2..3 "+"
+                    RBrace@3..4 "}"
+                error at 3: missing operand
+            "#]],
+        );
+    }
+
+    #[test]
     fn parse_block_with_unclosed_brace() {
         check(
             "{5",
@@ -1117,6 +1135,22 @@ mod tests {
                       RBrace@29..30 "}"
                 error at 10: missing return type
                 error at 10: missing Arrow
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_extra_right_braces() {
+        check(
+            "{}}",
+            expect![[r#"
+                Root@0..3
+                  Block@0..2
+                    LBrace@0..1 "{"
+                    RBrace@1..2 "}"
+                  Error@2..3
+                    RBrace@2..3 "}"
+                error at 2..3: expected statement but found RBrace
             "#]],
         );
     }
