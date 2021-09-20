@@ -10,7 +10,7 @@ use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
 const DEFAULT_RECOVERY_SET: TokenSet =
-    TokenSet::new([TokenKind::LetKw, TokenKind::LBrace, TokenKind::RBrace]);
+    TokenSet::new([TokenKind::LetKw, TokenKind::FncKw, TokenKind::LBrace, TokenKind::RBrace]);
 
 #[derive(Debug)]
 pub(crate) struct Parser<'tokens, 'input> {
@@ -119,6 +119,10 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     pub(crate) fn at_eof(&mut self) -> bool {
         self.skip_whitespace();
         self.current_token().is_none()
+    }
+
+    pub(crate) fn at_default_recovery_set(&mut self) -> bool {
+        self.at_set(DEFAULT_RECOVERY_SET)
     }
 
     pub(crate) fn at_set(&mut self, set: TokenSet) -> bool {

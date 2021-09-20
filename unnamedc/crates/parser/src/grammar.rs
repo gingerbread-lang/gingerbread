@@ -998,7 +998,6 @@ mod tests {
                     Whitespace@3..4 " "
                     Ident@4..7 "ten"
                     Whitespace@7..8 " "
-                    Params@8..8
                     Arrow@8..10 "->"
                     Whitespace@10..11 " "
                     IntLiteral@11..13
@@ -1016,7 +1015,6 @@ mod tests {
                 Root@0..3
                   FncDef@0..3
                     FncKw@0..3 "fnc"
-                    Params@3..3
                 error at 3: missing function name
                 error at 3: missing function parameters
                 error at 3: missing Arrow
@@ -1135,6 +1133,82 @@ mod tests {
                       RBrace@29..30 "}"
                 error at 10: missing return type
                 error at 10: missing Arrow
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def_missing_everything_with_brace() {
+        check(
+            "fnc {",
+            expect![[r#"
+                Root@0..5
+                  FncDef@0..5
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Block@4..5
+                      LBrace@4..5 "{"
+                error at 3: missing function name
+                error at 3: missing function parameters
+                error at 3: missing Arrow
+                error at 5: missing RBrace
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def_interrupted_by_var_def() {
+        check(
+            "fnc foo let bar = 5",
+            expect![[r#"
+                Root@0..19
+                  FncDef@0..8
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..7 "foo"
+                    Whitespace@7..8 " "
+                  VarDef@8..19
+                    LetKw@8..11 "let"
+                    Whitespace@11..12 " "
+                    Ident@12..15 "bar"
+                    Whitespace@15..16 " "
+                    Eq@16..17 "="
+                    Whitespace@17..18 " "
+                    IntLiteral@18..19
+                      Int@18..19 "5"
+                error at 7: missing function parameters
+                error at 7: missing Arrow
+                error at 7: missing function body
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_var_def_interrupted_by_fnc_def() {
+        check(
+            "let a = fnc one() -> 1",
+            expect![[r#"
+                Root@0..22
+                  VarDef@0..8
+                    LetKw@0..3 "let"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "a"
+                    Whitespace@5..6 " "
+                    Eq@6..7 "="
+                    Whitespace@7..8 " "
+                  FncDef@8..22
+                    FncKw@8..11 "fnc"
+                    Whitespace@11..12 " "
+                    Ident@12..15 "one"
+                    Params@15..18
+                      LParen@15..16 "("
+                      RParen@16..17 ")"
+                      Whitespace@17..18 " "
+                    Arrow@18..20 "->"
+                    Whitespace@20..21 " "
+                    IntLiteral@21..22
+                      Int@21..22 "1"
+                error at 7: missing variable value
             "#]],
         );
     }

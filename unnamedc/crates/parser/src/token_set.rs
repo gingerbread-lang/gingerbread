@@ -16,6 +16,8 @@ use token::TokenKind;
 pub(crate) struct TokenSet(u32);
 
 impl TokenSet {
+    pub(crate) const ALL: Self = Self(u32::MAX);
+
     pub(crate) const fn new<const LEN: usize>(kinds: [TokenKind; LEN]) -> Self {
         let mut value = 0;
 
