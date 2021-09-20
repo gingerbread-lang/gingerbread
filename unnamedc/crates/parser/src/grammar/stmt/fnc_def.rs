@@ -16,7 +16,7 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     }
 
     if p.at(TokenKind::LParen) {
-        parse_fnc_params(p);
+        parse_fnc_param_list(p);
     } else {
         let _guard = p.expected_syntax_name("function parameters");
 
@@ -34,19 +34,19 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::FncDef)
 }
 
-fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_fnc_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::LParen));
     let m = p.start();
     p.bump();
 
     loop {
-        if should_stop_fnc_params(p) {
+        if should_stop(p) {
             break;
         }
 
         parse_fnc_param(p);
 
-        if should_stop_fnc_params(p) {
+        if should_stop(p) {
             break;
         }
 
@@ -55,13 +55,13 @@ fn parse_fnc_params(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     p.expect_with_recovery_set(TokenKind::RParen, TokenSet::new([TokenKind::Arrow]));
 
-    m.complete(p, SyntaxKind::Params)
-}
+    return m.complete(p, SyntaxKind::ParamList);
 
-fn should_stop_fnc_params(p: &mut Parser<'_, '_>) -> bool {
-    p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow]))
-        || p.at_default_recovery_set()
-        || p.at_eof()
+    fn should_stop(p: &mut Parser<'_, '_>) -> bool {
+        p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow]))
+            || p.at_default_recovery_set()
+            || p.at_eof()
+    }
 }
 
 fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {

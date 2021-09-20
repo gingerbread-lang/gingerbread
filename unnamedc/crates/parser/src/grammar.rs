@@ -814,7 +814,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..7 "add"
-                    Params@7..23
+                    ParamList@7..23
                       LParen@7..8 "("
                       Param@8..14
                         Ident@8..9 "x"
@@ -861,7 +861,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..11 "nothing"
-                    Params@11..14
+                    ParamList@11..14
                       LParen@11..12 "("
                       RParen@12..13 ")"
                       Whitespace@13..14 " "
@@ -875,7 +875,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_def_with_trailing_comma_in_params() {
+    fn parse_fnc_def_with_trailing_comma_in_param_list() {
         check(
             "fnc drop(n: s32,) -> {}",
             expect![[r#"
@@ -884,7 +884,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..8 "drop"
-                    Params@8..18
+                    ParamList@8..18
                       LParen@8..9 "("
                       Param@9..15
                         Ident@9..10 "n"
@@ -914,7 +914,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..6 "id"
-                    Params@6..14
+                    ParamList@6..14
                       LParen@6..7 "("
                       Param@7..12
                         Colon@7..8 ":"
@@ -943,7 +943,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..8 "five"
-                    Params@8..10
+                    ParamList@8..10
                       LParen@8..9 "("
                       RParen@9..10 ")"
                     RetTy@10..16
@@ -968,7 +968,7 @@ mod tests {
                   FncDef@0..17
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
-                    Params@4..13
+                    ParamList@4..13
                       LParen@4..5 "("
                       Param@5..11
                         Ident@5..6 "x"
@@ -988,7 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_def_with_missing_params() {
+    fn parse_fnc_def_with_missing_param_list() {
         check(
             "fnc ten -> 10",
             expect![[r#"
@@ -1024,7 +1024,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_def_with_missing_closing_paren_on_params() {
+    fn parse_fnc_def_with_missing_closing_paren_on_param_list() {
         check(
             "fnc main(",
             expect![[r#"
@@ -1033,7 +1033,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..8 "main"
-                    Params@8..9
+                    ParamList@8..9
                       LParen@8..9 "("
                 error at 9: missing RParen
                 error at 9: missing Arrow
@@ -1043,7 +1043,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_def_with_recovery_on_arrow_with_unclosed_params() {
+    fn parse_fnc_def_with_recovery_on_arrow_with_unclosed_param_list() {
         check(
             "fnc foo(bar: s32 -> {}",
             expect![[r#"
@@ -1052,7 +1052,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..7 "foo"
-                    Params@7..17
+                    ParamList@7..17
                       LParen@7..8 "("
                       Param@8..17
                         Ident@8..11 "bar"
@@ -1081,7 +1081,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..8 "five"
-                    Params@8..10
+                    ParamList@8..10
                       LParen@8..9 "("
                       RParen@9..10 ")"
                     RetTy@10..12
@@ -1107,7 +1107,7 @@ mod tests {
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
                     Ident@4..7 "gen"
-                    Params@7..9
+                    ParamList@7..9
                       LParen@7..8 "("
                       RParen@8..9 ")"
                     RetTy@9..11
@@ -1200,7 +1200,7 @@ mod tests {
                     FncKw@8..11 "fnc"
                     Whitespace@11..12 " "
                     Ident@12..15 "one"
-                    Params@15..18
+                    ParamList@15..18
                       LParen@15..16 "("
                       RParen@16..17 ")"
                       Whitespace@17..18 " "

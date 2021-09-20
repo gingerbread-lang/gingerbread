@@ -74,7 +74,7 @@ pub enum SyntaxKind {
     ParenExpr,
     VarDef,
     FncDef,
-    Params,
+    ParamList,
     Param,
     RetTy,
     Ty,
