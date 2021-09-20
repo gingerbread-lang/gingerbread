@@ -988,7 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_missing_params() {
+    fn parse_fnc_def_with_missing_params() {
         check(
             "fnc ten -> 10",
             expect![[r#"
@@ -1009,7 +1009,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_only_keyword() {
+    fn parse_fnc_def_with_only_keyword() {
         check(
             "fnc",
             expect![[r#"
@@ -1026,7 +1026,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_missing_closing_paren_on_params() {
+    fn parse_fnc_def_with_missing_closing_paren_on_params() {
         check(
             "fnc main(",
             expect![[r#"
@@ -1045,7 +1045,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_recovery_on_arrow_with_unclosed_params() {
+    fn parse_fnc_def_with_recovery_on_arrow_with_unclosed_params() {
         check(
             "fnc foo(bar: s32 -> {}",
             expect![[r#"
@@ -1074,7 +1074,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_missing_ret_ty_name() {
+    fn parse_fnc_def_with_missing_ret_ty_name() {
         check(
             "fnc five(): -> 5",
             expect![[r#"
@@ -1100,7 +1100,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_with_missing_ret_ty_name_and_arrow() {
+    fn parse_fnc_def_with_missing_ret_ty_name_and_arrow() {
         check(
             "fnc gen(): { let foo = 5\nfoo }",
             expect![[r#"
