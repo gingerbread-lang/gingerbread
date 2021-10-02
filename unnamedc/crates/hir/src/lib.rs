@@ -1,23 +1,23 @@
 use la_arena::{Arena, Idx};
 
 pub type ExprIdx = Idx<Expr>;
-pub type VarDefIdx = Idx<VarDef>;
+pub type LocalDefIdx = Idx<LocalDef>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
-    pub var_defs: Arena<VarDef>,
+    pub local_defs: Arena<LocalDef>,
     pub exprs: Arena<Expr>,
     pub stmts: Vec<Stmt>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Stmt {
-    VarDef(VarDefIdx),
+    LocalDef(LocalDefIdx),
     Expr(ExprIdx),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct VarDef {
+pub struct LocalDef {
     pub value: ExprIdx,
 }
 
@@ -29,6 +29,11 @@ pub enum Expr {
     VarRef(VarDefIdx),
     IntLiteral(u32),
     StringLiteral(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VarDefIdx {
+    Local(LocalDefIdx),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -18,9 +18,9 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
-    let mut var_defs = Arena::new();
-    let mut var_def_names = HashMap::new();
-    let mut var_tys = ArenaMap::default();
+    let mut local_defs = Arena::new();
+    let mut local_def_names = HashMap::new();
+    let mut local_tys = ArenaMap::default();
 
     write!(stdout, "> ")?;
     stdout.flush()?;
@@ -60,9 +60,9 @@ fn main() -> anyhow::Result<()> {
             render(
                 &mut input,
                 &mut stdout.lock(),
-                &mut var_defs,
-                &mut var_def_names,
-                &mut var_tys,
+                &mut local_defs,
+                &mut local_def_names,
+                &mut local_tys,
                 pressed_enter,
                 &mut evaluator,
                 &mut cursor_pos,
@@ -78,9 +78,9 @@ fn main() -> anyhow::Result<()> {
 fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
-    var_defs: &mut Arena<hir::VarDef>,
-    var_def_names: &mut HashMap<String, hir::VarDefIdx>,
-    var_tys: &mut ArenaMap<hir::VarDefIdx, Ty>,
+    local_defs: &mut Arena<hir::LocalDef>,
+    local_def_names: &mut HashMap<String, hir::LocalDefIdx>,
+    local_tys: &mut ArenaMap<hir::LocalDefIdx, Ty>,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
     cursor_pos: &mut u16,
@@ -101,14 +101,14 @@ fn render(
         errors.push(Error::from_validation_error(error));
     }
 
-    let (program, source_map, lower_errors, new_var_def_names) =
-        hir_lower::lower_with_var_defs(&root, var_defs.clone(), var_def_names.clone());
+    let (program, source_map, lower_errors, new_local_def_names) =
+        hir_lower::lower_with_local_defs(&root, local_defs.clone(), local_def_names.clone());
 
     for error in lower_errors {
         errors.push(Error::from_lower_error(error));
     }
 
-    let infer_result = hir_ty::infer_with_var_tys(&program, var_tys.clone());
+    let infer_result = hir_ty::infer_with_local_tys(&program, local_tys.clone());
 
     for error in infer_result.errors {
         errors.push(Error::from_ty_error(error, &source_map));
@@ -151,9 +151,9 @@ fn render(
         writeln!(stdout, "\r")?;
 
         if errors.is_empty() {
-            *var_defs = program.var_defs.clone();
-            *var_def_names = new_var_def_names;
-            *var_tys = infer_result.var_tys;
+            *local_defs = program.local_defs.clone();
+            *local_def_names = new_local_def_names;
+            *local_tys = infer_result.local_tys;
             let result = evaluator.eval(program);
 
             writeln!(stdout, "{:?}\r", result)?;
@@ -170,7 +170,16 @@ fn render(
 
         write!(stdout, "> ")?;
 
-        render(input, stdout, var_defs, var_def_names, var_tys, false, evaluator, cursor_pos)?;
+        render(
+            input,
+            stdout,
+            local_defs,
+            local_def_names,
+            local_tys,
+            false,
+            evaluator,
+            cursor_pos,
+        )?;
     }
 
     queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;

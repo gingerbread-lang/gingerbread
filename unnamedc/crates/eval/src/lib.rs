@@ -3,15 +3,15 @@ use std::mem;
 
 #[derive(Default)]
 pub struct Evaluator {
-    vars: ArenaMap<hir::VarDefIdx, Val>,
+    locals: ArenaMap<hir::LocalDefIdx, Val>,
 }
 
 impl Evaluator {
     pub fn eval(&mut self, mut program: hir::Program) -> Val {
-        let var_defs = &program.var_defs;
+        let local_defs = &program.local_defs;
         let exprs = &program.exprs;
         let last_stmt = program.stmts.pop();
-        let mut eval_ctx = EvalCtx { vars: mem::take(&mut self.vars), var_defs, exprs };
+        let mut eval_ctx = EvalCtx { locals: mem::take(&mut self.locals), local_defs, exprs };
 
         for stmt in program.stmts {
             eval_ctx.eval_stmt(stmt);
@@ -19,29 +19,29 @@ impl Evaluator {
 
         let result = last_stmt.map_or(Val::Nil, |stmt| eval_ctx.eval_stmt(stmt));
 
-        self.vars = eval_ctx.vars;
+        self.locals = eval_ctx.locals;
 
         result
     }
 }
 
 struct EvalCtx<'program> {
-    vars: ArenaMap<hir::VarDefIdx, Val>,
-    var_defs: &'program Arena<hir::VarDef>,
+    locals: ArenaMap<hir::LocalDefIdx, Val>,
+    local_defs: &'program Arena<hir::LocalDef>,
     exprs: &'program Arena<hir::Expr>,
 }
 
 impl EvalCtx<'_> {
     fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
         match stmt {
-            hir::Stmt::VarDef(var_def) => self.eval_var_def(var_def),
+            hir::Stmt::LocalDef(local_def) => self.eval_local_def(local_def),
             hir::Stmt::Expr(expr) => self.eval_expr(expr),
         }
     }
 
-    fn eval_var_def(&mut self, var_def: hir::VarDefIdx) -> Val {
-        let value = self.eval_expr(self.var_defs[var_def].value);
-        self.vars.insert(var_def, value);
+    fn eval_local_def(&mut self, local_def: hir::LocalDefIdx) -> Val {
+        let value = self.eval_expr(self.local_defs[local_def].value);
+        self.locals.insert(local_def, value);
 
         Val::Nil
     }
@@ -61,7 +61,7 @@ impl EvalCtx<'_> {
 
                 None => Val::Nil,
             },
-            hir::Expr::VarRef(var_def) => self.vars[*var_def].clone(),
+            hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.locals[*local_def].clone(),
             hir::Expr::IntLiteral(value) => Val::Int(*value),
             hir::Expr::StringLiteral(value) => Val::String(value.clone()),
         }
@@ -130,12 +130,12 @@ mod tests {
     }
 
     #[test]
-    fn eval_var_def() {
+    fn eval_local_def() {
         check("let a = 5", Val::Nil);
     }
 
     #[test]
-    fn eval_var_def_and_var_ref() {
+    fn eval_local_def_and_ref() {
         check("let a = 10\na", Val::Int(10));
     }
 
@@ -160,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn vars_have_lexical_scope() {
+    fn locals_have_lexical_scope() {
         check(
             r#"
                 let foo = "foo"
@@ -200,18 +200,18 @@ mod tests {
     }
 
     #[test]
-    fn preserve_variables_across_eval_calls() {
+    fn preserve_locals_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
         let parse = parser::parse(&lexer::lex("let foo = 100"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, var_def_names) = hir_lower::lower(&root);
+        let (program, _, _, local_def_names) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);
 
         let parse = parser::parse(&lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, _, _) =
-            hir_lower::lower_with_var_defs(&root, program.var_defs, var_def_names);
+            hir_lower::lower_with_local_defs(&root, program.local_defs, local_def_names);
         assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 }

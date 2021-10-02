@@ -72,7 +72,7 @@ pub enum SyntaxKind {
     StringLiteral,
     BinExpr,
     ParenExpr,
-    VarDef,
+    LocalDef,
     FncDef,
     ParamList,
     Param,

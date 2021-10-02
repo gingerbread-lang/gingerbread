@@ -5,19 +5,19 @@ use text_size::TextRange;
 
 pub fn lower(
     ast: &ast::Root,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
-    lower_with_var_defs(ast, Arena::new(), HashMap::new())
+) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::LocalDefIdx>) {
+    lower_with_local_defs(ast, Arena::new(), HashMap::new())
 }
 
-pub fn lower_with_var_defs(
+pub fn lower_with_local_defs(
     ast: &ast::Root,
-    var_defs: Arena<hir::VarDef>,
-    var_def_names: HashMap<String, hir::VarDefIdx>,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
-    let mut lower_store = LowerStore { var_defs, ..LowerStore::default() };
+    local_defs: Arena<hir::LocalDef>,
+    local_def_names: HashMap<String, hir::LocalDefIdx>,
+) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::LocalDefIdx>) {
+    let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
     let mut lower_ctx = LowerCtx {
         store: &mut lower_store,
-        var_def_names: VarDefNames { this: var_def_names, parent: None },
+        local_names: LocalNames { this: local_def_names, parent: None },
     };
     let mut stmts = Vec::new();
 
@@ -25,12 +25,12 @@ pub fn lower_with_var_defs(
         stmts.push(lower_ctx.lower_stmt(stmt));
     }
 
-    let var_def_names = lower_ctx.var_def_names.this;
+    let local_def_names = lower_ctx.local_names.this;
     (
-        hir::Program { var_defs: lower_store.var_defs, exprs: lower_store.exprs, stmts },
+        hir::Program { local_defs: lower_store.local_defs, exprs: lower_store.exprs, stmts },
         lower_store.source_map,
         lower_store.errors,
-        var_def_names,
+        local_def_names,
     )
 }
 
@@ -53,12 +53,12 @@ pub enum LowerErrorKind {
 
 struct LowerCtx<'a> {
     store: &'a mut LowerStore,
-    var_def_names: VarDefNames<'a>,
+    local_names: LocalNames<'a>,
 }
 
 #[derive(Default)]
 struct LowerStore {
-    var_defs: Arena<hir::VarDef>,
+    local_defs: Arena<hir::LocalDef>,
     exprs: Arena<hir::Expr>,
     source_map: SourceMap,
     errors: Vec<LowerError>,
@@ -67,17 +67,18 @@ struct LowerStore {
 impl LowerCtx<'_> {
     fn lower_stmt(&mut self, ast: ast::Stmt) -> hir::Stmt {
         match ast {
-            ast::Stmt::VarDef(ast) => hir::Stmt::VarDef(self.lower_var_def(ast)),
+            ast::Stmt::LocalDef(ast) => hir::Stmt::LocalDef(self.lower_local_def(ast)),
+            ast::Stmt::FncDef(_) => todo!(),
             ast::Stmt::Expr(ast) => hir::Stmt::Expr(self.lower_expr(Some(ast))),
         }
     }
 
-    fn lower_var_def(&mut self, ast: ast::VarDef) -> hir::VarDefIdx {
+    fn lower_local_def(&mut self, ast: ast::LocalDef) -> hir::LocalDefIdx {
         let value = self.lower_expr(ast.value());
-        let idx = self.store.var_defs.alloc(hir::VarDef { value });
+        let idx = self.store.local_defs.alloc(hir::LocalDef { value });
 
         if let Some(name) = ast.name() {
-            self.var_def_names.this.insert(name.text().to_string(), idx);
+            self.local_names.this.insert(name.text().to_string(), idx);
         }
 
         idx
@@ -106,8 +107,8 @@ impl LowerCtx<'_> {
             ast::Expr::VarRef(ast) => ast.name().map_or(hir::Expr::Missing, |ast| {
                 let name = ast.text();
 
-                match self.var_def_names.get_var_def(name) {
-                    Some(var_def) => hir::Expr::VarRef(var_def),
+                match self.local_names.get_def(name) {
+                    Some(local_def) => hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)),
                     None => {
                         self.store.errors.push(LowerError {
                             range: ast.range(),
@@ -153,22 +154,19 @@ impl LowerCtx<'_> {
     fn new_child(&mut self) -> LowerCtx<'_> {
         LowerCtx {
             store: self.store,
-            var_def_names: VarDefNames { this: HashMap::new(), parent: Some(&self.var_def_names) },
+            local_names: LocalNames { this: HashMap::new(), parent: Some(&self.local_names) },
         }
     }
 }
 
-struct VarDefNames<'a> {
-    this: HashMap<String, hir::VarDefIdx>,
+struct LocalNames<'a> {
+    this: HashMap<String, hir::LocalDefIdx>,
     parent: Option<&'a Self>,
 }
 
-impl VarDefNames<'_> {
-    fn get_var_def(&self, name: &str) -> Option<hir::VarDefIdx> {
-        self.this
-            .get(name)
-            .copied()
-            .or_else(|| self.parent.and_then(|parent| parent.get_var_def(name)))
+impl LocalNames<'_> {
+    fn get_def(&self, name: &str) -> Option<hir::LocalDefIdx> {
+        self.this.get(name).copied().or_else(|| self.parent.and_then(|parent| parent.get_def(name)))
     }
 }
 
@@ -180,7 +178,7 @@ mod tests {
 
     fn check<const STMTS_LEN: usize, const ERRORS_LEN: usize>(
         input: &str,
-        var_defs: Arena<hir::VarDef>,
+        local_defs: Arena<hir::LocalDef>,
         exprs: Arena<hir::Expr>,
         stmts: [hir::Stmt; STMTS_LEN],
         errors: [(StdRange<u32>, LowerErrorKind); ERRORS_LEN],
@@ -196,19 +194,19 @@ mod tests {
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, actual_errors, _) = lower(&root);
 
-        assert_eq!(program, hir::Program { var_defs, exprs, stmts: stmts.to_vec() });
+        assert_eq!(program, hir::Program { local_defs, exprs, stmts: stmts.to_vec() });
         assert_eq!(actual_errors, expected_errors);
     }
 
     #[test]
-    fn lower_var_def() {
-        let mut var_defs = Arena::new();
+    fn lower_local_def() {
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let bar = exprs.alloc(hir::Expr::IntLiteral(92));
-        let var_def = var_defs.alloc(hir::VarDef { value: bar });
+        let local_def = local_defs.alloc(hir::LocalDef { value: bar });
 
-        check("let foo = 92", var_defs, exprs, [hir::Stmt::VarDef(var_def)], []);
+        check("let foo = 92", local_defs, exprs, [hir::Stmt::LocalDef(local_def)], []);
     }
 
     #[test]
@@ -238,18 +236,18 @@ mod tests {
 
     #[test]
     fn lower_defined_var_ref() {
-        let mut var_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let zero = exprs.alloc(hir::Expr::IntLiteral(0));
-        let idx_def = var_defs.alloc(hir::VarDef { value: zero });
-        let idx = exprs.alloc(hir::Expr::VarRef(idx_def));
+        let idx_def = local_defs.alloc(hir::LocalDef { value: zero });
+        let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(idx_def)));
 
         check(
             "let idx = 0\nidx",
-            var_defs,
+            local_defs,
             exprs,
-            [hir::Stmt::VarDef(idx_def), hir::Stmt::Expr(idx)],
+            [hir::Stmt::LocalDef(idx_def), hir::Stmt::Expr(idx)],
             [],
         );
     }
@@ -286,45 +284,45 @@ mod tests {
 
     #[test]
     fn lower_multiple_stmts() {
-        let mut var_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
-        let a_def = var_defs.alloc(hir::VarDef { value: ten });
-        let a = exprs.alloc(hir::Expr::VarRef(a_def));
+        let a_def = local_defs.alloc(hir::LocalDef { value: ten });
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let a_minus_four =
             exprs.alloc(hir::Expr::Bin { lhs: a, rhs: four, op: Some(hir::BinOp::Sub) });
 
         check(
             "let a = 10\na - 4",
-            var_defs,
+            local_defs,
             exprs,
-            [hir::Stmt::VarDef(a_def), hir::Stmt::Expr(a_minus_four)],
+            [hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(a_minus_four)],
             [],
         );
     }
 
     #[test]
-    fn lower_var_def_without_value() {
-        let mut var_defs = Arena::new();
+    fn lower_local_def_without_value() {
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let missing = exprs.alloc(hir::Expr::Missing);
-        let foo = var_defs.alloc(hir::VarDef { value: missing });
+        let foo = local_defs.alloc(hir::LocalDef { value: missing });
 
-        check("let foo =", var_defs, exprs, [hir::Stmt::VarDef(foo)], []);
+        check("let foo =", local_defs, exprs, [hir::Stmt::LocalDef(foo)], []);
     }
 
     #[test]
-    fn lower_var_def_without_name() {
-        let mut var_defs = Arena::new();
+    fn lower_local_def_without_name() {
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
-        let var_def = var_defs.alloc(hir::VarDef { value: ten });
+        let local_def = local_defs.alloc(hir::LocalDef { value: ten });
 
-        check("let = 10", var_defs, exprs, [hir::Stmt::VarDef(var_def)], []);
+        check("let = 10", local_defs, exprs, [hir::Stmt::LocalDef(local_def)], []);
     }
 
     #[test]
@@ -336,75 +334,76 @@ mod tests {
     }
 
     #[test]
-    fn lower_with_preexisting_var_defs() {
-        let mut var_defs = Arena::new();
+    fn lower_with_preexisting_local_defs() {
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let hello = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
-        let a_def = var_defs.alloc(hir::VarDef { value: hello });
+        let a_def = local_defs.alloc(hir::LocalDef { value: hello });
 
         let parse = parser::parse(&lexer::lex("let a = \"hello\""));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, var_def_names) = lower(&root);
+        let (program, _, errors, local_def_names) = lower(&root);
 
         assert_eq!(
             program,
             hir::Program {
-                var_defs: var_defs.clone(),
+                local_defs: local_defs.clone(),
                 exprs,
-                stmts: vec![hir::Stmt::VarDef(a_def)]
+                stmts: vec![hir::Stmt::LocalDef(a_def)]
             }
         );
         assert!(errors.is_empty());
 
         let mut exprs = Arena::new();
-        let a = exprs.alloc(hir::Expr::VarRef(a_def));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
 
         let parse = parser::parse(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _) = lower_with_var_defs(&root, var_defs.clone(), var_def_names);
+        let (program, _, errors, _) =
+            lower_with_local_defs(&root, local_defs.clone(), local_def_names);
 
-        assert_eq!(program, hir::Program { var_defs, exprs, stmts: vec![hir::Stmt::Expr(a)] });
+        assert_eq!(program, hir::Program { local_defs, exprs, stmts: vec![hir::Stmt::Expr(a)] });
         assert!(errors.is_empty());
     }
 
     #[test]
     fn lower_block() {
-        let mut var_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let one_hundred = exprs.alloc(hir::Expr::IntLiteral(100));
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
         let one_hundred_minus_ten =
             exprs.alloc(hir::Expr::Bin { lhs: one_hundred, rhs: ten, op: Some(hir::BinOp::Sub) });
-        let foo_def = var_defs.alloc(hir::VarDef { value: one_hundred_minus_ten });
-        let foo = exprs.alloc(hir::Expr::VarRef(foo_def));
+        let foo_def = local_defs.alloc(hir::LocalDef { value: one_hundred_minus_ten });
+        let foo = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(foo_def)));
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let foo_plus_two =
             exprs.alloc(hir::Expr::Bin { lhs: foo, rhs: two, op: Some(hir::BinOp::Add) });
         let block = exprs.alloc(hir::Expr::Block(vec![
-            hir::Stmt::VarDef(foo_def),
+            hir::Stmt::LocalDef(foo_def),
             hir::Stmt::Expr(foo_plus_two),
         ]));
 
-        check("{ let foo = 100 - 10\nfoo + 2 }", var_defs, exprs, [hir::Stmt::Expr(block)], []);
+        check("{ let foo = 100 - 10\nfoo + 2 }", local_defs, exprs, [hir::Stmt::Expr(block)], []);
     }
 
     #[test]
     fn lower_block_with_same_var_names_inside_as_outside() {
-        let mut var_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let zero = exprs.alloc(hir::Expr::IntLiteral(0));
-        let outer_count_def = var_defs.alloc(hir::VarDef { value: zero });
+        let outer_count_def = local_defs.alloc(hir::LocalDef { value: zero });
         let string = exprs.alloc(hir::Expr::StringLiteral("hello there".to_string()));
-        let inner_count_def = var_defs.alloc(hir::VarDef { value: string });
-        let inner_count = exprs.alloc(hir::Expr::VarRef(inner_count_def));
+        let inner_count_def = local_defs.alloc(hir::LocalDef { value: string });
+        let inner_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(inner_count_def)));
         let block = exprs.alloc(hir::Expr::Block(vec![
-            hir::Stmt::VarDef(inner_count_def),
+            hir::Stmt::LocalDef(inner_count_def),
             hir::Stmt::Expr(inner_count),
         ]));
-        let outer_count = exprs.alloc(hir::Expr::VarRef(outer_count_def));
+        let outer_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(outer_count_def)));
 
         check(
             r#"
@@ -415,10 +414,10 @@ mod tests {
                 }
                 count
             "#,
-            var_defs,
+            local_defs,
             exprs,
             [
-                hir::Stmt::VarDef(outer_count_def),
+                hir::Stmt::LocalDef(outer_count_def),
                 hir::Stmt::Expr(block),
                 hir::Stmt::Expr(outer_count),
             ],
@@ -428,18 +427,18 @@ mod tests {
 
     #[test]
     fn lower_block_that_refers_to_outside_vars() {
-        let mut var_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let eight = exprs.alloc(hir::Expr::IntLiteral(8));
-        let a_def = var_defs.alloc(hir::VarDef { value: eight });
+        let a_def = local_defs.alloc(hir::LocalDef { value: eight });
         let sixteen = exprs.alloc(hir::Expr::IntLiteral(16));
-        let b_def = var_defs.alloc(hir::VarDef { value: sixteen });
-        let a = exprs.alloc(hir::Expr::VarRef(a_def));
-        let b = exprs.alloc(hir::Expr::VarRef(b_def));
+        let b_def = local_defs.alloc(hir::LocalDef { value: sixteen });
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
+        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(b_def)));
         let a_times_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Mul) });
         let block = exprs
-            .alloc(hir::Expr::Block(vec![hir::Stmt::VarDef(b_def), hir::Stmt::Expr(a_times_b)]));
+            .alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(b_def), hir::Stmt::Expr(a_times_b)]));
 
         check(
             r#"
@@ -449,9 +448,9 @@ mod tests {
                     a * b
                 }
             "#,
-            var_defs,
+            local_defs,
             exprs,
-            [hir::Stmt::VarDef(a_def), hir::Stmt::Expr(block)],
+            [hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(block)],
             [],
         );
     }
@@ -480,7 +479,7 @@ mod tests {
         assert_eq!(
             program,
             hir::Program {
-                var_defs: Arena::new(),
+                local_defs: Arena::new(),
                 exprs,
                 stmts: vec![hir::Stmt::Expr(bin_expr_hir)]
             }

@@ -71,7 +71,7 @@ impl Root {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stmt {
-    VarDef(VarDef),
+    LocalDef(LocalDef),
     FncDef(FncDef),
     Expr(Expr),
 }
@@ -79,7 +79,7 @@ pub enum Stmt {
 impl AstNode for Stmt {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
-            SyntaxKind::VarDef => Some(Self::VarDef(VarDef(node))),
+            SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
             SyntaxKind::FncDef => Some(Self::FncDef(FncDef(node))),
             SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
             SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
@@ -93,16 +93,16 @@ impl AstNode for Stmt {
 
     fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::VarDef(var_def) => var_def.syntax(),
+            Self::LocalDef(local_def) => local_def.syntax(),
             Self::FncDef(fnc_def) => fnc_def.syntax(),
             Self::Expr(expr) => expr.syntax(),
         }
     }
 }
 
-def_ast_node!(VarDef);
+def_ast_node!(LocalDef);
 
-impl VarDef {
+impl LocalDef {
     pub fn name(&self) -> Option<Ident> {
         token(self)
     }
@@ -332,12 +332,12 @@ mod tests {
     fn inspect_stmt_and_expr_kind() {
         let root = parse("let foo = bar\nbaz * quuz");
         let mut stmts = root.stmts();
-        let var_def = stmts.next().unwrap();
+        let local_def = stmts.next().unwrap();
         let expr = stmts.next().unwrap();
         assert!(stmts.next().is_none());
 
-        match var_def {
-            Stmt::VarDef(_) => {}
+        match local_def {
+            Stmt::LocalDef(_) => {}
             _ => unreachable!(),
         }
 
@@ -348,29 +348,29 @@ mod tests {
     }
 
     #[test]
-    fn get_name_of_var_def() {
+    fn get_name_of_local_def() {
         let root = parse("let a = 10");
         let stmt = root.stmts().next().unwrap();
 
-        let var_def = match stmt {
-            Stmt::VarDef(var_def) => var_def,
+        let local_def = match stmt {
+            Stmt::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
-        assert_eq!(var_def.name().unwrap().text(), "a");
+        assert_eq!(local_def.name().unwrap().text(), "a");
     }
 
     #[test]
-    fn get_value_of_var_def() {
+    fn get_value_of_local_def() {
         let root = parse("let foo = 5");
         let stmt = root.stmts().next().unwrap();
 
-        let var_def = match stmt {
-            Stmt::VarDef(var_def) => var_def,
+        let local_def = match stmt {
+            Stmt::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
-        match var_def.value() {
+        match local_def.value() {
             Some(Expr::IntLiteral(_)) => {}
             _ => unreachable!(),
         }
@@ -480,8 +480,8 @@ mod tests {
 
         let mut stmts = block.stmts();
 
-        assert!(matches!(stmts.next(), Some(Stmt::VarDef(_))));
-        assert!(matches!(stmts.next(), Some(Stmt::VarDef(_))));
+        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
+        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
         assert!(matches!(stmts.next(), Some(Stmt::Expr(Expr::Bin(_)))));
         assert!(stmts.next().is_none());
     }

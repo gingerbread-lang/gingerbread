@@ -339,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_unclosed_paren_expr_recovery_on_var_def() {
+    fn parse_unclosed_paren_expr_recovery_on_local_def() {
         check(
             "(1+1 let foo = bar",
             expect![[r#"
@@ -353,7 +353,7 @@ mod tests {
                       IntLiteral@3..5
                         Int@3..4 "1"
                         Whitespace@4..5 " "
-                  VarDef@5..18
+                  LocalDef@5..18
                     LetKw@5..8 "let"
                     Whitespace@8..9 " "
                     Ident@9..12 "foo"
@@ -454,12 +454,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_def() {
+    fn parse_local_def() {
         check(
             "let a = b",
             expect![[r#"
                 Root@0..9
-                  VarDef@0..9
+                  LocalDef@0..9
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Ident@4..5 "a"
@@ -473,12 +473,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_2_var_defs() {
+    fn parse_2_local_defs() {
         check(
             "let b=c\nlet a=b",
             expect![[r#"
                 Root@0..15
-                  VarDef@0..8
+                  LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Ident@4..5 "b"
@@ -486,7 +486,7 @@ mod tests {
                     VarRef@6..8
                       Ident@6..7 "c"
                       Whitespace@7..8 "\n"
-                  VarDef@8..15
+                  LocalDef@8..15
                     LetKw@8..11 "let"
                     Whitespace@11..12 " "
                     Ident@12..13 "a"
@@ -516,12 +516,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_def_with_missing_name() {
+    fn parse_local_def_with_missing_name() {
         check(
             "let = 92",
             expect![[r#"
                 Root@0..8
-                  VarDef@0..8
+                  LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Eq@4..5 "="
@@ -534,19 +534,19 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_defs_with_missing_value() {
+    fn parse_local_defs_with_missing_value() {
         check(
             "let foo =\nlet bar = 92",
             expect![[r#"
                 Root@0..22
-                  VarDef@0..10
+                  LocalDef@0..10
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Ident@4..7 "foo"
                     Whitespace@7..8 " "
                     Eq@8..9 "="
                     Whitespace@9..10 "\n"
-                  VarDef@10..22
+                  LocalDef@10..22
                     LetKw@10..13 "let"
                     Whitespace@13..14 " "
                     Ident@14..17 "bar"
@@ -561,17 +561,17 @@ mod tests {
     }
 
     #[test]
-    fn parse_broken_var_defs() {
+    fn parse_broken_local_defs() {
         check(
             "let a let",
             expect![[r#"
                 Root@0..9
-                  VarDef@0..6
+                  LocalDef@0..6
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Ident@4..5 "a"
                     Whitespace@5..6 " "
-                  VarDef@6..9
+                  LocalDef@6..9
                     LetKw@6..9 "let"
                 error at 5: missing Eq
                 error at 5: missing variable value
@@ -583,12 +583,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_def_with_only_let() {
+    fn parse_local_def_with_only_let() {
         check(
             "let",
             expect![[r#"
                 Root@0..3
-                  VarDef@0..3
+                  LocalDef@0..3
                     LetKw@0..3 "let"
                 error at 3: missing variable name
                 error at 3: missing Eq
@@ -598,15 +598,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_defs_first_with_only_let() {
+    fn parse_local_defs_first_with_only_let() {
         check(
             "let let a = b",
             expect![[r#"
                 Root@0..13
-                  VarDef@0..4
+                  LocalDef@0..4
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
-                  VarDef@4..13
+                  LocalDef@4..13
                     LetKw@4..7 "let"
                     Whitespace@7..8 " "
                     Ident@8..9 "a"
@@ -648,7 +648,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_block_with_var_def() {
+    fn parse_block_with_local_def() {
         check(
             "{ let zero = 0 }",
             expect![[r#"
@@ -656,7 +656,7 @@ mod tests {
                   Block@0..16
                     LBrace@0..1 "{"
                     Whitespace@1..2 " "
-                    VarDef@2..15
+                    LocalDef@2..15
                       LetKw@2..5 "let"
                       Whitespace@5..6 " "
                       Ident@6..10 "zero"
@@ -679,7 +679,7 @@ mod tests {
                 Root@0..26
                   Block@0..26
                     LBrace@0..1 "{"
-                    VarDef@1..11
+                    LocalDef@1..11
                       LetKw@1..4 "let"
                       Whitespace@4..5 " "
                       Ident@5..6 "a"
@@ -687,7 +687,7 @@ mod tests {
                       IntLiteral@7..11
                         Int@7..10 "100"
                         Whitespace@10..11 " "
-                    VarDef@11..22
+                    LocalDef@11..22
                       LetKw@11..14 "let"
                       Whitespace@14..15 " "
                       Ident@15..16 "b"
@@ -752,14 +752,14 @@ mod tests {
                   Block@0..36
                     LBrace@0..1 "{"
                     Whitespace@1..2 " "
-                    VarDef@2..29
+                    LocalDef@2..29
                       LetKw@2..5 "let"
                       Whitespace@5..6 " "
                       Ident@6..9 "foo"
                       Eq@9..10 "="
                       Block@10..29
                         LBrace@10..11 "{"
-                        VarDef@11..22
+                        LocalDef@11..22
                           LetKw@11..14 "let"
                           Whitespace@14..15 " "
                           Ident@15..18 "bar"
@@ -1117,7 +1117,7 @@ mod tests {
                     Block@11..30
                       LBrace@11..12 "{"
                       Whitespace@12..13 " "
-                      VarDef@13..25
+                      LocalDef@13..25
                         LetKw@13..16 "let"
                         Whitespace@16..17 " "
                         Ident@17..20 "foo"
@@ -1157,7 +1157,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_fnc_def_interrupted_by_var_def() {
+    fn parse_fnc_def_interrupted_by_local_def() {
         check(
             "fnc foo let bar = 5",
             expect![[r#"
@@ -1167,7 +1167,7 @@ mod tests {
                     Whitespace@3..4 " "
                     Ident@4..7 "foo"
                     Whitespace@7..8 " "
-                  VarDef@8..19
+                  LocalDef@8..19
                     LetKw@8..11 "let"
                     Whitespace@11..12 " "
                     Ident@12..15 "bar"
@@ -1184,12 +1184,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_var_def_interrupted_by_fnc_def() {
+    fn parse_local_def_interrupted_by_fnc_def() {
         check(
             "let a = fnc one() -> 1",
             expect![[r#"
                 Root@0..22
-                  VarDef@0..8
+                  LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
                     Ident@4..5 "a"
