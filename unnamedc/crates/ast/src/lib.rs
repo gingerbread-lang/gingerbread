@@ -72,6 +72,7 @@ impl Root {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stmt {
     VarDef(VarDef),
+    FncDef(FncDef),
     Expr(Expr),
 }
 
@@ -79,6 +80,7 @@ impl AstNode for Stmt {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
             SyntaxKind::VarDef => Some(Self::VarDef(VarDef(node))),
+            SyntaxKind::FncDef => Some(Self::FncDef(FncDef(node))),
             SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
             SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
             SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
@@ -92,6 +94,7 @@ impl AstNode for Stmt {
     fn syntax(&self) -> &SyntaxNode {
         match self {
             Self::VarDef(var_def) => var_def.syntax(),
+            Self::FncDef(fnc_def) => fnc_def.syntax(),
             Self::Expr(expr) => expr.syntax(),
         }
     }
@@ -106,6 +109,62 @@ impl VarDef {
 
     pub fn value(&self) -> Option<Expr> {
         node(self)
+    }
+}
+
+def_ast_node!(FncDef);
+
+impl FncDef {
+    pub fn name(&self) -> Option<Ident> {
+        token(self)
+    }
+
+    pub fn param_list(&self) -> Option<ParamList> {
+        node(self)
+    }
+
+    pub fn ret_ty(&self) -> Option<RetTy> {
+        node(self)
+    }
+
+    pub fn body(&self) -> Option<Expr> {
+        node(self)
+    }
+}
+
+def_ast_node!(ParamList);
+
+impl ParamList {
+    pub fn params(&self) -> impl Iterator<Item = Param> {
+        nodes(self)
+    }
+}
+
+def_ast_node!(RetTy);
+
+impl RetTy {
+    pub fn ty(&self) -> Option<Ty> {
+        node(self)
+    }
+}
+
+def_ast_node!(Param);
+
+impl Param {
+    pub fn name(&self) -> Option<Ident> {
+        token(self)
+    }
+
+    pub fn ty(&self) -> Option<Ty> {
+        node(self)
+    }
+}
+
+def_ast_node!(Ty);
+
+impl Ty {
+    pub fn name(&self) -> Option<Ident> {
+        token(self)
     }
 }
 
@@ -425,5 +484,72 @@ mod tests {
         assert!(matches!(stmts.next(), Some(Stmt::VarDef(_))));
         assert!(matches!(stmts.next(), Some(Stmt::Expr(Expr::Bin(_)))));
         assert!(stmts.next().is_none());
+    }
+
+    #[test]
+    fn get_fnc_def_name() {
+        let root = parse("fnc a() -> {}");
+        let stmt = root.stmts().next().unwrap();
+
+        let fnc_def = match stmt {
+            Stmt::FncDef(fnc_def) => fnc_def,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(fnc_def.name().unwrap().text(), "a");
+    }
+
+    #[test]
+    fn get_fnc_def_params() {
+        let root = parse("fnc add(x: s32, y: s32) -> {}");
+        let stmt = root.stmts().next().unwrap();
+
+        let fnc_def = match stmt {
+            Stmt::FncDef(fnc_def) => fnc_def,
+            _ => unreachable!(),
+        };
+
+        let mut params = fnc_def.param_list().unwrap().params();
+
+        let param = params.next().unwrap();
+        assert_eq!(param.name().unwrap().text(), "x");
+        assert_eq!(param.ty().unwrap().name().unwrap().text(), "s32");
+
+        let param = params.next().unwrap();
+        assert_eq!(param.name().unwrap().text(), "y");
+        assert_eq!(param.ty().unwrap().name().unwrap().text(), "s32");
+
+        assert!(params.next().is_none());
+    }
+
+    #[test]
+    fn get_fnc_def_ret_ty() {
+        let root = parse("fnc four(): s32 -> 4");
+        let stmt = root.stmts().next().unwrap();
+
+        let fnc_def = match stmt {
+            Stmt::FncDef(fnc_def) => fnc_def,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(fnc_def.ret_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
+    }
+
+    #[test]
+    fn get_fnc_def_body() {
+        let root = parse("fnc nothing() -> {}");
+        let stmt = root.stmts().next().unwrap();
+
+        let fnc_def = match stmt {
+            Stmt::FncDef(fnc_def) => fnc_def,
+            _ => unreachable!(),
+        };
+
+        let block = match fnc_def.body().unwrap() {
+            Expr::Block(block) => block,
+            _ => unreachable!(),
+        };
+
+        assert!(block.stmts().next().is_none());
     }
 }
