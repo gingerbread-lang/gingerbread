@@ -1,15 +1,16 @@
 use la_arena::{Arena, ArenaMap};
 
 pub fn infer(program: &hir::Program) -> InferResult {
-    infer_with_local_tys(program, ArenaMap::default())
+    infer_in_scope(program, InScope::default())
 }
 
-pub fn infer_with_local_tys(
-    program: &hir::Program,
-    local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
-) -> InferResult {
+pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult {
     let mut infer_ctx = InferCtx {
-        result: InferResult { expr_tys: ArenaMap::default(), local_tys, errors: Vec::new() },
+        result: InferResult {
+            expr_tys: ArenaMap::default(),
+            local_tys: in_scope.local_tys,
+            errors: Vec::new(),
+        },
         local_defs: &program.local_defs,
         exprs: &program.exprs,
     };
@@ -23,9 +24,20 @@ pub fn infer_with_local_tys(
 
 #[derive(Debug)]
 pub struct InferResult {
-    pub expr_tys: ArenaMap<hir::ExprIdx, Ty>,
-    pub local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
-    pub errors: Vec<TyError>,
+    local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
+    expr_tys: ArenaMap<hir::ExprIdx, Ty>,
+    errors: Vec<TyError>,
+}
+
+impl InferResult {
+    pub fn in_scope(self) -> (InScope, Vec<TyError>) {
+        (InScope { local_tys: self.local_tys }, self.errors)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct InScope {
+    local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -247,35 +259,35 @@ mod tests {
     }
 
     #[test]
-    fn infer_with_preserved_local_tys() {
-        let (preserved_local_tys, local_defs, idx_def) = {
+    fn infer_with_preserved_in_scope() {
+        let (in_scope, local_defs, local_def) = {
             let mut local_defs = Arena::new();
             let mut exprs = Arena::new();
 
             let six = exprs.alloc(hir::Expr::IntLiteral(6));
-            let idx_def = local_defs.alloc(hir::LocalDef { value: six });
+            let local_def = local_defs.alloc(hir::LocalDef { value: six });
 
             let result = infer(&hir::Program {
                 local_defs: local_defs.clone(),
                 exprs,
-                stmts: vec![hir::Stmt::LocalDef(idx_def)],
+                stmts: vec![hir::Stmt::LocalDef(local_def)],
             });
 
             assert_eq!(result.expr_tys[six], Ty::Int);
-            assert_eq!(result.local_tys[idx_def], Ty::Int);
+            assert_eq!(result.local_tys[local_def], Ty::Int);
             assert_eq!(result.errors, []);
 
-            (result.local_tys, local_defs, idx_def)
+            (result.in_scope().0, local_defs, local_def)
         };
 
         let mut exprs = Arena::new();
-        let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(idx_def)));
+        let local_value = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
 
-        let program = hir::Program { local_defs, exprs, stmts: vec![hir::Stmt::Expr(idx)] };
-        let result = infer_with_local_tys(&program, preserved_local_tys);
+        let program = hir::Program { local_defs, exprs, stmts: vec![hir::Stmt::Expr(local_value)] };
+        let result = infer_in_scope(&program, in_scope);
 
-        assert_eq!(result.expr_tys[idx], Ty::Int);
-        assert_eq!(result.local_tys[idx_def], Ty::Int);
+        assert_eq!(result.expr_tys[local_value], Ty::Int);
+        assert_eq!(result.local_tys[local_def], Ty::Int);
         assert_eq!(result.errors, []);
     }
 

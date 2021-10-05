@@ -4,8 +4,8 @@ use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
 use errors::Error;
 use eval::Evaluator;
-use hir_ty::Ty;
-use la_arena::{Arena, ArenaMap};
+use hir_ty::InScope;
+use la_arena::Arena;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{self, Write};
@@ -20,7 +20,7 @@ fn main() -> anyhow::Result<()> {
     let mut evaluator = Evaluator::default();
     let mut local_defs = Arena::new();
     let mut local_def_names = HashMap::new();
-    let mut local_tys = ArenaMap::default();
+    let mut in_scope = InScope::default();
 
     write!(stdout, "> ")?;
     stdout.flush()?;
@@ -62,7 +62,7 @@ fn main() -> anyhow::Result<()> {
                 &mut stdout.lock(),
                 &mut local_defs,
                 &mut local_def_names,
-                &mut local_tys,
+                &mut in_scope,
                 pressed_enter,
                 &mut evaluator,
                 &mut cursor_pos,
@@ -80,7 +80,7 @@ fn render(
     stdout: &mut io::StdoutLock<'_>,
     local_defs: &mut Arena<hir::LocalDef>,
     local_def_names: &mut HashMap<String, hir::LocalDefIdx>,
-    local_tys: &mut ArenaMap<hir::LocalDefIdx, Ty>,
+    in_scope: &mut InScope,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
     cursor_pos: &mut u16,
@@ -108,9 +108,10 @@ fn render(
         errors.push(Error::from_lower_error(error));
     }
 
-    let infer_result = hir_ty::infer_with_local_tys(&program, local_tys.clone());
+    let infer_result = hir_ty::infer_in_scope(&program, in_scope.clone());
+    let (in_scope_new, ty_errors) = infer_result.in_scope();
 
-    for error in infer_result.errors {
+    for error in ty_errors {
         errors.push(Error::from_ty_error(error, &source_map));
     }
 
@@ -153,7 +154,7 @@ fn render(
         if errors.is_empty() {
             *local_defs = program.local_defs.clone();
             *local_def_names = new_local_def_names;
-            *local_tys = infer_result.local_tys;
+            *in_scope = in_scope_new;
             let result = evaluator.eval(program);
 
             writeln!(stdout, "{:?}\r", result)?;
@@ -170,16 +171,7 @@ fn render(
 
         write!(stdout, "> ")?;
 
-        render(
-            input,
-            stdout,
-            local_defs,
-            local_def_names,
-            local_tys,
-            false,
-            evaluator,
-            cursor_pos,
-        )?;
+        render(input, stdout, local_defs, local_def_names, in_scope, false, evaluator, cursor_pos)?;
     }
 
     queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
