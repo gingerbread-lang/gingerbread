@@ -1,4 +1,4 @@
-use la_arena::{Arena, ArenaMap};
+use arena::{Arena, ArenaMap};
 use std::mem;
 
 #[derive(Default)]

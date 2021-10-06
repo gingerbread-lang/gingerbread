@@ -1,5 +1,5 @@
+use arena::{Arena, ArenaMap};
 use ast::AstToken;
-use la_arena::{Arena, ArenaMap};
 use std::collections::HashMap;
 use text_size::TextRange;
 

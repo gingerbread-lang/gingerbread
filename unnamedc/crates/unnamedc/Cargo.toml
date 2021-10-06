@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
+arena = {path = "../arena"}
 ast = {path = "../ast"}
 crossterm = "0.21.0"
 errors = {path = "../errors"}
@@ -13,7 +14,6 @@ eval = {path = "../eval"}
 hir = {path = "../hir"}
 hir_lower = {path = "../hir_lower"}
 hir_ty = {path = "../hir_ty"}
-la-arena = "0.2.1"
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}
 token = {path = "../token"}

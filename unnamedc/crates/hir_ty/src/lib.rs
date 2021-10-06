@@ -1,4 +1,4 @@
-use la_arena::{Arena, ArenaMap};
+use arena::{Arena, ArenaMap};
 
 pub fn infer(program: &hir::Program) -> InferResult {
     infer_in_scope(program, InScope::default())

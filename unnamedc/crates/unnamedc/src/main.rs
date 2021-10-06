@@ -1,3 +1,4 @@
+use arena::Arena;
 use ast::AstNode;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{ContentStyle, StyledContent, Stylize};
@@ -5,7 +6,6 @@ use crossterm::{cursor, queue, terminal};
 use errors::Error;
 use eval::Evaluator;
 use hir_ty::InScope;
-use la_arena::Arena;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{self, Write};

@@ -1,4 +1,4 @@
-use la_arena::{Arena, Idx};
+use arena::{Arena, Idx};
 
 pub type ExprIdx = Idx<Expr>;
 pub type LocalDefIdx = Idx<LocalDef>;

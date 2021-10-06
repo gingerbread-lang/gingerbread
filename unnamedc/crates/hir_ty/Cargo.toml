@@ -5,8 +5,8 @@ name = "hir_ty"
 version = "0.0.0"
 
 [dependencies]
+arena = {path = "../arena"}
 hir = {path = "../hir"}
-la-arena = "0.2.1"
 
 [dev-dependencies]
 lexer = {path = "../lexer"}

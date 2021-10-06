@@ -5,9 +5,9 @@ name = "hir_lower"
 version = "0.0.0"
 
 [dependencies]
+arena = {path = "../arena"}
 ast = {path = "../ast"}
 hir = {path = "../hir"}
-la-arena = "0.2.1"
 text-size = "1.1"
 
 [dev-dependencies]
