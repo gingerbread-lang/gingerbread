@@ -1,11 +1,15 @@
-use arena::{Arena, Idx};
+use arena::{Arena, Idx, IdxRange};
 
 pub type ExprIdx = Idx<Expr>;
 pub type LocalDefIdx = Idx<LocalDef>;
+pub type FncDefIdx = Idx<FncDef>;
+pub type ParamIdx = Idx<Param>;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Program {
     pub local_defs: Arena<LocalDef>,
+    pub fnc_defs: Arena<FncDef>,
+    pub params: Arena<Param>,
     pub exprs: Arena<Expr>,
     pub stmts: Vec<Stmt>,
 }
@@ -13,6 +17,7 @@ pub struct Program {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Stmt {
     LocalDef(LocalDefIdx),
+    FncDef(FncDefIdx),
     Expr(ExprIdx),
 }
 
@@ -20,6 +25,21 @@ pub enum Stmt {
 pub struct LocalDef {
     pub value: ExprIdx,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FncDef {
+    pub params: IdxRange<Param>,
+    pub ret_ty: Ty,
+    pub body: ExprIdx,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Param {
+    pub ty: Ty,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Ty;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -31,9 +51,10 @@ pub enum Expr {
     StringLiteral(String),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum VarDefIdx {
     Local(LocalDefIdx),
+    Param(ParamIdx),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

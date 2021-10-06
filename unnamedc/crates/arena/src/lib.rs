@@ -129,6 +129,12 @@ impl<T> PartialEq for IdxRange<T> {
 
 impl<T> Eq for IdxRange<T> {}
 
+impl<T> Default for IdxRange<T> {
+    fn default() -> Self {
+        Self { range: 0..0, _p: PhantomData }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Arena<T> {
     data: Vec<T>,

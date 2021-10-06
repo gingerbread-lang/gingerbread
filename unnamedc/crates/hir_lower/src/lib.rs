@@ -1,36 +1,40 @@
-use arena::{Arena, ArenaMap};
+use arena::{Arena, ArenaMap, IdxRange};
 use ast::AstToken;
 use std::collections::HashMap;
 use text_size::TextRange;
 
 pub fn lower(
     ast: &ast::Root,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::LocalDefIdx>) {
+) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
     lower_with_local_defs(ast, Arena::new(), HashMap::new())
 }
 
 pub fn lower_with_local_defs(
     ast: &ast::Root,
     local_defs: Arena<hir::LocalDef>,
-    local_def_names: HashMap<String, hir::LocalDefIdx>,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::LocalDefIdx>) {
+    var_names: HashMap<String, hir::VarDefIdx>,
+) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
     let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
-    let mut lower_ctx = LowerCtx {
-        store: &mut lower_store,
-        local_names: LocalNames { this: local_def_names, parent: None },
-    };
+    let mut lower_ctx =
+        LowerCtx { store: &mut lower_store, var_names: VarNames { this: var_names, parent: None } };
     let mut stmts = Vec::new();
 
     for stmt in ast.stmts() {
         stmts.push(lower_ctx.lower_stmt(stmt));
     }
 
-    let local_def_names = lower_ctx.local_names.this;
+    let var_def_names = lower_ctx.var_names.this;
     (
-        hir::Program { local_defs: lower_store.local_defs, exprs: lower_store.exprs, stmts },
+        hir::Program {
+            local_defs: lower_store.local_defs,
+            fnc_defs: lower_store.fnc_defs,
+            params: lower_store.params,
+            exprs: lower_store.exprs,
+            stmts,
+        },
         lower_store.source_map,
         lower_store.errors,
-        local_def_names,
+        var_def_names,
     )
 }
 
@@ -53,12 +57,14 @@ pub enum LowerErrorKind {
 
 struct LowerCtx<'a> {
     store: &'a mut LowerStore,
-    local_names: LocalNames<'a>,
+    var_names: VarNames<'a>,
 }
 
 #[derive(Default)]
 struct LowerStore {
     local_defs: Arena<hir::LocalDef>,
+    fnc_defs: Arena<hir::FncDef>,
+    params: Arena<hir::Param>,
     exprs: Arena<hir::Expr>,
     source_map: SourceMap,
     errors: Vec<LowerError>,
@@ -68,7 +74,7 @@ impl LowerCtx<'_> {
     fn lower_stmt(&mut self, ast: ast::Stmt) -> hir::Stmt {
         match ast {
             ast::Stmt::LocalDef(ast) => hir::Stmt::LocalDef(self.lower_local_def(ast)),
-            ast::Stmt::FncDef(_) => todo!(),
+            ast::Stmt::FncDef(ast) => hir::Stmt::FncDef(self.lower_fnc_def(ast)),
             ast::Stmt::Expr(ast) => hir::Stmt::Expr(self.lower_expr(Some(ast))),
         }
     }
@@ -78,10 +84,53 @@ impl LowerCtx<'_> {
         let idx = self.store.local_defs.alloc(hir::LocalDef { value });
 
         if let Some(name) = ast.name() {
-            self.local_names.this.insert(name.text().to_string(), idx);
+            self.var_names.this.insert(name.text().to_string(), hir::VarDefIdx::Local(idx));
         }
 
         idx
+    }
+
+    fn lower_fnc_def(&mut self, ast: ast::FncDef) -> hir::FncDefIdx {
+        let mut child = self.new_child();
+
+        let mut first_and_last_param = None;
+
+        if let Some(param_list) = ast.param_list() {
+            for param in param_list.params() {
+                let ty = child.lower_ty(param.ty());
+                let idx = child.store.params.alloc(hir::Param { ty });
+
+                first_and_last_param = match first_and_last_param {
+                    None => Some((idx, None)),
+                    Some((first, None)) => Some((first, Some(idx))),
+                    Some((first, Some(_))) => Some((first, Some(idx))),
+                };
+
+                if let Some(name) = param.name() {
+                    child
+                        .var_names
+                        .this
+                        .insert(name.text().to_string(), hir::VarDefIdx::Param(idx));
+                }
+            }
+        }
+
+        let params = match first_and_last_param {
+            Some((first, Some(last))) => IdxRange::new_inclusive(first..=last),
+            Some((first, None)) => IdxRange::new_inclusive(first..=first),
+            None => IdxRange::default(),
+        };
+
+        let ret_ty =
+            if let Some(ret_ty) = ast.ret_ty() { child.lower_ty(ret_ty.ty()) } else { hir::Ty };
+
+        let body = child.lower_expr(ast.body());
+
+        self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body })
+    }
+
+    fn lower_ty(&mut self, ast: Option<ast::Ty>) -> hir::Ty {
+        hir::Ty
     }
 
     fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
@@ -107,8 +156,8 @@ impl LowerCtx<'_> {
             ast::Expr::VarRef(ast) => ast.name().map_or(hir::Expr::Missing, |ast| {
                 let name = ast.text();
 
-                match self.local_names.get_def(name) {
-                    Some(local_def) => hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)),
+                match self.var_names.get(name) {
+                    Some(var_def) => hir::Expr::VarRef(var_def),
                     None => {
                         self.store.errors.push(LowerError {
                             range: ast.range(),
@@ -154,19 +203,19 @@ impl LowerCtx<'_> {
     fn new_child(&mut self) -> LowerCtx<'_> {
         LowerCtx {
             store: self.store,
-            local_names: LocalNames { this: HashMap::new(), parent: Some(&self.local_names) },
+            var_names: VarNames { this: HashMap::new(), parent: Some(&self.var_names) },
         }
     }
 }
 
-struct LocalNames<'a> {
-    this: HashMap<String, hir::LocalDefIdx>,
+struct VarNames<'a> {
+    this: HashMap<String, hir::VarDefIdx>,
     parent: Option<&'a Self>,
 }
 
-impl LocalNames<'_> {
-    fn get_def(&self, name: &str) -> Option<hir::LocalDefIdx> {
-        self.this.get(name).copied().or_else(|| self.parent.and_then(|parent| parent.get_def(name)))
+impl VarNames<'_> {
+    fn get(&self, name: &str) -> Option<hir::VarDefIdx> {
+        self.this.get(name).copied().or_else(|| self.parent.and_then(|parent| parent.get(name)))
     }
 }
 
@@ -192,8 +241,8 @@ mod tests {
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (actual_program, _, actual_errors, _) = lower(&root);
 
-        assert_eq!(actual_program, expected_program);
-        assert_eq!(actual_errors, expected_errors);
+        pretty_assertions::assert_eq!(actual_program, expected_program);
+        pretty_assertions::assert_eq!(actual_errors, expected_errors);
     }
 
     #[test]
@@ -529,6 +578,118 @@ mod tests {
                 ..Default::default()
             },
             [],
+        );
+    }
+
+    #[test]
+    fn lower_fnc_def_with_no_params_or_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty,
+            body: empty_block,
+        });
+
+        check(
+            "fnc f() -> {}",
+            hir::Program {
+                fnc_defs,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
+    fn lower_fnc_def_with_param_but_no_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let x = params.alloc(hir::Param { ty: hir::Ty });
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(x..=x),
+            ret_ty: hir::Ty,
+            body: empty_block,
+        });
+
+        check(
+            "fnc drop(x: s32) -> {}",
+            hir::Program {
+                fnc_defs,
+                params,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
+    fn lower_fnc_def_with_param_and_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let n_def = params.alloc(hir::Param { ty: hir::Ty });
+        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(n_def..=n_def),
+            ret_ty: hir::Ty,
+            body: n,
+        });
+
+        check(
+            "fnc id(n: s32): s32 -> n",
+            hir::Program {
+                fnc_defs,
+                params,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
+    fn params_do_not_escape_fnc() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let x_def = params.alloc(hir::Param { ty: hir::Ty });
+        let y_def = params.alloc(hir::Param { ty: hir::Ty });
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(x_def..=y_def),
+            ret_ty: hir::Ty,
+            body: x_plus_y,
+        });
+        let missing = exprs.alloc(hir::Expr::Missing);
+
+        check(
+            r#"
+                fnc add(x: s32, y: s32): s32 -> x + y
+                x
+            "#,
+            hir::Program {
+                fnc_defs,
+                params,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def), hir::Stmt::Expr(missing)],
+                ..Default::default()
+            },
+            [(71..72, LowerErrorKind::UndefinedVar { name: "x".to_string() })],
         );
     }
 

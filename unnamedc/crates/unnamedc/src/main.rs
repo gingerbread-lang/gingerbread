@@ -79,7 +79,7 @@ fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
     local_defs: &mut Arena<hir::LocalDef>,
-    local_def_names: &mut HashMap<String, hir::LocalDefIdx>,
+    var_def_names: &mut HashMap<String, hir::VarDefIdx>,
     in_scope: &mut InScope,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
@@ -101,8 +101,8 @@ fn render(
         errors.push(Error::from_validation_error(error));
     }
 
-    let (program, source_map, lower_errors, new_local_def_names) =
-        hir_lower::lower_with_local_defs(&root, local_defs.clone(), local_def_names.clone());
+    let (program, source_map, lower_errors, new_var_def_names) =
+        hir_lower::lower_with_local_defs(&root, local_defs.clone(), var_def_names.clone());
 
     for error in lower_errors {
         errors.push(Error::from_lower_error(error));
@@ -153,7 +153,7 @@ fn render(
 
         if errors.is_empty() {
             *local_defs = program.local_defs.clone();
-            *local_def_names = new_local_def_names;
+            *var_def_names = new_var_def_names;
             *in_scope = in_scope_new;
             let result = evaluator.eval(program);
 
@@ -171,7 +171,7 @@ fn render(
 
         write!(stdout, "> ")?;
 
-        render(input, stdout, local_defs, local_def_names, in_scope, false, evaluator, cursor_pos)?;
+        render(input, stdout, local_defs, var_def_names, in_scope, false, evaluator, cursor_pos)?;
     }
 
     queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
