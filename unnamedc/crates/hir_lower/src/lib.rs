@@ -176,11 +176,9 @@ mod tests {
     use ast::AstNode;
     use std::ops::Range as StdRange;
 
-    fn check<const STMTS_LEN: usize, const ERRORS_LEN: usize>(
+    fn check<const ERRORS_LEN: usize>(
         input: &str,
-        local_defs: Arena<hir::LocalDef>,
-        exprs: Arena<hir::Expr>,
-        stmts: [hir::Stmt; STMTS_LEN],
+        expected_program: hir::Program,
         errors: [(StdRange<u32>, LowerErrorKind); ERRORS_LEN],
     ) {
         let expected_errors = IntoIterator::into_iter(errors)
@@ -192,9 +190,9 @@ mod tests {
 
         let parse = parser::parse(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, actual_errors, _) = lower(&root);
+        let (actual_program, _, actual_errors, _) = lower(&root);
 
-        assert_eq!(program, hir::Program { local_defs, exprs, stmts: stmts.to_vec() });
+        assert_eq!(actual_program, expected_program);
         assert_eq!(actual_errors, expected_errors);
     }
 
@@ -206,7 +204,16 @@ mod tests {
         let bar = exprs.alloc(hir::Expr::IntLiteral(92));
         let local_def = local_defs.alloc(hir::LocalDef { value: bar });
 
-        check("let foo = 92", local_defs, exprs, [hir::Stmt::LocalDef(local_def)], []);
+        check(
+            "let foo = 92",
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(local_def)],
+                ..Default::default()
+            },
+            [],
+        );
     }
 
     #[test]
@@ -223,7 +230,15 @@ mod tests {
             op: Some(hir::BinOp::Add),
         });
 
-        check("10 - 5 + 1", Arena::new(), exprs, [hir::Stmt::Expr(ten_minus_five_plus_one)], []);
+        check(
+            "10 - 5 + 1",
+            hir::Program {
+                exprs,
+                stmts: vec![hir::Stmt::Expr(ten_minus_five_plus_one)],
+                ..Default::default()
+            },
+            [],
+        );
     }
 
     #[test]
@@ -231,7 +246,11 @@ mod tests {
         let mut exprs = Arena::new();
         let ninety_two = exprs.alloc(hir::Expr::IntLiteral(92));
 
-        check("((((92))))", Arena::new(), exprs, [hir::Stmt::Expr(ninety_two)], []);
+        check(
+            "((((92))))",
+            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ninety_two)], ..Default::default() },
+            [],
+        );
     }
 
     #[test]
@@ -245,9 +264,12 @@ mod tests {
 
         check(
             "let idx = 0\nidx",
-            local_defs,
-            exprs,
-            [hir::Stmt::LocalDef(idx_def), hir::Stmt::Expr(idx)],
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(idx_def), hir::Stmt::Expr(idx)],
+                ..Default::default()
+            },
             [],
         );
     }
@@ -259,9 +281,7 @@ mod tests {
 
         check(
             "user",
-            Arena::new(),
-            exprs,
-            [hir::Stmt::Expr(missing)],
+            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)], ..Default::default() },
             [(0..4, LowerErrorKind::UndefinedVar { name: "user".to_string() })],
         );
     }
@@ -271,7 +291,11 @@ mod tests {
         let mut exprs = Arena::new();
         let ninety_two = exprs.alloc(hir::Expr::IntLiteral(92));
 
-        check("92", Arena::new(), exprs, [hir::Stmt::Expr(ninety_two)], []);
+        check(
+            "92",
+            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ninety_two)], ..Default::default() },
+            [],
+        );
     }
 
     #[test]
@@ -279,7 +303,11 @@ mod tests {
         let mut exprs = Arena::new();
         let hello = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
 
-        check("\"hello\"", Arena::new(), exprs, [hir::Stmt::Expr(hello)], []);
+        check(
+            "\"hello\"",
+            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(hello)], ..Default::default() },
+            [],
+        );
     }
 
     #[test]
@@ -296,9 +324,12 @@ mod tests {
 
         check(
             "let a = 10\na - 4",
-            local_defs,
-            exprs,
-            [hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(a_minus_four)],
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(a_minus_four)],
+                ..Default::default()
+            },
             [],
         );
     }
@@ -311,7 +342,16 @@ mod tests {
         let missing = exprs.alloc(hir::Expr::Missing);
         let foo = local_defs.alloc(hir::LocalDef { value: missing });
 
-        check("let foo =", local_defs, exprs, [hir::Stmt::LocalDef(foo)], []);
+        check(
+            "let foo =",
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(foo)],
+                ..Default::default()
+            },
+            [],
+        );
     }
 
     #[test]
@@ -322,7 +362,16 @@ mod tests {
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
         let local_def = local_defs.alloc(hir::LocalDef { value: ten });
 
-        check("let = 10", local_defs, exprs, [hir::Stmt::LocalDef(local_def)], []);
+        check(
+            "let = 10",
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(local_def)],
+                ..Default::default()
+            },
+            [],
+        );
     }
 
     #[test]
@@ -330,7 +379,11 @@ mod tests {
         let mut exprs = Arena::new();
         let missing = exprs.alloc(hir::Expr::Missing);
 
-        check("9999999999999999", Arena::new(), exprs, [hir::Stmt::Expr(missing)], []);
+        check(
+            "9999999999999999",
+            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)], ..Default::default() },
+            [],
+        );
     }
 
     #[test]
@@ -350,7 +403,8 @@ mod tests {
             hir::Program {
                 local_defs: local_defs.clone(),
                 exprs,
-                stmts: vec![hir::Stmt::LocalDef(a_def)]
+                stmts: vec![hir::Stmt::LocalDef(a_def)],
+                ..Default::default()
             }
         );
         assert!(errors.is_empty());
@@ -363,7 +417,15 @@ mod tests {
         let (program, _, errors, _) =
             lower_with_local_defs(&root, local_defs.clone(), local_def_names);
 
-        assert_eq!(program, hir::Program { local_defs, exprs, stmts: vec![hir::Stmt::Expr(a)] });
+        assert_eq!(
+            program,
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::Expr(a)],
+                ..Default::default()
+            }
+        );
         assert!(errors.is_empty());
     }
 
@@ -386,7 +448,16 @@ mod tests {
             hir::Stmt::Expr(foo_plus_two),
         ]));
 
-        check("{ let foo = 100 - 10\nfoo + 2 }", local_defs, exprs, [hir::Stmt::Expr(block)], []);
+        check(
+            "{ let foo = 100 - 10\nfoo + 2 }",
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::Expr(block)],
+                ..Default::default()
+            },
+            [],
+        );
     }
 
     #[test]
@@ -414,13 +485,16 @@ mod tests {
                 }
                 count
             "#,
-            local_defs,
-            exprs,
-            [
-                hir::Stmt::LocalDef(outer_count_def),
-                hir::Stmt::Expr(block),
-                hir::Stmt::Expr(outer_count),
-            ],
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![
+                    hir::Stmt::LocalDef(outer_count_def),
+                    hir::Stmt::Expr(block),
+                    hir::Stmt::Expr(outer_count),
+                ],
+                ..Default::default()
+            },
             [],
         );
     }
@@ -448,9 +522,12 @@ mod tests {
                     a * b
                 }
             "#,
-            local_defs,
-            exprs,
-            [hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(block)],
+            hir::Program {
+                local_defs,
+                exprs,
+                stmts: vec![hir::Stmt::LocalDef(a_def), hir::Stmt::Expr(block)],
+                ..Default::default()
+            },
             [],
         );
     }
@@ -479,9 +556,9 @@ mod tests {
         assert_eq!(
             program,
             hir::Program {
-                local_defs: Arena::new(),
                 exprs,
-                stmts: vec![hir::Stmt::Expr(bin_expr_hir)]
+                stmts: vec![hir::Stmt::Expr(bin_expr_hir)],
+                ..Default::default()
             }
         );
 

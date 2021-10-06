@@ -3,7 +3,7 @@ use arena::{Arena, Idx};
 pub type ExprIdx = Idx<Expr>;
 pub type LocalDefIdx = Idx<LocalDef>;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Program {
     pub local_defs: Arena<LocalDef>,
     pub exprs: Arena<Expr>,
