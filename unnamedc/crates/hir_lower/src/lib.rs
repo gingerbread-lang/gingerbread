@@ -129,7 +129,7 @@ impl LowerCtx<'_> {
         self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body })
     }
 
-    fn lower_ty(&mut self, ast: Option<ast::Ty>) -> hir::Ty {
+    fn lower_ty(&self, ast: Option<ast::Ty>) -> hir::Ty {
         hir::Ty
     }
 
@@ -139,48 +139,13 @@ impl LowerCtx<'_> {
             None => return self.store.exprs.alloc(hir::Expr::Missing),
         };
 
-        let expr = match &ast {
-            ast::Expr::Bin(ast) => hir::Expr::Bin {
-                lhs: self.lower_expr(ast.lhs()),
-                rhs: self.lower_expr(ast.rhs()),
-                op: ast.op().map(|op| self.lower_op(op)),
-            },
-
-            ast::Expr::Block(ast) => {
-                let mut child = self.new_child();
-                hir::Expr::Block(ast.stmts().map(|ast| child.lower_stmt(ast)).collect())
-            }
-
+        let expr = match ast.clone() {
+            ast::Expr::Bin(ast) => self.lower_bin_expr(ast),
+            ast::Expr::Block(ast) => self.lower_block(ast),
             ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
-
-            ast::Expr::VarRef(ast) => ast.name().map_or(hir::Expr::Missing, |ast| {
-                let name = ast.text();
-
-                match self.var_names.get(name) {
-                    Some(var_def) => hir::Expr::VarRef(var_def),
-                    None => {
-                        self.store.errors.push(LowerError {
-                            range: ast.range(),
-                            kind: LowerErrorKind::UndefinedVar { name: name.to_string() },
-                        });
-
-                        hir::Expr::Missing
-                    }
-                }
-            }),
-
-            ast::Expr::IntLiteral(ast) => ast
-                .value()
-                .and_then(|ast| ast.text().parse().ok())
-                .map_or(hir::Expr::Missing, hir::Expr::IntLiteral),
-
-            ast::Expr::StringLiteral(ast) => ast
-                .value()
-                .map(|ast| {
-                    let text = ast.text();
-                    hir::Expr::StringLiteral(text[1..text.len() - 1].to_string())
-                })
-                .unwrap_or(hir::Expr::Missing),
+            ast::Expr::VarRef(ast) => self.lower_var_ref(ast),
+            ast::Expr::IntLiteral(ast) => self.lower_int_literal(ast),
+            ast::Expr::StringLiteral(ast) => self.lower_string_literal(ast),
         };
 
         let expr = self.store.exprs.alloc(expr);
@@ -190,7 +155,51 @@ impl LowerCtx<'_> {
         expr
     }
 
-    fn lower_op(&mut self, ast: ast::Op) -> hir::BinOp {
+    fn lower_bin_expr(&mut self, ast: ast::BinExpr) -> hir::Expr {
+        hir::Expr::Bin {
+            lhs: self.lower_expr(ast.lhs()),
+            rhs: self.lower_expr(ast.rhs()),
+            op: ast.op().map(|op| self.lower_op(op)),
+        }
+    }
+
+    fn lower_block(&mut self, ast: ast::Block) -> hir::Expr {
+        let mut child = self.new_child();
+        hir::Expr::Block(ast.stmts().map(|ast| child.lower_stmt(ast)).collect())
+    }
+
+    fn lower_var_ref(&mut self, ast: ast::VarRef) -> hir::Expr {
+        ast.name().map_or(hir::Expr::Missing, |ast| {
+            let name = ast.text();
+
+            match self.var_names.get(name) {
+                Some(var_def) => hir::Expr::VarRef(var_def),
+                None => {
+                    self.store.errors.push(LowerError {
+                        range: ast.range(),
+                        kind: LowerErrorKind::UndefinedVar { name: name.to_string() },
+                    });
+
+                    hir::Expr::Missing
+                }
+            }
+        })
+    }
+
+    fn lower_int_literal(&self, ast: ast::IntLiteral) -> hir::Expr {
+        ast.value()
+            .and_then(|ast| ast.text().parse().ok())
+            .map_or(hir::Expr::Missing, hir::Expr::IntLiteral)
+    }
+
+    fn lower_string_literal(&self, ast: ast::StringLiteral) -> hir::Expr {
+        ast.value().map_or(hir::Expr::Missing, |ast| {
+            let text = ast.text();
+            hir::Expr::StringLiteral(text[1..text.len() - 1].to_string())
+        })
+    }
+
+    fn lower_op(&self, ast: ast::Op) -> hir::BinOp {
         match ast {
             ast::Op::Add(_) => hir::BinOp::Add,
             ast::Op::Sub(_) => hir::BinOp::Sub,
