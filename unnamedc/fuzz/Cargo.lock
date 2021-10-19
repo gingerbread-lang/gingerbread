@@ -9,6 +9,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "577b08a4acd7b99869f863c50011b01eb73424ccc798ecd996f2e24817adfca7"
 
 [[package]]
+name = "arena"
+version = "0.0.0"
+
+[[package]]
 name = "ast"
 version = "0.0.0"
 dependencies = [
@@ -50,8 +54,8 @@ checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
 name = "eval"
 version = "0.0.0"
 dependencies = [
+ "arena",
  "hir",
- "la-arena",
 ]
 
 [[package]]
@@ -83,16 +87,16 @@ checksum = "ab5ef0d4909ef3724cc8cce6ccc8572c5c817592e9285f5464f8e86f8bd3726e"
 name = "hir"
 version = "0.0.0"
 dependencies = [
- "la-arena",
+ "arena",
 ]
 
 [[package]]
 name = "hir_lower"
 version = "0.0.0"
 dependencies = [
+ "arena",
  "ast",
  "hir",
- "la-arena",
  "text-size",
 ]
 
@@ -100,15 +104,9 @@ dependencies = [
 name = "hir_ty"
 version = "0.0.0"
 dependencies = [
+ "arena",
  "hir",
- "la-arena",
 ]
-
-[[package]]
-name = "la-arena"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d43db9f547ba2787bdeac81ef97ccc80784f385b3b39b4d50344270629a2bee3"
 
 [[package]]
 name = "lexer"
