@@ -33,13 +33,17 @@ pub struct FncDef {
     pub body: ExprIdx,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Param {
     pub ty: Ty,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Ty;
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Ty {
+    Missing,
+    Unit,
+    S32,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {

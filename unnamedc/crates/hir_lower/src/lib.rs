@@ -53,6 +53,7 @@ pub struct LowerError {
 #[derive(Debug, PartialEq)]
 pub enum LowerErrorKind {
     UndefinedVar { name: String },
+    UndefinedTy { name: String },
 }
 
 struct LowerCtx<'a> {
@@ -121,16 +122,33 @@ impl LowerCtx<'_> {
             None => IdxRange::default(),
         };
 
-        let ret_ty =
-            if let Some(ret_ty) = ast.ret_ty() { child.lower_ty(ret_ty.ty()) } else { hir::Ty };
+        let ret_ty = match ast.ret_ty() {
+            Some(ret_ty) => child.lower_ty(ret_ty.ty()),
+            None => hir::Ty::Unit,
+        };
 
         let body = child.lower_expr(ast.body());
 
         self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body })
     }
 
-    fn lower_ty(&self, ast: Option<ast::Ty>) -> hir::Ty {
-        hir::Ty
+    fn lower_ty(&mut self, ast: Option<ast::Ty>) -> hir::Ty {
+        if let Some(ast) = ast {
+            if let Some(name) = ast.name() {
+                let text = name.text();
+
+                if text == "s32" {
+                    return hir::Ty::S32;
+                }
+
+                self.store.errors.push(LowerError {
+                    range: name.range(),
+                    kind: LowerErrorKind::UndefinedTy { name: text.to_string() },
+                });
+            }
+        }
+
+        hir::Ty::Missing
     }
 
     fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
@@ -598,7 +616,7 @@ mod tests {
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::default(),
-            ret_ty: hir::Ty,
+            ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
 
@@ -620,11 +638,11 @@ mod tests {
         let mut params = Arena::new();
         let mut exprs = Arena::new();
 
-        let x = params.alloc(hir::Param { ty: hir::Ty });
+        let x = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::new_inclusive(x..=x),
-            ret_ty: hir::Ty,
+            ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
 
@@ -647,11 +665,11 @@ mod tests {
         let mut params = Arena::new();
         let mut exprs = Arena::new();
 
-        let n_def = params.alloc(hir::Param { ty: hir::Ty });
+        let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::new_inclusive(n_def..=n_def),
-            ret_ty: hir::Ty,
+            ret_ty: hir::Ty::S32,
             body: n,
         });
 
@@ -674,14 +692,14 @@ mod tests {
         let mut params = Arena::new();
         let mut exprs = Arena::new();
 
-        let x_def = params.alloc(hir::Param { ty: hir::Ty });
-        let y_def = params.alloc(hir::Param { ty: hir::Ty });
+        let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
         let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
         let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::new_inclusive(x_def..=y_def),
-            ret_ty: hir::Ty,
+            ret_ty: hir::Ty::S32,
             body: x_plus_y,
         });
         let missing = exprs.alloc(hir::Expr::Missing);
@@ -703,41 +721,128 @@ mod tests {
     }
 
     #[test]
-    fn source_map() {
-        let parse = parser::parse(&lexer::lex("10 - 5"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+    fn lower_fnc_def_with_missing_param_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
 
-        let bin_expr_ast = match root.stmts().next().unwrap() {
+        let x_def = params.alloc(hir::Param { ty: hir::Ty::Missing });
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(x_def..=x_def),
+            ret_ty: hir::Ty::Unit,
+            body: empty_block,
+        });
+
+        check(
+            "fnc f(x) -> {}",
+            hir::Program {
+                fnc_defs,
+                params,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
+    fn lower_undefined_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::Missing,
+            body: empty_block,
+        });
+
+        check(
+            "fnc a(): foo -> {}",
+            hir::Program {
+                fnc_defs,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [(9..12, LowerErrorKind::UndefinedTy { name: "foo".to_string() })],
+        );
+    }
+
+    #[test]
+    fn source_map() {
+        let parse = parser::parse(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10\na - 5"));
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let mut stmts = root.stmts();
+
+        let fnc_def_ast = match stmts.next().unwrap() {
+            ast::Stmt::FncDef(fnc_def) => fnc_def,
+            _ => unreachable!(),
+        };
+        let four_ast = fnc_def_ast.body().unwrap();
+
+        let a_def_ast = match stmts.next().unwrap() {
+            ast::Stmt::LocalDef(local_def) => local_def,
+            _ => unreachable!(),
+        };
+        let ten_ast = a_def_ast.value().unwrap();
+
+        let bin_expr_ast = match stmts.next().unwrap() {
             ast::Stmt::Expr(ast::Expr::Bin(bin_expr)) => bin_expr,
             _ => unreachable!(),
         };
-        let ten_ast = bin_expr_ast.lhs().unwrap();
+        let a_ast = bin_expr_ast.lhs().unwrap();
         let five_ast = bin_expr_ast.rhs().unwrap();
         let bin_expr_ast = ast::Expr::Bin(bin_expr_ast);
 
+        let mut fnc_defs = Arena::new();
+        let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
+
+        let four_hir = exprs.alloc(hir::Expr::IntLiteral(4));
+        let f_def_hir = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::S32,
+            body: four_hir,
+        });
+
         let ten_hir = exprs.alloc(hir::Expr::IntLiteral(10));
+        let a_def_hir = local_defs.alloc(hir::LocalDef { value: ten_hir });
+
+        let a_hir = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def_hir)));
         let five_hir = exprs.alloc(hir::Expr::IntLiteral(5));
         let bin_expr_hir =
-            exprs.alloc(hir::Expr::Bin { lhs: ten_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
+            exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 
         let (program, source_map, errors, _) = lower(&root);
 
         assert_eq!(
             program,
             hir::Program {
+                fnc_defs,
+                local_defs,
                 exprs,
-                stmts: vec![hir::Stmt::Expr(bin_expr_hir)],
+                stmts: vec![
+                    hir::Stmt::FncDef(f_def_hir),
+                    hir::Stmt::LocalDef(a_def_hir),
+                    hir::Stmt::Expr(bin_expr_hir)
+                ],
                 ..Default::default()
             }
         );
 
-        assert_eq!(source_map.expr_map[bin_expr_hir], bin_expr_ast);
+        assert_eq!(source_map.expr_map[four_hir], four_ast);
         assert_eq!(source_map.expr_map[ten_hir], ten_ast);
+        assert_eq!(source_map.expr_map[a_hir], a_ast);
         assert_eq!(source_map.expr_map[five_hir], five_ast);
-        assert_eq!(source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
+        assert_eq!(source_map.expr_map[bin_expr_hir], bin_expr_ast);
+        assert_eq!(source_map.expr_map_back[&four_ast], four_hir);
         assert_eq!(source_map.expr_map_back[&ten_ast], ten_hir);
+        assert_eq!(source_map.expr_map_back[&a_ast], a_hir);
         assert_eq!(source_map.expr_map_back[&five_ast], five_hir);
+        assert_eq!(source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
 
         assert!(errors.is_empty());
     }

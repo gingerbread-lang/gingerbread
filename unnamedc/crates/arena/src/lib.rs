@@ -89,6 +89,10 @@ impl<T> IdxRange<T> {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.range.len()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.range.is_empty()
     }

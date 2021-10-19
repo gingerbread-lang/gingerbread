@@ -4,6 +4,7 @@ use std::mem;
 #[derive(Default)]
 pub struct Evaluator {
     locals: ArenaMap<hir::LocalDefIdx, Val>,
+    params: ArenaMap<hir::ParamIdx, Val>,
 }
 
 impl Evaluator {
@@ -11,7 +12,12 @@ impl Evaluator {
         let local_defs = &program.local_defs;
         let exprs = &program.exprs;
         let last_stmt = program.stmts.pop();
-        let mut eval_ctx = EvalCtx { locals: mem::take(&mut self.locals), local_defs, exprs };
+        let mut eval_ctx = EvalCtx {
+            locals: mem::take(&mut self.locals),
+            params: mem::take(&mut self.params),
+            local_defs,
+            exprs,
+        };
 
         for stmt in program.stmts {
             eval_ctx.eval_stmt(stmt);
@@ -27,6 +33,7 @@ impl Evaluator {
 
 struct EvalCtx<'program> {
     locals: ArenaMap<hir::LocalDefIdx, Val>,
+    params: ArenaMap<hir::ParamIdx, Val>,
     local_defs: &'program Arena<hir::LocalDef>,
     exprs: &'program Arena<hir::Expr>,
 }
@@ -35,6 +42,7 @@ impl EvalCtx<'_> {
     fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
         match stmt {
             hir::Stmt::LocalDef(local_def) => self.eval_local_def(local_def),
+            hir::Stmt::FncDef(_) => Val::Nil,
             hir::Stmt::Expr(expr) => self.eval_expr(expr),
         }
     }
@@ -62,6 +70,7 @@ impl EvalCtx<'_> {
                 None => Val::Nil,
             },
             hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.locals[*local_def].clone(),
+            hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.params[*param].clone(),
             hir::Expr::IntLiteral(value) => Val::Int(*value),
             hir::Expr::StringLiteral(value) => Val::String(value.clone()),
         }

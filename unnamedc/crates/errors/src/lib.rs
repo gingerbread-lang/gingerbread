@@ -160,6 +160,9 @@ fn lower_error_header(lower_error: &LowerError, start_line_column: &LineColumn) 
         LowerErrorKind::UndefinedVar { ref name } => {
             format!("undefined variable at {}: `{}` has not been defined", start_line_column, name)
         }
+        LowerErrorKind::UndefinedTy { ref name } => {
+            format!("undefined type at {}: `{}` has not been defined", start_line_column, name)
+        }
     }
 }
 
@@ -362,6 +365,20 @@ mod tests {
                 undefined variable at 2:1: `teh_value` has not been defined
                   teh_value
                   ^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lower_error_undefined_ty() {
+        check_lower_error(
+            "fnc f(param: abc)",
+            LowerErrorKind::UndefinedTy { name: "abc".to_string() },
+            13..16,
+            expect![[r#"
+                undefined type at 1:14: `abc` has not been defined
+                  fnc f(param: abc)
+                               ^^^
             "#]],
         );
     }

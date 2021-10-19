@@ -7,16 +7,20 @@ pub fn infer(program: &hir::Program) -> InferResult {
 pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult {
     let mut infer_ctx = InferCtx {
         result: InferResult {
-            expr_tys: ArenaMap::default(),
             local_tys: in_scope.local_tys,
+            fnc_sigs: in_scope.fnc_sigs,
+            param_tys: in_scope.param_tys,
+            expr_tys: ArenaMap::default(),
             errors: Vec::new(),
         },
         local_defs: &program.local_defs,
+        fnc_defs: &program.fnc_defs,
+        params: &program.params,
         exprs: &program.exprs,
     };
 
     for stmt in &program.stmts {
-        infer_ctx.infer_stmt(stmt);
+        infer_ctx.infer_stmt(*stmt);
     }
 
     infer_ctx.result
@@ -25,19 +29,29 @@ pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult 
 #[derive(Debug)]
 pub struct InferResult {
     local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
+    fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
+    param_tys: ArenaMap<hir::ParamIdx, Ty>,
     expr_tys: ArenaMap<hir::ExprIdx, Ty>,
     errors: Vec<TyError>,
 }
 
 impl InferResult {
     pub fn in_scope(self) -> (InScope, Vec<TyError>) {
-        (InScope { local_tys: self.local_tys }, self.errors)
+        let in_scope = InScope {
+            local_tys: self.local_tys,
+            fnc_sigs: self.fnc_sigs,
+            param_tys: self.param_tys,
+        };
+
+        (in_scope, self.errors)
     }
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct InScope {
     local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
+    fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
+    param_tys: ArenaMap<hir::ParamIdx, Ty>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,6 +60,12 @@ pub enum Ty {
     Int,
     String,
     Unit,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Sig {
+    params: Vec<Ty>,
+    ret_ty: Ty,
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,20 +82,53 @@ pub enum TyErrorKind {
 struct InferCtx<'a> {
     result: InferResult,
     local_defs: &'a Arena<hir::LocalDef>,
+    fnc_defs: &'a Arena<hir::FncDef>,
+    params: &'a Arena<hir::Param>,
     exprs: &'a Arena<hir::Expr>,
 }
 
 impl InferCtx<'_> {
-    fn infer_stmt(&mut self, stmt: &hir::Stmt) -> Ty {
+    fn infer_stmt(&mut self, stmt: hir::Stmt) -> Ty {
         match stmt {
             hir::Stmt::LocalDef(local_def) => {
-                let value_ty = self.infer_expr(self.local_defs[*local_def].value);
-                self.result.local_tys.insert(*local_def, value_ty);
-
-                Ty::Unit
+                let value_ty = self.infer_expr(self.local_defs[local_def].value);
+                self.result.local_tys.insert(local_def, value_ty);
             }
-            hir::Stmt::Expr(expr) => self.infer_expr(*expr),
+            hir::Stmt::FncDef(idx) => self.infer_fnc_def(idx),
+            hir::Stmt::Expr(expr) => return self.infer_expr(expr),
         }
+
+        Ty::Unit
+    }
+
+    fn infer_fnc_def(&mut self, idx: arena::Idx<hir::FncDef>) {
+        let fnc_def = self.fnc_defs[idx].clone();
+
+        let mut params = Vec::with_capacity(fnc_def.params.len());
+
+        for param_idx in fnc_def.params {
+            let param = self.params[param_idx];
+            let ty = match param.ty {
+                hir::Ty::Missing => Ty::Unknown,
+                hir::Ty::Unit => Ty::Unit,
+                hir::Ty::S32 => Ty::Int,
+            };
+
+            params.push(ty);
+
+            self.result.param_tys.insert(param_idx, ty);
+        }
+
+        let ret_ty = match fnc_def.ret_ty {
+            hir::Ty::Missing => Ty::Unknown,
+            hir::Ty::Unit => Ty::Unit,
+            hir::Ty::S32 => Ty::Int,
+        };
+
+        let actual_ret_ty = self.infer_expr(fnc_def.body);
+        self.expect_tys_match(fnc_def.body, ret_ty, actual_ret_ty);
+
+        self.result.fnc_sigs.insert(idx, Sig { params, ret_ty });
     }
 
     fn infer_expr(&mut self, expr: hir::ExprIdx) -> Ty {
@@ -86,18 +139,8 @@ impl InferCtx<'_> {
                 let lhs_ty = self.infer_expr(lhs);
                 let rhs_ty = self.infer_expr(rhs);
 
-                let is_lhs_missing = self.exprs[lhs] == hir::Expr::Missing;
-                let is_rhs_missing = self.exprs[rhs] == hir::Expr::Missing;
-                let is_anything_missing = is_lhs_missing || is_rhs_missing;
-                if !is_anything_missing {
-                    for (expr, ty) in [(lhs, lhs_ty), (rhs, rhs_ty)] {
-                        if ty != Ty::Int {
-                            self.result.errors.push(TyError {
-                                expr,
-                                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: ty },
-                            });
-                        }
-                    }
+                for (expr, ty) in [(lhs, lhs_ty), (rhs, rhs_ty)] {
+                    self.expect_tys_match(expr, Ty::Int, ty);
                 }
 
                 Ty::Int
@@ -106,16 +149,18 @@ impl InferCtx<'_> {
             hir::Expr::Block(ref stmts) => match stmts.split_last() {
                 Some((last, rest)) => {
                     for stmt in rest {
-                        self.infer_stmt(stmt);
+                        self.infer_stmt(*stmt);
                     }
 
-                    self.infer_stmt(last)
+                    self.infer_stmt(*last)
                 }
 
                 None => Ty::Unit,
             },
 
             hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.result.local_tys[local_def],
+
+            hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.result.param_tys[param],
 
             hir::Expr::IntLiteral(_) => Ty::Int,
 
@@ -126,11 +171,32 @@ impl InferCtx<'_> {
 
         ty
     }
+
+    fn expect_tys_match(&mut self, expr: hir::ExprIdx, expected: Ty, found: Ty) {
+        if found == expected || found == Ty::Unknown || expected == Ty::Unknown {
+            return;
+        }
+
+        let expr = match &self.exprs[expr] {
+            hir::Expr::Block(stmts) => stmts
+                .last()
+                .copied()
+                .and_then(|stmt| match stmt {
+                    hir::Stmt::Expr(e) => Some(e),
+                    _ => None,
+                })
+                .unwrap_or(expr),
+            _ => expr,
+        };
+
+        self.result.errors.push(TyError { expr, kind: TyErrorKind::Mismatch { expected, found } });
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use arena::IdxRange;
 
     #[test]
     fn infer_int_literal() {
@@ -315,7 +381,7 @@ mod tests {
     }
 
     #[test]
-    fn only_error_on_missing_expr_use() {
+    fn dont_error_on_missing_expr_use() {
         let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
@@ -338,16 +404,7 @@ mod tests {
         assert_eq!(result.expr_tys[four], Ty::Int);
         assert_eq!(result.expr_tys[user_plus_four], Ty::Int);
         assert_eq!(result.local_tys[user_def], Ty::Unknown);
-
-        // we only get an error about `user`’s type not being known
-        // until we try to do an operation with it
-        assert_eq!(
-            result.errors,
-            [TyError {
-                expr: user,
-                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::Unknown }
-            }]
-        );
+        assert_eq!(result.errors, []);
     }
 
     #[test]
@@ -430,5 +487,261 @@ mod tests {
         assert_eq!(result.expr_tys[num], Ty::Int);
         assert_eq!(result.expr_tys[block], Ty::Int);
         assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_fnc_def_with_no_params() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::Unit,
+            body: empty_block,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unit });
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_fnc_def_with_params() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let param_1 = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let param_2 = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(param_1..=param_2),
+            ret_ty: hir::Ty::Unit,
+            body: empty_block,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            params,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.param_tys[param_1], Ty::Int);
+        assert_eq!(result.param_tys[param_2], Ty::Int);
+        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
+        assert_eq!(
+            result.fnc_sigs[fnc_def],
+            Sig { params: vec![Ty::Int, Ty::Int], ret_ty: Ty::Unit }
+        );
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_fnc_def_with_params_and_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let param_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let param_ref = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(param_def)));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(param_def..=param_def),
+            ret_ty: hir::Ty::S32,
+            body: param_ref,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            params,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.param_tys[param_def], Ty::Int);
+        assert_eq!(result.expr_tys[param_ref], Ty::Int);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: vec![Ty::Int], ret_ty: Ty::Int });
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_fnc_def_with_mismatched_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let string = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::Unit,
+            body: string,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[string], Ty::String);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unit });
+        assert_eq!(
+            result.errors,
+            [TyError {
+                expr: string,
+                kind: TyErrorKind::Mismatch { expected: Ty::Unit, found: Ty::String }
+            }]
+        );
+    }
+
+    #[test]
+    fn avoid_mismatched_ret_ty_error_on_missing_fnc_body() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let missing = exprs.alloc(hir::Expr::Missing);
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::S32,
+            body: missing,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Int });
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn avoid_mismatched_ret_ty_error_on_fnc_body_with_unknown_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let missing = exprs.alloc(hir::Expr::Missing);
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::S32,
+            body: missing,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Int });
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn avoid_mismatched_ret_ty_error_on_fnc_with_missing_ret_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::Missing,
+            body: empty_block,
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unknown });
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn show_mismatched_ty_error_on_last_expr_of_block() {
+        let mut local_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
+        let local_def = local_defs.alloc(hir::LocalDef { value: string });
+        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
+        let block = exprs
+            .alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def), hir::Stmt::Expr(local)]));
+        let ten = exprs.alloc(hir::Expr::IntLiteral(10));
+        let block_plus_ten =
+            exprs.alloc(hir::Expr::Bin { lhs: block, rhs: ten, op: Some(hir::BinOp::Add) });
+
+        let result = infer(&hir::Program {
+            local_defs,
+            exprs,
+            stmts: vec![hir::Stmt::Expr(block_plus_ten)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[string], Ty::String);
+        assert_eq!(result.expr_tys[local], Ty::String);
+        assert_eq!(result.local_tys[local_def], Ty::String);
+        assert_eq!(result.expr_tys[block], Ty::String);
+        assert_eq!(result.expr_tys[ten], Ty::Int);
+        assert_eq!(result.expr_tys[block_plus_ten], Ty::Int);
+        assert_eq!(
+            result.errors,
+            [TyError {
+                expr: local,
+                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::String }
+            }]
+        );
+    }
+
+    #[test]
+    fn show_mismatched_ty_error_on_entire_block_if_last_stmt_is_not_expr() {
+        let mut local_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let five = exprs.alloc(hir::Expr::IntLiteral(5));
+        let local_def = local_defs.alloc(hir::LocalDef { value: five });
+        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)]));
+        let four = exprs.alloc(hir::Expr::IntLiteral(4));
+        let block_plus_four =
+            exprs.alloc(hir::Expr::Bin { lhs: block, rhs: four, op: Some(hir::BinOp::Add) });
+
+        let result = infer(&hir::Program {
+            local_defs,
+            exprs,
+            stmts: vec![hir::Stmt::Expr(block_plus_four)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[five], Ty::Int);
+        assert_eq!(result.local_tys[local_def], Ty::Int);
+        assert_eq!(result.expr_tys[block], Ty::Unit);
+        assert_eq!(result.expr_tys[four], Ty::Int);
+        assert_eq!(result.expr_tys[block_plus_four], Ty::Int);
+        assert_eq!(
+            result.errors,
+            [TyError {
+                expr: block,
+                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::Unit }
+            }]
+        );
     }
 }
