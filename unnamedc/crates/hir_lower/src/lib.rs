@@ -137,8 +137,10 @@ impl LowerCtx<'_> {
             if let Some(name) = ast.name() {
                 let text = name.text();
 
-                if text == "s32" {
-                    return hir::Ty::S32;
+                match text {
+                    "s32" => return hir::Ty::S32,
+                    "string" => return hir::Ty::String,
+                    _ => {}
                 }
 
                 self.store.errors.push(LowerError {
@@ -768,6 +770,30 @@ mod tests {
                 ..Default::default()
             },
             [(9..12, LowerErrorKind::UndefinedTy { name: "foo".to_string() })],
+        );
+    }
+
+    #[test]
+    fn lower_string_ty() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let string = exprs.alloc(hir::Expr::StringLiteral("🦀".to_string()));
+        let fnc_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::String,
+            body: string,
+        });
+
+        check(
+            r#"fnc crab(): string -> "🦀""#,
+            hir::Program {
+                fnc_defs,
+                exprs,
+                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                ..Default::default()
+            },
+            [],
         );
     }
 

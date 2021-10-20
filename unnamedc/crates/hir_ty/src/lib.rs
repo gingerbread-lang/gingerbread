@@ -112,6 +112,7 @@ impl InferCtx<'_> {
                 hir::Ty::Missing => Ty::Unknown,
                 hir::Ty::Unit => Ty::Unit,
                 hir::Ty::S32 => Ty::Int,
+                hir::Ty::String => Ty::String,
             };
 
             params.push(ty);
@@ -123,6 +124,7 @@ impl InferCtx<'_> {
             hir::Ty::Missing => Ty::Unknown,
             hir::Ty::Unit => Ty::Unit,
             hir::Ty::S32 => Ty::Int,
+            hir::Ty::String => Ty::String,
         };
 
         let actual_ret_ty = self.infer_expr(fnc_def.body);

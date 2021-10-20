@@ -43,6 +43,7 @@ pub enum Ty {
     Missing,
     Unit,
     S32,
+    String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
