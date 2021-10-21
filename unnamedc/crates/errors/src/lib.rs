@@ -1,7 +1,7 @@
 use ast::validation::{ValidationError, ValidationErrorKind};
 use ast::AstNode;
 use hir_lower::{LowerError, LowerErrorKind, SourceMap};
-use hir_ty::{Ty, TyError, TyErrorKind};
+use hir_ty::{TyError, TyErrorKind};
 use parser::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
@@ -232,12 +232,12 @@ fn format_kind(kind: TokenKind) -> &'static str {
     }
 }
 
-fn format_ty(ty: Ty) -> &'static str {
+fn format_ty(ty: hir::Ty) -> &'static str {
     match ty {
-        Ty::Unknown => "an unknown type",
-        Ty::Int => "integer",
-        Ty::String => "string",
-        Ty::Unit => "unit",
+        hir::Ty::Unknown => "an unknown type",
+        hir::Ty::S32 => "s32",
+        hir::Ty::String => "string",
+        hir::Ty::Unit => "unit",
     }
 }
 
@@ -245,7 +245,6 @@ fn format_ty(ty: Ty) -> &'static str {
 mod tests {
     use super::*;
     use expect_test::{expect, Expect};
-    use hir_ty::Ty;
     use parser::error::{ExpectedSyntax, ParseErrorKind};
     use std::ops::Range as StdRange;
 
@@ -387,10 +386,10 @@ mod tests {
     fn ty_error_mismatch() {
         check_ty_error(
             "10 * \"a\"",
-            TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::String },
+            TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
             5..8,
             expect![[r#"
-                type mismatch at 1:6: expected integer but found string
+                type mismatch at 1:6: expected s32 but found string
                   10 * "a"
                        ^^^
             "#]],
@@ -401,10 +400,10 @@ mod tests {
     fn ty_error_multiline_mismatch() {
         check_ty_error(
             "foo - (\n\"bar\"\n)",
-            TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::String },
+            TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
             6..15,
             expect![[r#"
-                type mismatch at 1:7: expected integer but found string
+                type mismatch at 1:7: expected s32 but found string
                         v
                   foo - (
                   "bar"

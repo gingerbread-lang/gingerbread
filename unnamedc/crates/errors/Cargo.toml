@@ -6,6 +6,7 @@ version = "0.0.0"
 
 [dependencies]
 ast = {path = "../ast"}
+hir = {path = "../hir"}
 hir_lower = {path = "../hir_lower"}
 hir_ty = {path = "../hir_ty"}
 parser = {path = "../parser"}

@@ -150,7 +150,7 @@ impl LowerCtx<'_> {
             }
         }
 
-        hir::Ty::Missing
+        hir::Ty::Unknown
     }
 
     fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
@@ -728,7 +728,7 @@ mod tests {
         let mut params = Arena::new();
         let mut exprs = Arena::new();
 
-        let x_def = params.alloc(hir::Param { ty: hir::Ty::Missing });
+        let x_def = params.alloc(hir::Param { ty: hir::Ty::Unknown });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::new_inclusive(x_def..=x_def),
@@ -757,7 +757,7 @@ mod tests {
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::default(),
-            ret_ty: hir::Ty::Missing,
+            ret_ty: hir::Ty::Unknown,
             body: empty_block,
         });
 

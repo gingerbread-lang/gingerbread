@@ -130,6 +130,7 @@ version = "0.0.0"
 dependencies = [
  "ast",
  "expect-test",
+ "hir",
  "hir_lower",
  "hir_ty",
  "parser",

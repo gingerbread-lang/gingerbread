@@ -28,10 +28,10 @@ pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult 
 
 #[derive(Debug)]
 pub struct InferResult {
-    local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
+    local_tys: ArenaMap<hir::LocalDefIdx, hir::Ty>,
     fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
-    param_tys: ArenaMap<hir::ParamIdx, Ty>,
-    expr_tys: ArenaMap<hir::ExprIdx, Ty>,
+    param_tys: ArenaMap<hir::ParamIdx, hir::Ty>,
+    expr_tys: ArenaMap<hir::ExprIdx, hir::Ty>,
     errors: Vec<TyError>,
 }
 
@@ -49,23 +49,15 @@ impl InferResult {
 
 #[derive(Debug, Clone, Default)]
 pub struct InScope {
-    local_tys: ArenaMap<hir::LocalDefIdx, Ty>,
+    local_tys: ArenaMap<hir::LocalDefIdx, hir::Ty>,
     fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
-    param_tys: ArenaMap<hir::ParamIdx, Ty>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Ty {
-    Unknown,
-    Int,
-    String,
-    Unit,
+    param_tys: ArenaMap<hir::ParamIdx, hir::Ty>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Sig {
-    params: Vec<Ty>,
-    ret_ty: Ty,
+    params: Vec<hir::Ty>,
+    ret_ty: hir::Ty,
 }
 
 #[derive(Debug, PartialEq)]
@@ -76,7 +68,7 @@ pub struct TyError {
 
 #[derive(Debug, PartialEq)]
 pub enum TyErrorKind {
-    Mismatch { expected: Ty, found: Ty },
+    Mismatch { expected: hir::Ty, found: hir::Ty },
 }
 
 struct InferCtx<'a> {
@@ -88,7 +80,7 @@ struct InferCtx<'a> {
 }
 
 impl InferCtx<'_> {
-    fn infer_stmt(&mut self, stmt: hir::Stmt) -> Ty {
+    fn infer_stmt(&mut self, stmt: hir::Stmt) -> hir::Ty {
         match stmt {
             hir::Stmt::LocalDef(local_def) => {
                 let value_ty = self.infer_expr(self.local_defs[local_def].value);
@@ -98,7 +90,7 @@ impl InferCtx<'_> {
             hir::Stmt::Expr(expr) => return self.infer_expr(expr),
         }
 
-        Ty::Unit
+        hir::Ty::Unit
     }
 
     fn infer_fnc_def(&mut self, idx: arena::Idx<hir::FncDef>) {
@@ -108,44 +100,29 @@ impl InferCtx<'_> {
 
         for param_idx in fnc_def.params {
             let param = self.params[param_idx];
-            let ty = match param.ty {
-                hir::Ty::Missing => Ty::Unknown,
-                hir::Ty::Unit => Ty::Unit,
-                hir::Ty::S32 => Ty::Int,
-                hir::Ty::String => Ty::String,
-            };
-
-            params.push(ty);
-
-            self.result.param_tys.insert(param_idx, ty);
+            params.push(param.ty);
+            self.result.param_tys.insert(param_idx, param.ty);
         }
 
-        let ret_ty = match fnc_def.ret_ty {
-            hir::Ty::Missing => Ty::Unknown,
-            hir::Ty::Unit => Ty::Unit,
-            hir::Ty::S32 => Ty::Int,
-            hir::Ty::String => Ty::String,
-        };
-
         let actual_ret_ty = self.infer_expr(fnc_def.body);
-        self.expect_tys_match(fnc_def.body, ret_ty, actual_ret_ty);
+        self.expect_tys_match(fnc_def.body, fnc_def.ret_ty, actual_ret_ty);
 
-        self.result.fnc_sigs.insert(idx, Sig { params, ret_ty });
+        self.result.fnc_sigs.insert(idx, Sig { params, ret_ty: fnc_def.ret_ty });
     }
 
-    fn infer_expr(&mut self, expr: hir::ExprIdx) -> Ty {
+    fn infer_expr(&mut self, expr: hir::ExprIdx) -> hir::Ty {
         let ty = match self.exprs[expr] {
-            hir::Expr::Missing => Ty::Unknown,
+            hir::Expr::Missing => hir::Ty::Unknown,
 
             hir::Expr::Bin { lhs, rhs, .. } => {
                 let lhs_ty = self.infer_expr(lhs);
                 let rhs_ty = self.infer_expr(rhs);
 
                 for (expr, ty) in [(lhs, lhs_ty), (rhs, rhs_ty)] {
-                    self.expect_tys_match(expr, Ty::Int, ty);
+                    self.expect_tys_match(expr, hir::Ty::S32, ty);
                 }
 
-                Ty::Int
+                hir::Ty::S32
             }
 
             hir::Expr::Block(ref stmts) => match stmts.split_last() {
@@ -157,16 +134,16 @@ impl InferCtx<'_> {
                     self.infer_stmt(*last)
                 }
 
-                None => Ty::Unit,
+                None => hir::Ty::Unit,
             },
 
             hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.result.local_tys[local_def],
 
             hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.result.param_tys[param],
 
-            hir::Expr::IntLiteral(_) => Ty::Int,
+            hir::Expr::IntLiteral(_) => hir::Ty::S32,
 
-            hir::Expr::StringLiteral(_) => Ty::String,
+            hir::Expr::StringLiteral(_) => hir::Ty::String,
         };
 
         self.result.expr_tys.insert(expr, ty);
@@ -174,8 +151,8 @@ impl InferCtx<'_> {
         ty
     }
 
-    fn expect_tys_match(&mut self, expr: hir::ExprIdx, expected: Ty, found: Ty) {
-        if found == expected || found == Ty::Unknown || expected == Ty::Unknown {
+    fn expect_tys_match(&mut self, expr: hir::ExprIdx, expected: hir::Ty, found: hir::Ty) {
+        if found == expected || found == hir::Ty::Unknown || expected == hir::Ty::Unknown {
             return;
         }
 
@@ -208,7 +185,7 @@ mod tests {
         let result =
             infer(&hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ten)], ..Default::default() });
 
-        assert_eq!(result.expr_tys[ten], Ty::Int);
+        assert_eq!(result.expr_tys[ten], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -223,7 +200,7 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[hello], Ty::String);
+        assert_eq!(result.expr_tys[hello], hir::Ty::String);
         assert_eq!(result.errors, []);
     }
 
@@ -241,9 +218,9 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[ten], Ty::Int);
-        assert_eq!(result.expr_tys[twenty], Ty::Int);
-        assert_eq!(result.expr_tys[ten_times_twenty], Ty::Int);
+        assert_eq!(result.expr_tys[ten], hir::Ty::S32);
+        assert_eq!(result.expr_tys[twenty], hir::Ty::S32);
+        assert_eq!(result.expr_tys[ten_times_twenty], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -261,14 +238,14 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.expr_tys[int], Ty::Int);
-        assert_eq!(result.expr_tys[bin_expr], Ty::Int);
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.expr_tys[int], hir::Ty::S32);
+        assert_eq!(result.expr_tys[bin_expr], hir::Ty::S32);
         assert_eq!(
             result.errors,
             [TyError {
                 expr: string,
-                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::String }
+                kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String }
             }]
         );
     }
@@ -288,8 +265,8 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[two], Ty::Int);
-        assert_eq!(result.local_tys[local_def], Ty::Int);
+        assert_eq!(result.expr_tys[two], hir::Ty::S32);
+        assert_eq!(result.local_tys[local_def], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -318,13 +295,13 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.local_tys[a_def], Ty::String);
-        assert_eq!(result.expr_tys[a], Ty::String);
-        assert_eq!(result.local_tys[b_def], Ty::String);
-        assert_eq!(result.expr_tys[b], Ty::String);
-        assert_eq!(result.local_tys[c_def], Ty::String);
-        assert_eq!(result.expr_tys[c], Ty::String);
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.local_tys[a_def], hir::Ty::String);
+        assert_eq!(result.expr_tys[a], hir::Ty::String);
+        assert_eq!(result.local_tys[b_def], hir::Ty::String);
+        assert_eq!(result.expr_tys[b], hir::Ty::String);
+        assert_eq!(result.local_tys[c_def], hir::Ty::String);
+        assert_eq!(result.expr_tys[c], hir::Ty::String);
         assert_eq!(result.errors, []);
     }
 
@@ -344,8 +321,8 @@ mod tests {
                 ..Default::default()
             });
 
-            assert_eq!(result.expr_tys[six], Ty::Int);
-            assert_eq!(result.local_tys[local_def], Ty::Int);
+            assert_eq!(result.expr_tys[six], hir::Ty::S32);
+            assert_eq!(result.local_tys[local_def], hir::Ty::S32);
             assert_eq!(result.errors, []);
 
             (result.in_scope().0, local_defs, local_def)
@@ -362,8 +339,8 @@ mod tests {
         };
         let result = infer_in_scope(&program, in_scope);
 
-        assert_eq!(result.expr_tys[local_value], Ty::Int);
-        assert_eq!(result.local_tys[local_def], Ty::Int);
+        assert_eq!(result.expr_tys[local_value], hir::Ty::S32);
+        assert_eq!(result.local_tys[local_def], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -378,7 +355,7 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[missing], Ty::Unknown);
+        assert_eq!(result.expr_tys[missing], hir::Ty::Unknown);
         assert_eq!(result.errors, []);
     }
 
@@ -401,11 +378,11 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[missing], Ty::Unknown);
-        assert_eq!(result.expr_tys[user], Ty::Unknown);
-        assert_eq!(result.expr_tys[four], Ty::Int);
-        assert_eq!(result.expr_tys[user_plus_four], Ty::Int);
-        assert_eq!(result.local_tys[user_def], Ty::Unknown);
+        assert_eq!(result.expr_tys[missing], hir::Ty::Unknown);
+        assert_eq!(result.expr_tys[user], hir::Ty::Unknown);
+        assert_eq!(result.expr_tys[four], hir::Ty::S32);
+        assert_eq!(result.expr_tys[user_plus_four], hir::Ty::S32);
+        assert_eq!(result.local_tys[user_def], hir::Ty::Unknown);
         assert_eq!(result.errors, []);
     }
 
@@ -423,9 +400,9 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[ten], Ty::Int);
-        assert_eq!(result.expr_tys[missing], Ty::Unknown);
-        assert_eq!(result.expr_tys[ten_times_missing], Ty::Int);
+        assert_eq!(result.expr_tys[ten], hir::Ty::S32);
+        assert_eq!(result.expr_tys[missing], hir::Ty::Unknown);
+        assert_eq!(result.expr_tys[ten_times_missing], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -440,7 +417,7 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[block], Ty::Unit);
+        assert_eq!(result.expr_tys[block], hir::Ty::Unit);
         assert_eq!(result.errors, []);
     }
 
@@ -460,9 +437,9 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.local_tys[local_def], Ty::String);
-        assert_eq!(result.expr_tys[block], Ty::Unit);
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.local_tys[local_def], hir::Ty::String);
+        assert_eq!(result.expr_tys[block], hir::Ty::Unit);
         assert_eq!(result.errors, []);
     }
 
@@ -484,10 +461,10 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[seven], Ty::Int);
-        assert_eq!(result.local_tys[num_def], Ty::Int);
-        assert_eq!(result.expr_tys[num], Ty::Int);
-        assert_eq!(result.expr_tys[block], Ty::Int);
+        assert_eq!(result.expr_tys[seven], hir::Ty::S32);
+        assert_eq!(result.local_tys[num_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[num], hir::Ty::S32);
+        assert_eq!(result.expr_tys[block], hir::Ty::S32);
         assert_eq!(result.errors, []);
     }
 
@@ -510,8 +487,8 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unit });
+        assert_eq!(result.expr_tys[empty_block], hir::Ty::Unit);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: hir::Ty::Unit });
         assert_eq!(result.errors, []);
     }
 
@@ -538,12 +515,12 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.param_tys[param_1], Ty::Int);
-        assert_eq!(result.param_tys[param_2], Ty::Int);
-        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
+        assert_eq!(result.param_tys[param_1], hir::Ty::S32);
+        assert_eq!(result.param_tys[param_2], hir::Ty::S32);
+        assert_eq!(result.expr_tys[empty_block], hir::Ty::Unit);
         assert_eq!(
             result.fnc_sigs[fnc_def],
-            Sig { params: vec![Ty::Int, Ty::Int], ret_ty: Ty::Unit }
+            Sig { params: vec![hir::Ty::S32, hir::Ty::S32], ret_ty: hir::Ty::Unit }
         );
         assert_eq!(result.errors, []);
     }
@@ -570,9 +547,12 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.param_tys[param_def], Ty::Int);
-        assert_eq!(result.expr_tys[param_ref], Ty::Int);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: vec![Ty::Int], ret_ty: Ty::Int });
+        assert_eq!(result.param_tys[param_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[param_ref], hir::Ty::S32);
+        assert_eq!(
+            result.fnc_sigs[fnc_def],
+            Sig { params: vec![hir::Ty::S32], ret_ty: hir::Ty::S32 }
+        );
         assert_eq!(result.errors, []);
     }
 
@@ -595,13 +575,13 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unit });
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: hir::Ty::Unit });
         assert_eq!(
             result.errors,
             [TyError {
                 expr: string,
-                kind: TyErrorKind::Mismatch { expected: Ty::Unit, found: Ty::String }
+                kind: TyErrorKind::Mismatch { expected: hir::Ty::Unit, found: hir::Ty::String }
             }]
         );
     }
@@ -625,8 +605,8 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[missing], Ty::Unknown);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Int });
+        assert_eq!(result.expr_tys[missing], hir::Ty::Unknown);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: hir::Ty::S32 });
         assert_eq!(result.errors, []);
     }
 
@@ -649,8 +629,8 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[missing], Ty::Unknown);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Int });
+        assert_eq!(result.expr_tys[missing], hir::Ty::Unknown);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: hir::Ty::S32 });
         assert_eq!(result.errors, []);
     }
 
@@ -662,7 +642,7 @@ mod tests {
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::default(),
-            ret_ty: hir::Ty::Missing,
+            ret_ty: hir::Ty::Unknown,
             body: empty_block,
         });
 
@@ -673,8 +653,8 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[empty_block], Ty::Unit);
-        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: Ty::Unknown });
+        assert_eq!(result.expr_tys[empty_block], hir::Ty::Unit);
+        assert_eq!(result.fnc_sigs[fnc_def], Sig { params: Vec::new(), ret_ty: hir::Ty::Unknown });
         assert_eq!(result.errors, []);
     }
 
@@ -699,17 +679,17 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[string], Ty::String);
-        assert_eq!(result.expr_tys[local], Ty::String);
-        assert_eq!(result.local_tys[local_def], Ty::String);
-        assert_eq!(result.expr_tys[block], Ty::String);
-        assert_eq!(result.expr_tys[ten], Ty::Int);
-        assert_eq!(result.expr_tys[block_plus_ten], Ty::Int);
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.expr_tys[local], hir::Ty::String);
+        assert_eq!(result.local_tys[local_def], hir::Ty::String);
+        assert_eq!(result.expr_tys[block], hir::Ty::String);
+        assert_eq!(result.expr_tys[ten], hir::Ty::S32);
+        assert_eq!(result.expr_tys[block_plus_ten], hir::Ty::S32);
         assert_eq!(
             result.errors,
             [TyError {
                 expr: local,
-                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::String }
+                kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String }
             }]
         );
     }
@@ -733,16 +713,16 @@ mod tests {
             ..Default::default()
         });
 
-        assert_eq!(result.expr_tys[five], Ty::Int);
-        assert_eq!(result.local_tys[local_def], Ty::Int);
-        assert_eq!(result.expr_tys[block], Ty::Unit);
-        assert_eq!(result.expr_tys[four], Ty::Int);
-        assert_eq!(result.expr_tys[block_plus_four], Ty::Int);
+        assert_eq!(result.expr_tys[five], hir::Ty::S32);
+        assert_eq!(result.local_tys[local_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[block], hir::Ty::Unit);
+        assert_eq!(result.expr_tys[four], hir::Ty::S32);
+        assert_eq!(result.expr_tys[block_plus_four], hir::Ty::S32);
         assert_eq!(
             result.errors,
             [TyError {
                 expr: block,
-                kind: TyErrorKind::Mismatch { expected: Ty::Int, found: Ty::Unit }
+                kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::Unit }
             }]
         );
     }

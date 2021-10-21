@@ -40,7 +40,7 @@ pub struct Param {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Ty {
-    Missing,
+    Unknown,
     Unit,
     S32,
     String,
