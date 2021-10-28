@@ -1214,6 +1214,62 @@ mod tests {
     }
 
     #[test]
+    fn parse_fnc_def_with_missing_param_ty_name() {
+        check(
+            "fnc f(a:) -> {}",
+            expect![[r#"
+                Root@0..15
+                  FncDef@0..15
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "f"
+                    ParamList@5..10
+                      LParen@5..6 "("
+                      Param@6..8
+                        Ident@6..7 "a"
+                        Colon@7..8 ":"
+                        Ty@8..8
+                      RParen@8..9 ")"
+                      Whitespace@9..10 " "
+                    Arrow@10..12 "->"
+                    Whitespace@12..13 " "
+                    Block@13..15
+                      LBrace@13..14 "{"
+                      RBrace@14..15 "}"
+                error at 8: missing parameter type
+            "#]],
+        );
+    }
+
+    #[test]
+    fn parse_fnc_def_with_missing_param_colon_and_ty() {
+        check(
+            "fnc a(param) -> {}",
+            expect![[r#"
+                Root@0..18
+                  FncDef@0..18
+                    FncKw@0..3 "fnc"
+                    Whitespace@3..4 " "
+                    Ident@4..5 "a"
+                    ParamList@5..13
+                      LParen@5..6 "("
+                      Param@6..11
+                        Ident@6..11 "param"
+                        Ty@11..11
+                      RParen@11..12 ")"
+                      Whitespace@12..13 " "
+                    Arrow@13..15 "->"
+                    Whitespace@15..16 " "
+                    Block@16..18
+                      LBrace@16..17 "{"
+                      RBrace@17..18 "}"
+                error at 11: missing Colon
+                error at 11: missing parameter type
+            "#]],
+        );
+    }
+
+    #[test]
     fn parse_extra_right_braces() {
         check(
             "{}}",

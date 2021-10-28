@@ -1,5 +1,5 @@
 use crate::grammar::expr::{parse_expr, EXPR_FIRST};
-use crate::grammar::ty::{parse_ty, parse_ty_with_recovery_set};
+use crate::grammar::ty::parse_ty;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
@@ -71,7 +71,7 @@ fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     {
         let _guard = p.expected_syntax_name("return type");
-        parse_ty_with_recovery_set(p, TokenSet::new([TokenKind::Arrow]).union(EXPR_FIRST));
+        parse_ty(p, TokenSet::new([TokenKind::Arrow]).union(EXPR_FIRST));
     }
 
     m.complete(p, SyntaxKind::RetTy)
@@ -84,8 +84,13 @@ fn parse_fnc_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
         let _guard = p.expected_syntax_name("parameter name");
         p.expect_with_recovery_set(TokenKind::Ident, TokenSet::new([TokenKind::Colon]));
     }
-    p.expect(TokenKind::Colon);
-    parse_ty(p);
+
+    p.expect_with_recovery_set(TokenKind::Colon, TokenSet::new([TokenKind::RParen]));
+
+    {
+        let _guard = p.expected_syntax_name("parameter type");
+        parse_ty(p, TokenSet::new([TokenKind::RParen]));
+    }
 
     m.complete(p, SyntaxKind::Param)
 }
