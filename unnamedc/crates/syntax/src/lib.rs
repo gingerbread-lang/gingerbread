@@ -57,6 +57,7 @@ pub enum SyntaxKind {
     Eq,
     Colon,
     Comma,
+    Semicolon,
     Arrow,
     LParen,
     RParen,

@@ -222,6 +222,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Eq => "`=`",
         TokenKind::Colon => "`:`",
         TokenKind::Comma => "`,`",
+        TokenKind::Semicolon => "`;`",
         TokenKind::Arrow => "`->`",
         TokenKind::LParen => "`(`",
         TokenKind::RParen => "`)`",

@@ -134,6 +134,7 @@ fn render(
             TokenKind::Eq
             | TokenKind::Colon
             | TokenKind::Comma
+            | TokenKind::Semicolon
             | TokenKind::Arrow
             | TokenKind::LParen
             | TokenKind::RParen

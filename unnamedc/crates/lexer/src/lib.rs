@@ -69,6 +69,9 @@ enum LexerTokenKind {
     #[token(",")]
     Comma,
 
+    #[token(";")]
+    Semicolon,
+
     #[token("->")]
     Arrow,
 
@@ -241,6 +244,11 @@ mod tests {
     #[test]
     fn lex_comma() {
         check(",", TokenKind::Comma);
+    }
+
+    #[test]
+    fn lex_semicolon() {
+        check(";", TokenKind::Semicolon);
     }
 
     #[test]
