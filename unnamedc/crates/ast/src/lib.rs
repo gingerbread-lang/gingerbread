@@ -61,9 +61,9 @@ macro_rules! def_ast_token {
     };
 }
 
-def_ast_node!(Root);
+def_ast_node!(SourceFile);
 
-impl Root {
+impl SourceFile {
     pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
         nodes(self)
     }
@@ -312,26 +312,26 @@ fn token<Node: AstNode, Token: AstToken>(node: &Node) -> Option<Token> {
 mod tests {
     use super::*;
 
-    fn parse(input: &str) -> Root {
+    fn parse(input: &str) -> SourceFile {
         let syntax = parser::parse(&lexer::lex(input)).syntax_node();
-        Root::cast(syntax).unwrap()
+        SourceFile::cast(syntax).unwrap()
     }
 
     #[test]
-    fn cast_root() {
+    fn cast_source_file() {
         parse("");
     }
 
     #[test]
     fn get_stmts() {
-        let root = parse("let a = b\na");
-        assert_eq!(root.stmts().count(), 2);
+        let source_file = parse("let a = b\na");
+        assert_eq!(source_file.stmts().count(), 2);
     }
 
     #[test]
     fn inspect_stmt_and_expr_kind() {
-        let root = parse("let foo = bar\nbaz * quuz");
-        let mut stmts = root.stmts();
+        let source_file = parse("let foo = bar\nbaz * quuz");
+        let mut stmts = source_file.stmts();
         let local_def = stmts.next().unwrap();
         let expr = stmts.next().unwrap();
         assert!(stmts.next().is_none());
@@ -349,8 +349,8 @@ mod tests {
 
     #[test]
     fn get_name_of_local_def() {
-        let root = parse("let a = 10");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("let a = 10");
+        let stmt = source_file.stmts().next().unwrap();
 
         let local_def = match stmt {
             Stmt::LocalDef(local_def) => local_def,
@@ -362,8 +362,8 @@ mod tests {
 
     #[test]
     fn get_value_of_local_def() {
-        let root = parse("let foo = 5");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("let foo = 5");
+        let stmt = source_file.stmts().next().unwrap();
 
         let local_def = match stmt {
             Stmt::LocalDef(local_def) => local_def,
@@ -378,8 +378,8 @@ mod tests {
 
     #[test]
     fn get_inner_expr_of_paren_expr() {
-        let root = parse("(1)");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("(1)");
+        let stmt = source_file.stmts().next().unwrap();
 
         let paren_expr = match stmt {
             Stmt::Expr(Expr::Paren(paren_expr)) => paren_expr,
@@ -394,8 +394,8 @@ mod tests {
 
     #[test]
     fn get_lhs_and_rhs_of_bin_expr() {
-        let root = parse("foo * 2");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("foo * 2");
+        let stmt = source_file.stmts().next().unwrap();
 
         let bin_expr = match stmt {
             Stmt::Expr(Expr::Bin(bin_expr)) => bin_expr,
@@ -415,8 +415,8 @@ mod tests {
 
     #[test]
     fn get_operator_of_bin_expr() {
-        let root = parse("a + b");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("a + b");
+        let stmt = source_file.stmts().next().unwrap();
 
         let bin_expr = match stmt {
             Stmt::Expr(Expr::Bin(bin_expr)) => bin_expr,
@@ -431,8 +431,8 @@ mod tests {
 
     #[test]
     fn get_name_of_var_ref() {
-        let root = parse("idx");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("idx");
+        let stmt = source_file.stmts().next().unwrap();
 
         let var_ref = match stmt {
             Stmt::Expr(Expr::VarRef(var_ref)) => var_ref,
@@ -444,8 +444,8 @@ mod tests {
 
     #[test]
     fn get_value_of_int_literal() {
-        let root = parse("92");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("92");
+        let stmt = source_file.stmts().next().unwrap();
 
         let int_literal = match stmt {
             Stmt::Expr(Expr::IntLiteral(int_literal)) => int_literal,
@@ -457,8 +457,8 @@ mod tests {
 
     #[test]
     fn get_value_of_string_literal() {
-        let root = parse("\"👀\"");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("\"👀\"");
+        let stmt = source_file.stmts().next().unwrap();
 
         let string_literal = match stmt {
             Stmt::Expr(Expr::StringLiteral(string_literal)) => string_literal,
@@ -470,8 +470,8 @@ mod tests {
 
     #[test]
     fn get_block_stmts() {
-        let root = parse("{ let a = 10\nlet b = a * (a - 1)\nb + 5 }");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("{ let a = 10\nlet b = a * (a - 1)\nb + 5 }");
+        let stmt = source_file.stmts().next().unwrap();
 
         let block = match stmt {
             Stmt::Expr(Expr::Block(block)) => block,
@@ -488,8 +488,8 @@ mod tests {
 
     #[test]
     fn get_fnc_def_name() {
-        let root = parse("fnc a() -> {}");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("fnc a() -> {}");
+        let stmt = source_file.stmts().next().unwrap();
 
         let fnc_def = match stmt {
             Stmt::FncDef(fnc_def) => fnc_def,
@@ -501,8 +501,8 @@ mod tests {
 
     #[test]
     fn get_fnc_def_params() {
-        let root = parse("fnc add(x: s32, y: s32) -> {}");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("fnc add(x: s32, y: s32) -> {}");
+        let stmt = source_file.stmts().next().unwrap();
 
         let fnc_def = match stmt {
             Stmt::FncDef(fnc_def) => fnc_def,
@@ -524,8 +524,8 @@ mod tests {
 
     #[test]
     fn get_fnc_def_ret_ty() {
-        let root = parse("fnc four(): s32 -> 4");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("fnc four(): s32 -> 4");
+        let stmt = source_file.stmts().next().unwrap();
 
         let fnc_def = match stmt {
             Stmt::FncDef(fnc_def) => fnc_def,
@@ -537,8 +537,8 @@ mod tests {
 
     #[test]
     fn get_fnc_def_body() {
-        let root = parse("fnc nothing() -> {}");
-        let stmt = root.stmts().next().unwrap();
+        let source_file = parse("fnc nothing() -> {}");
+        let stmt = source_file.stmts().next().unwrap();
 
         let fnc_def = match stmt {
             Stmt::FncDef(fnc_def) => fnc_def,

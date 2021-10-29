@@ -4,13 +4,13 @@ use std::collections::HashMap;
 use text_size::TextRange;
 
 pub fn lower(
-    ast: &ast::Root,
+    ast: &ast::SourceFile,
 ) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
     lower_with_local_defs(ast, Arena::new(), HashMap::new())
 }
 
 pub fn lower_with_local_defs(
-    ast: &ast::Root,
+    ast: &ast::SourceFile,
     local_defs: Arena<hir::LocalDef>,
     var_names: HashMap<String, hir::VarDefIdx>,
 ) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
@@ -267,8 +267,8 @@ mod tests {
             .collect::<Vec<_>>();
 
         let parse = parser::parse(&lexer::lex(input));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (actual_program, _, actual_errors, _) = lower(&root);
+        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
+        let (actual_program, _, actual_errors, _) = lower(&source_file);
 
         pretty_assertions::assert_eq!(actual_program, expected_program);
         pretty_assertions::assert_eq!(actual_errors, expected_errors);
@@ -473,8 +473,8 @@ mod tests {
         let a_def = local_defs.alloc(hir::LocalDef { value: hello });
 
         let parse = parser::parse(&lexer::lex("let a = \"hello\""));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, local_def_names) = lower(&root);
+        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
+        let (program, _, errors, local_def_names) = lower(&source_file);
 
         assert_eq!(
             program,
@@ -491,9 +491,9 @@ mod tests {
         let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
 
         let parse = parser::parse(&lexer::lex("a"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, _) =
-            lower_with_local_defs(&root, local_defs.clone(), local_def_names);
+            lower_with_local_defs(&source_file, local_defs.clone(), local_def_names);
 
         assert_eq!(
             program,
@@ -800,8 +800,8 @@ mod tests {
     #[test]
     fn source_map() {
         let parse = parser::parse(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10\na - 5"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let mut stmts = root.stmts();
+        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
+        let mut stmts = source_file.stmts();
 
         let fnc_def_ast = match stmts.next().unwrap() {
             ast::Stmt::FncDef(fnc_def) => fnc_def,
@@ -842,7 +842,7 @@ mod tests {
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 
-        let (program, source_map, errors, _) = lower(&root);
+        let (program, source_map, errors, _) = lower(&source_file);
 
         assert_eq!(
             program,

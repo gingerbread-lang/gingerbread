@@ -13,7 +13,7 @@ use syntax::SyntaxNode;
 use token::Token;
 
 pub fn parse(tokens: &[Token<'_>]) -> Parse {
-    let events = Parser::new(tokens).parse(grammar::root);
+    let events = Parser::new(tokens).parse(grammar::source_file);
     Sink::new(events, tokens).finish()
 }
 

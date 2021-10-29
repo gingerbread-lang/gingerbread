@@ -1,10 +1,10 @@
-use crate::{AstNode, AstToken, IntLiteral, Root};
+use crate::{AstNode, AstToken, IntLiteral, SourceFile};
 use text_size::TextRange;
 
-pub fn validate(root: &Root) -> Vec<ValidationError> {
+pub fn validate(source_file: &SourceFile) -> Vec<ValidationError> {
     let mut errors = Vec::new();
 
-    for node in root.syntax().descendants() {
+    for node in source_file.syntax().descendants() {
         if let Some(int_literal) = IntLiteral::cast(node) {
             if let Some(value) = int_literal.value() {
                 let text = value.text();
@@ -23,10 +23,10 @@ pub fn validate(root: &Root) -> Vec<ValidationError> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValidatedRoot(Root);
+pub struct ValidatedSourceFile(SourceFile);
 
-impl ValidatedRoot {
-    pub fn root(&self) -> &Root {
+impl ValidatedSourceFile {
+    pub fn source_file(&self) -> &SourceFile {
         &self.0
     }
 }
@@ -59,9 +59,9 @@ mod validation_tests {
             .collect();
 
         let syntax = parser::parse(&lexer::lex(input)).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let source_file = SourceFile::cast(syntax).unwrap();
 
-        assert_eq!(validate(&root), errors);
+        assert_eq!(validate(&source_file), errors);
     }
 
     #[test]

@@ -5,7 +5,7 @@ mod ty;
 use crate::parser::Parser;
 use syntax::SyntaxKind;
 
-pub(crate) fn root(p: &mut Parser<'_, '_>) {
+pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
     loop {
@@ -16,7 +16,7 @@ pub(crate) fn root(p: &mut Parser<'_, '_>) {
         self::stmt::parse_stmt(p);
     }
 
-    m.complete(p, SyntaxKind::Root);
+    m.complete(p, SyntaxKind::SourceFile);
 }
 
 #[cfg(test)]
@@ -33,7 +33,7 @@ mod tests {
         check(
             "",
             expect![[r#"
-                Root@0..0
+                SourceFile@0..0
             "#]],
         );
     }
@@ -43,7 +43,7 @@ mod tests {
         check(
             "foo",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   VarRef@0..3
                     Ident@0..3 "foo"
             "#]],
@@ -55,7 +55,7 @@ mod tests {
         check(
             " foo   ",
             expect![[r#"
-                Root@0..7
+                SourceFile@0..7
                   Whitespace@0..1 " "
                   VarRef@1..7
                     Ident@1..4 "foo"
@@ -69,7 +69,7 @@ mod tests {
         check(
             "123",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   IntLiteral@0..3
                     Int@0..3 "123"
             "#]],
@@ -81,7 +81,7 @@ mod tests {
         check(
             "2+4",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   BinExpr@0..3
                     IntLiteral@0..1
                       Int@0..1 "2"
@@ -97,7 +97,7 @@ mod tests {
         check(
             "len-1",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   BinExpr@0..5
                     VarRef@0..3
                       Ident@0..3 "len"
@@ -113,7 +113,7 @@ mod tests {
         check(
             "foo * bar",
             expect![[r#"
-                Root@0..9
+                SourceFile@0..9
                   BinExpr@0..9
                     VarRef@0..4
                       Ident@0..3 "foo"
@@ -131,7 +131,7 @@ mod tests {
         check(
             "22/ 7",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   BinExpr@0..5
                     IntLiteral@0..2
                       Int@0..2 "22"
@@ -148,7 +148,7 @@ mod tests {
         check(
             "1+2+3",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   BinExpr@0..5
                     BinExpr@0..3
                       IntLiteral@0..1
@@ -168,7 +168,7 @@ mod tests {
         check(
             "x1*x2*x3*x4",
             expect![[r#"
-                Root@0..11
+                SourceFile@0..11
                   BinExpr@0..11
                     BinExpr@0..8
                       BinExpr@0..5
@@ -192,7 +192,7 @@ mod tests {
         check(
             "1+2*3",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   BinExpr@0..5
                     IntLiteral@0..1
                       Int@0..1 "1"
@@ -212,7 +212,7 @@ mod tests {
         check(
             "10/9-8/7",
             expect![[r#"
-                Root@0..8
+                SourceFile@0..8
                   BinExpr@0..8
                     BinExpr@0..4
                       IntLiteral@0..2
@@ -236,7 +236,7 @@ mod tests {
         check(
             "(5)",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   ParenExpr@0..3
                     LParen@0..1 "("
                     IntLiteral@1..2
@@ -251,7 +251,7 @@ mod tests {
         check(
             "((((10))))",
             expect![[r#"
-                Root@0..10
+                SourceFile@0..10
                   ParenExpr@0..10
                     LParen@0..1 "("
                     ParenExpr@1..9
@@ -275,7 +275,7 @@ mod tests {
         check(
             "(42+4)*2",
             expect![[r#"
-                Root@0..8
+                SourceFile@0..8
                   BinExpr@0..8
                     ParenExpr@0..6
                       LParen@0..1 "("
@@ -298,7 +298,7 @@ mod tests {
         check(
             "(foo",
             expect![[r#"
-                Root@0..4
+                SourceFile@0..4
                   ParenExpr@0..4
                     LParen@0..1 "("
                     VarRef@1..4
@@ -313,7 +313,7 @@ mod tests {
         check(
             "(a ",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   ParenExpr@0..3
                     LParen@0..1 "("
                     VarRef@1..3
@@ -329,7 +329,7 @@ mod tests {
         check(
             "()",
             expect![[r#"
-                Root@0..2
+                SourceFile@0..2
                   ParenExpr@0..2
                     LParen@0..1 "("
                     RParen@1..2 ")"
@@ -343,7 +343,7 @@ mod tests {
         check(
             "(1+1 let foo = bar",
             expect![[r#"
-                Root@0..18
+                SourceFile@0..18
                   ParenExpr@0..5
                     LParen@0..1 "("
                     BinExpr@1..5
@@ -372,7 +372,7 @@ mod tests {
         check(
             "1+",
             expect![[r#"
-                Root@0..2
+                SourceFile@0..2
                   BinExpr@0..2
                     IntLiteral@0..1
                       Int@0..1 "1"
@@ -387,7 +387,7 @@ mod tests {
         check(
             "å*5",
             expect![[r#"
-                Root@0..4
+                SourceFile@0..4
                   BinExpr@0..4
                     Error@0..2
                       Error@0..2 "å"
@@ -404,7 +404,7 @@ mod tests {
         check(
             "10 - %",
             expect![[r#"
-                Root@0..6
+                SourceFile@0..6
                   BinExpr@0..6
                     IntLiteral@0..3
                       Int@0..2 "10"
@@ -423,7 +423,7 @@ mod tests {
         check(
             "5 * ($ - foo) / ?",
             expect![[r#"
-                Root@0..17
+                SourceFile@0..17
                   BinExpr@0..17
                     BinExpr@0..14
                       IntLiteral@0..2
@@ -458,7 +458,7 @@ mod tests {
         check(
             "let a = b",
             expect![[r#"
-                Root@0..9
+                SourceFile@0..9
                   LocalDef@0..9
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -477,7 +477,7 @@ mod tests {
         check(
             "let b=c\nlet a=b",
             expect![[r#"
-                Root@0..15
+                SourceFile@0..15
                   LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -502,7 +502,7 @@ mod tests {
         check(
             "2 4 6",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   IntLiteral@0..2
                     Int@0..1 "2"
                     Whitespace@1..2 " "
@@ -520,7 +520,7 @@ mod tests {
         check(
             "let = 92",
             expect![[r#"
-                Root@0..8
+                SourceFile@0..8
                   LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -538,7 +538,7 @@ mod tests {
         check(
             "let foo =\nlet bar = 92",
             expect![[r#"
-                Root@0..22
+                SourceFile@0..22
                   LocalDef@0..10
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -565,7 +565,7 @@ mod tests {
         check(
             "let a let",
             expect![[r#"
-                Root@0..9
+                SourceFile@0..9
                   LocalDef@0..6
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -587,7 +587,7 @@ mod tests {
         check(
             "let",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   LocalDef@0..3
                     LetKw@0..3 "let"
                 error at 3: missing variable name
@@ -602,7 +602,7 @@ mod tests {
         check(
             "let let a = b",
             expect![[r#"
-                Root@0..13
+                SourceFile@0..13
                   LocalDef@0..4
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -627,7 +627,7 @@ mod tests {
         check(
             "\"Hello, world!\"",
             expect![[r#"
-                Root@0..15
+                SourceFile@0..15
                   StringLiteral@0..15
                     String@0..15 "\"Hello, world!\""
             "#]],
@@ -639,7 +639,7 @@ mod tests {
         check(
             "{}",
             expect![[r#"
-                Root@0..2
+                SourceFile@0..2
                   Block@0..2
                     LBrace@0..1 "{"
                     RBrace@1..2 "}"
@@ -652,7 +652,7 @@ mod tests {
         check(
             "{ let zero = 0 }",
             expect![[r#"
-                Root@0..16
+                SourceFile@0..16
                   Block@0..16
                     LBrace@0..1 "{"
                     Whitespace@1..2 " "
@@ -676,7 +676,7 @@ mod tests {
         check(
             "{let a=100 let b=a*10 b-1}",
             expect![[r#"
-                Root@0..26
+                SourceFile@0..26
                   Block@0..26
                     LBrace@0..1 "{"
                     LocalDef@1..11
@@ -715,7 +715,7 @@ mod tests {
         check(
             "{1+}",
             expect![[r#"
-                Root@0..4
+                SourceFile@0..4
                   Block@0..4
                     LBrace@0..1 "{"
                     BinExpr@1..3
@@ -733,7 +733,7 @@ mod tests {
         check(
             "{5",
             expect![[r#"
-                Root@0..2
+                SourceFile@0..2
                   Block@0..2
                     LBrace@0..1 "{"
                     IntLiteral@1..2
@@ -748,7 +748,7 @@ mod tests {
         check(
             "{ let foo={let bar=23 bar*2} foo*2 }",
             expect![[r#"
-                Root@0..36
+                SourceFile@0..36
                   Block@0..36
                     LBrace@0..1 "{"
                     Whitespace@1..2 " "
@@ -792,7 +792,7 @@ mod tests {
         check(
             "{a)",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   Block@0..3
                     LBrace@0..1 "{"
                     VarRef@1..2
@@ -809,7 +809,7 @@ mod tests {
         check(
             "fnc add(x: s32, y: s32): s32 -> x + y",
             expect![[r#"
-                Root@0..37
+                SourceFile@0..37
                   FncDef@0..37
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -856,7 +856,7 @@ mod tests {
         check(
             "fnc nothing() -> {}",
             expect![[r#"
-                Root@0..19
+                SourceFile@0..19
                   FncDef@0..19
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -879,7 +879,7 @@ mod tests {
         check(
             "fnc drop(n: s32,) -> {}",
             expect![[r#"
-                Root@0..23
+                SourceFile@0..23
                   FncDef@0..23
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -909,7 +909,7 @@ mod tests {
         check(
             "fnc id(: foo) -> {}",
             expect![[r#"
-                Root@0..19
+                SourceFile@0..19
                   FncDef@0..19
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -938,7 +938,7 @@ mod tests {
         check(
             "fnc five(): s32 5",
             expect![[r#"
-                Root@0..17
+                SourceFile@0..17
                   FncDef@0..17
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -964,7 +964,7 @@ mod tests {
         check(
             "fnc (x: s32) -> x",
             expect![[r#"
-                Root@0..17
+                SourceFile@0..17
                   FncDef@0..17
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -992,7 +992,7 @@ mod tests {
         check(
             "fnc ten -> 10",
             expect![[r#"
-                Root@0..13
+                SourceFile@0..13
                   FncDef@0..13
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1012,7 +1012,7 @@ mod tests {
         check(
             "fnc",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   FncDef@0..3
                     FncKw@0..3 "fnc"
                 error at 3: missing function name
@@ -1028,7 +1028,7 @@ mod tests {
         check(
             "fnc main(",
             expect![[r#"
-                Root@0..9
+                SourceFile@0..9
                   FncDef@0..9
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1047,7 +1047,7 @@ mod tests {
         check(
             "fnc foo(bar: s32 -> {}",
             expect![[r#"
-                Root@0..22
+                SourceFile@0..22
                   FncDef@0..22
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1076,7 +1076,7 @@ mod tests {
         check(
             "fnc five(): -> 5",
             expect![[r#"
-                Root@0..16
+                SourceFile@0..16
                   FncDef@0..16
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1102,7 +1102,7 @@ mod tests {
         check(
             "fnc gen(): { let foo = 5\nfoo }",
             expect![[r#"
-                Root@0..30
+                SourceFile@0..30
                   FncDef@0..30
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1142,7 +1142,7 @@ mod tests {
         check(
             "fnc {",
             expect![[r#"
-                Root@0..5
+                SourceFile@0..5
                   FncDef@0..5
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1161,7 +1161,7 @@ mod tests {
         check(
             "fnc foo let bar = 5",
             expect![[r#"
-                Root@0..19
+                SourceFile@0..19
                   FncDef@0..8
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1188,7 +1188,7 @@ mod tests {
         check(
             "let a = fnc one() -> 1",
             expect![[r#"
-                Root@0..22
+                SourceFile@0..22
                   LocalDef@0..8
                     LetKw@0..3 "let"
                     Whitespace@3..4 " "
@@ -1218,7 +1218,7 @@ mod tests {
         check(
             "fnc f(a:) -> {}",
             expect![[r#"
-                Root@0..15
+                SourceFile@0..15
                   FncDef@0..15
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1246,7 +1246,7 @@ mod tests {
         check(
             "fnc a(param) -> {}",
             expect![[r#"
-                Root@0..18
+                SourceFile@0..18
                   FncDef@0..18
                     FncKw@0..3 "fnc"
                     Whitespace@3..4 " "
@@ -1274,7 +1274,7 @@ mod tests {
         check(
             "{}}",
             expect![[r#"
-                Root@0..3
+                SourceFile@0..3
                   Block@0..2
                     LBrace@0..1 "{"
                     RBrace@1..2 "}"
