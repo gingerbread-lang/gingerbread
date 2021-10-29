@@ -22,15 +22,6 @@ pub fn validate(source_file: &SourceFile) -> Vec<ValidationError> {
     errors
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ValidatedSourceFile(SourceFile);
-
-impl ValidatedSourceFile {
-    pub fn source_file(&self) -> &SourceFile {
-        &self.0
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct ValidationError {
     pub kind: ValidationErrorKind,
