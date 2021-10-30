@@ -1,0 +1,17 @@
+{ let zero = 0 }
+===
+SourceFile@0..16
+  Block@0..16
+    LBrace@0..1 "{"
+    Whitespace@1..2 " "
+    LocalDef@2..15
+      LetKw@2..5 "let"
+      Whitespace@5..6 " "
+      Ident@6..10 "zero"
+      Whitespace@10..11 " "
+      Eq@11..12 "="
+      Whitespace@12..13 " "
+      IntLiteral@13..15
+        Int@13..14 "0"
+        Whitespace@14..15 " "
+    RBrace@15..16 "}"

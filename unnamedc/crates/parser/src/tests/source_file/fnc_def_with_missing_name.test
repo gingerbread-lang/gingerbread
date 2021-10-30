@@ -1,0 +1,21 @@
+fnc (x: s32) -> x
+===
+SourceFile@0..17
+  FncDef@0..17
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    ParamList@4..13
+      LParen@4..5 "("
+      Param@5..11
+        Ident@5..6 "x"
+        Colon@6..7 ":"
+        Whitespace@7..8 " "
+        Ty@8..11
+          Ident@8..11 "s32"
+      RParen@11..12 ")"
+      Whitespace@12..13 " "
+    Arrow@13..15 "->"
+    Whitespace@15..16 " "
+    VarRef@16..17
+      Ident@16..17 "x"
+error at 3: missing function name

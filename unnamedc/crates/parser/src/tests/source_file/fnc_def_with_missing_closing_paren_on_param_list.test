@@ -1,0 +1,12 @@
+fnc main(
+===
+SourceFile@0..9
+  FncDef@0..9
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..8 "main"
+    ParamList@8..9
+      LParen@8..9 "("
+error at 9: missing RParen
+error at 9: missing Arrow
+error at 9: missing function body

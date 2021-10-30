@@ -1,0 +1,9 @@
+{}}
+===
+SourceFile@0..3
+  Block@0..2
+    LBrace@0..1 "{"
+    RBrace@1..2 "}"
+  Error@2..3
+    RBrace@2..3 "}"
+error at 2..3: expected statement but found RBrace

@@ -1,0 +1,21 @@
+let foo =
+let bar = 92
+===
+SourceFile@0..22
+  LocalDef@0..10
+    LetKw@0..3 "let"
+    Whitespace@3..4 " "
+    Ident@4..7 "foo"
+    Whitespace@7..8 " "
+    Eq@8..9 "="
+    Whitespace@9..10 "\n"
+  LocalDef@10..22
+    LetKw@10..13 "let"
+    Whitespace@13..14 " "
+    Ident@14..17 "bar"
+    Whitespace@17..18 " "
+    Eq@18..19 "="
+    Whitespace@19..20 " "
+    IntLiteral@20..22
+      Int@20..22 "92"
+error at 9: missing variable value

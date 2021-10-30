@@ -1,0 +1,40 @@
+fnc add(x: s32, y: s32): s32 -> x + y
+===
+SourceFile@0..37
+  FncDef@0..37
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..7 "add"
+    ParamList@7..23
+      LParen@7..8 "("
+      Param@8..14
+        Ident@8..9 "x"
+        Colon@9..10 ":"
+        Whitespace@10..11 " "
+        Ty@11..14
+          Ident@11..14 "s32"
+      Comma@14..15 ","
+      Whitespace@15..16 " "
+      Param@16..22
+        Ident@16..17 "y"
+        Colon@17..18 ":"
+        Whitespace@18..19 " "
+        Ty@19..22
+          Ident@19..22 "s32"
+      RParen@22..23 ")"
+    RetTy@23..29
+      Colon@23..24 ":"
+      Whitespace@24..25 " "
+      Ty@25..29
+        Ident@25..28 "s32"
+        Whitespace@28..29 " "
+    Arrow@29..31 "->"
+    Whitespace@31..32 " "
+    BinExpr@32..37
+      VarRef@32..34
+        Ident@32..33 "x"
+        Whitespace@33..34 " "
+      Plus@34..35 "+"
+      Whitespace@35..36 " "
+      VarRef@36..37
+        Ident@36..37 "y"

@@ -1,0 +1,17 @@
+((((10))))
+===
+SourceFile@0..10
+  ParenExpr@0..10
+    LParen@0..1 "("
+    ParenExpr@1..9
+      LParen@1..2 "("
+      ParenExpr@2..8
+        LParen@2..3 "("
+        ParenExpr@3..7
+          LParen@3..4 "("
+          IntLiteral@4..6
+            Int@4..6 "10"
+          RParen@6..7 ")"
+        RParen@7..8 ")"
+      RParen@8..9 ")"
+    RParen@9..10 ")"

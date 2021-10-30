@@ -1,0 +1,23 @@
+x1 * x2 * x3 * x4
+===
+SourceFile@0..17
+  BinExpr@0..17
+    BinExpr@0..13
+      BinExpr@0..8
+        VarRef@0..3
+          Ident@0..2 "x1"
+          Whitespace@2..3 " "
+        Asterisk@3..4 "*"
+        Whitespace@4..5 " "
+        VarRef@5..8
+          Ident@5..7 "x2"
+          Whitespace@7..8 " "
+      Asterisk@8..9 "*"
+      Whitespace@9..10 " "
+      VarRef@10..13
+        Ident@10..12 "x3"
+        Whitespace@12..13 " "
+    Asterisk@13..14 "*"
+    Whitespace@14..15 " "
+    VarRef@15..17
+      Ident@15..17 "x4"

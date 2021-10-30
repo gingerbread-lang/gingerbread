@@ -1,0 +1,10 @@
+{a)
+===
+SourceFile@0..3
+  Block@0..3
+    LBrace@0..1 "{"
+    VarRef@1..2
+      Ident@1..2 "a"
+    Error@2..3
+      RParen@2..3 ")"
+error at 2..3: expected RBrace but found RParen

@@ -1,0 +1,13 @@
+2
+4
+6
+===
+SourceFile@0..5
+  IntLiteral@0..2
+    Int@0..1 "2"
+    Whitespace@1..2 "\n"
+  IntLiteral@2..4
+    Int@2..3 "4"
+    Whitespace@3..4 "\n"
+  IntLiteral@4..5
+    Int@4..5 "6"

@@ -1,0 +1,13 @@
+fnc ten -> 10
+===
+SourceFile@0..13
+  FncDef@0..13
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..7 "ten"
+    Whitespace@7..8 " "
+    Arrow@8..10 "->"
+    Whitespace@10..11 " "
+    IntLiteral@11..13
+      Int@11..13 "10"
+error at 7: missing function parameters

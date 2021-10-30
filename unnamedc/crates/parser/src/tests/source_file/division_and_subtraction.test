@@ -1,0 +1,23 @@
+10 / 9 - 8 / 7
+===
+SourceFile@0..14
+  BinExpr@0..14
+    BinExpr@0..7
+      IntLiteral@0..3
+        Int@0..2 "10"
+        Whitespace@2..3 " "
+      Slash@3..4 "/"
+      Whitespace@4..5 " "
+      IntLiteral@5..7
+        Int@5..6 "9"
+        Whitespace@6..7 " "
+    Hyphen@7..8 "-"
+    Whitespace@8..9 " "
+    BinExpr@9..14
+      IntLiteral@9..11
+        Int@9..10 "8"
+        Whitespace@10..11 " "
+      Slash@11..12 "/"
+      Whitespace@12..13 " "
+      IntLiteral@13..14
+        Int@13..14 "7"

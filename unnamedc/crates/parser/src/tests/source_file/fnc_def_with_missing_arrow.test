@@ -1,0 +1,19 @@
+fnc five(): s32 5
+===
+SourceFile@0..17
+  FncDef@0..17
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..8 "five"
+    ParamList@8..10
+      LParen@8..9 "("
+      RParen@9..10 ")"
+    RetTy@10..16
+      Colon@10..11 ":"
+      Whitespace@11..12 " "
+      Ty@12..16
+        Ident@12..15 "s32"
+        Whitespace@15..16 " "
+    IntLiteral@16..17
+      Int@16..17 "5"
+error at 15: missing Arrow

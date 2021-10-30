@@ -1,0 +1,8 @@
+(foo
+===
+SourceFile@0..4
+  ParenExpr@0..4
+    LParen@0..1 "("
+    VarRef@1..4
+      Ident@1..4 "foo"
+error at 4: missing RParen

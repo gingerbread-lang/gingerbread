@@ -1,0 +1,36 @@
+fnc gen(): {
+  let foo = 5
+  foo
+}
+===
+SourceFile@0..34
+  FncDef@0..34
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..7 "gen"
+    ParamList@7..9
+      LParen@7..8 "("
+      RParen@8..9 ")"
+    RetTy@9..11
+      Colon@9..10 ":"
+      Whitespace@10..11 " "
+      Ty@11..11
+    Block@11..34
+      LBrace@11..12 "{"
+      Whitespace@12..15 "\n  "
+      LocalDef@15..29
+        LetKw@15..18 "let"
+        Whitespace@18..19 " "
+        Ident@19..22 "foo"
+        Whitespace@22..23 " "
+        Eq@23..24 "="
+        Whitespace@24..25 " "
+        IntLiteral@25..29
+          Int@25..26 "5"
+          Whitespace@26..29 "\n  "
+      VarRef@29..33
+        Ident@29..32 "foo"
+        Whitespace@32..33 "\n"
+      RBrace@33..34 "}"
+error at 10: missing return type
+error at 10: missing Arrow

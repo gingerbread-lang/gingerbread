@@ -1,0 +1,12 @@
+fnc {
+===
+SourceFile@0..5
+  FncDef@0..5
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Block@4..5
+      LBrace@4..5 "{"
+error at 3: missing function name
+error at 3: missing function parameters
+error at 3: missing Arrow
+error at 5: missing RBrace

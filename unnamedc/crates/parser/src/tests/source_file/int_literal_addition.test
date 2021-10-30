@@ -1,0 +1,11 @@
+2 + 4
+===
+SourceFile@0..5
+  BinExpr@0..5
+    IntLiteral@0..2
+      Int@0..1 "2"
+      Whitespace@1..2 " "
+    Plus@2..3 "+"
+    Whitespace@3..4 " "
+    IntLiteral@4..5
+      Int@4..5 "4"

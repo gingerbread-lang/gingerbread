@@ -1,0 +1,53 @@
+{
+  let foo = {
+    let bar = 23
+    bar * 2
+  }
+  foo * 2
+}
+===
+SourceFile@0..60
+  Block@0..60
+    LBrace@0..1 "{"
+    Whitespace@1..4 "\n  "
+    LocalDef@4..51
+      LetKw@4..7 "let"
+      Whitespace@7..8 " "
+      Ident@8..11 "foo"
+      Whitespace@11..12 " "
+      Eq@12..13 "="
+      Whitespace@13..14 " "
+      Block@14..51
+        LBrace@14..15 "{"
+        Whitespace@15..20 "\n    "
+        LocalDef@20..37
+          LetKw@20..23 "let"
+          Whitespace@23..24 " "
+          Ident@24..27 "bar"
+          Whitespace@27..28 " "
+          Eq@28..29 "="
+          Whitespace@29..30 " "
+          IntLiteral@30..37
+            Int@30..32 "23"
+            Whitespace@32..37 "\n    "
+        BinExpr@37..47
+          VarRef@37..41
+            Ident@37..40 "bar"
+            Whitespace@40..41 " "
+          Asterisk@41..42 "*"
+          Whitespace@42..43 " "
+          IntLiteral@43..47
+            Int@43..44 "2"
+            Whitespace@44..47 "\n  "
+        RBrace@47..48 "}"
+        Whitespace@48..51 "\n  "
+    BinExpr@51..59
+      VarRef@51..55
+        Ident@51..54 "foo"
+        Whitespace@54..55 " "
+      Asterisk@55..56 "*"
+      Whitespace@56..57 " "
+      IntLiteral@57..59
+        Int@57..58 "2"
+        Whitespace@58..59 "\n"
+    RBrace@59..60 "}"

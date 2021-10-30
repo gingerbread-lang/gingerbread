@@ -1,0 +1,8 @@
+let
+===
+SourceFile@0..3
+  LocalDef@0..3
+    LetKw@0..3 "let"
+error at 3: missing variable name
+error at 3: missing Eq
+error at 3: missing variable value

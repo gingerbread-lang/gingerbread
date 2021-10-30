@@ -1,0 +1,11 @@
+foo * bar
+===
+SourceFile@0..9
+  BinExpr@0..9
+    VarRef@0..4
+      Ident@0..3 "foo"
+      Whitespace@3..4 " "
+    Asterisk@4..5 "*"
+    Whitespace@5..6 " "
+    VarRef@6..9
+      Ident@6..9 "bar"

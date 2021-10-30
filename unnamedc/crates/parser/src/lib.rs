@@ -5,6 +5,9 @@ mod parser;
 mod sink;
 mod token_set;
 
+#[cfg(test)]
+mod tests;
+
 use self::error::ParseError;
 use self::parser::Parser;
 use self::sink::Sink;

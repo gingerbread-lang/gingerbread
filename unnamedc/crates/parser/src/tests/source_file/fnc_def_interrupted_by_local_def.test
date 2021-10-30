@@ -1,0 +1,21 @@
+fnc foo
+let bar = 5
+===
+SourceFile@0..19
+  FncDef@0..8
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..7 "foo"
+    Whitespace@7..8 "\n"
+  LocalDef@8..19
+    LetKw@8..11 "let"
+    Whitespace@11..12 " "
+    Ident@12..15 "bar"
+    Whitespace@15..16 " "
+    Eq@16..17 "="
+    Whitespace@17..18 " "
+    IntLiteral@18..19
+      Int@18..19 "5"
+error at 7: missing function parameters
+error at 7: missing Arrow
+error at 7: missing function body

@@ -1,0 +1,19 @@
+fnc five(): -> 5
+===
+SourceFile@0..16
+  FncDef@0..16
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..8 "five"
+    ParamList@8..10
+      LParen@8..9 "("
+      RParen@9..10 ")"
+    RetTy@10..12
+      Colon@10..11 ":"
+      Whitespace@11..12 " "
+      Ty@12..12
+    Arrow@12..14 "->"
+    Whitespace@14..15 " "
+    IntLiteral@15..16
+      Int@15..16 "5"
+error at 11: missing return type

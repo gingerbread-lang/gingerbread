@@ -1,0 +1,19 @@
+let
+let a = b
+===
+SourceFile@0..13
+  LocalDef@0..4
+    LetKw@0..3 "let"
+    Whitespace@3..4 "\n"
+  LocalDef@4..13
+    LetKw@4..7 "let"
+    Whitespace@7..8 " "
+    Ident@8..9 "a"
+    Whitespace@9..10 " "
+    Eq@10..11 "="
+    Whitespace@11..12 " "
+    VarRef@12..13
+      Ident@12..13 "b"
+error at 3: missing variable name
+error at 3: missing Eq
+error at 3: missing variable value

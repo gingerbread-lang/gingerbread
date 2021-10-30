@@ -1,0 +1,12 @@
+å * 5
+===
+SourceFile@0..6
+  BinExpr@0..6
+    Error@0..3
+      Error@0..2 "å"
+      Whitespace@2..3 " "
+    Asterisk@3..4 "*"
+    Whitespace@4..5 " "
+    IntLiteral@5..6
+      Int@5..6 "5"
+error at 0..2: expected statement but found Error

@@ -1,0 +1,24 @@
+let a =
+fnc one() -> 1
+===
+SourceFile@0..22
+  LocalDef@0..8
+    LetKw@0..3 "let"
+    Whitespace@3..4 " "
+    Ident@4..5 "a"
+    Whitespace@5..6 " "
+    Eq@6..7 "="
+    Whitespace@7..8 "\n"
+  FncDef@8..22
+    FncKw@8..11 "fnc"
+    Whitespace@11..12 " "
+    Ident@12..15 "one"
+    ParamList@15..18
+      LParen@15..16 "("
+      RParen@16..17 ")"
+      Whitespace@17..18 " "
+    Arrow@18..20 "->"
+    Whitespace@20..21 " "
+    IntLiteral@21..22
+      Int@21..22 "1"
+error at 7: missing variable value

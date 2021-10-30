@@ -1,0 +1,14 @@
+{ 1 + }
+===
+SourceFile@0..7
+  Block@0..7
+    LBrace@0..1 "{"
+    Whitespace@1..2 " "
+    BinExpr@2..6
+      IntLiteral@2..4
+        Int@2..3 "1"
+        Whitespace@3..4 " "
+      Plus@4..5 "+"
+      Whitespace@5..6 " "
+    RBrace@6..7 "}"
+error at 5: missing operand
