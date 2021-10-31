@@ -259,7 +259,8 @@ mod tests {
         expected_program: hir::Program,
         errors: [(StdRange<u32>, LowerErrorKind); ERRORS_LEN],
     ) {
-        let expected_errors = IntoIterator::into_iter(errors)
+        let expected_errors = errors
+            .into_iter()
             .map(|(range, kind)| LowerError {
                 range: TextRange::new(range.start.into(), range.end.into()),
                 kind,

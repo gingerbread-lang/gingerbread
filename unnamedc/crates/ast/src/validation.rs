@@ -42,7 +42,8 @@ mod validation_tests {
         input: &str,
         expected_errors: [(ValidationErrorKind, StdRange<u32>); LEN],
     ) {
-        let errors: Vec<_> = IntoIterator::into_iter(expected_errors)
+        let errors: Vec<_> = expected_errors
+            .into_iter()
             .map(|(kind, range)| ValidationError {
                 kind,
                 range: TextRange::new(range.start.into(), range.end.into()),

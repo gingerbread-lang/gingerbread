@@ -178,7 +178,7 @@ impl Stack {
             self.len()
         );
 
-        for (idx, val) in IntoIterator::into_iter(val.to_ne_bytes()).enumerate() {
+        for (idx, val) in val.to_ne_bytes().into_iter().enumerate() {
             self.bytes[ptr as usize + idx] = val;
         }
     }
