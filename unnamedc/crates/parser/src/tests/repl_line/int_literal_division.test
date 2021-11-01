@@ -1,6 +1,6 @@
 22 / 7
 ===
-SourceFile@0..6
+Root@0..6
   BinExpr@0..6
     IntLiteral@0..3
       Int@0..2 "22"

@@ -3,7 +3,7 @@ fnc gen(): {
   foo
 }
 ===
-SourceFile@0..34
+Root@0..34
   FncDef@0..34
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

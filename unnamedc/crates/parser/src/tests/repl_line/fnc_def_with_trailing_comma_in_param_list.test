@@ -1,6 +1,6 @@
 fnc drop(n: s32,) -> {}
 ===
-SourceFile@0..23
+Root@0..23
   FncDef@0..23
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

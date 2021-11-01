@@ -66,7 +66,7 @@ pub enum SyntaxKind {
     Whitespace,
     Error,
 
-    SourceFile,
+    Root,
     VarRef,
     Block,
     IntLiteral,

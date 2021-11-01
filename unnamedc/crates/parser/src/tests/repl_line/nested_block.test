@@ -6,7 +6,7 @@
   foo * 2
 }
 ===
-SourceFile@0..60
+Root@0..60
   Block@0..60
     LBrace@0..1 "{"
     Whitespace@1..4 "\n  "

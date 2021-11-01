@@ -1,5 +1,5 @@
 "Hello, world!"
 ===
-SourceFile@0..15
+Root@0..15
   StringLiteral@0..15
     String@0..15 "\"Hello, world!\""

@@ -1,7 +1,7 @@
 (1 + 1
 let foo = bar
 ===
-SourceFile@0..20
+Root@0..20
   ParenExpr@0..7
     LParen@0..1 "("
     BinExpr@1..7

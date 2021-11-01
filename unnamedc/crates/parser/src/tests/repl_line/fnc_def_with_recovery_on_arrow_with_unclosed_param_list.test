@@ -1,6 +1,6 @@
 fnc foo(bar: s32 -> {}
 ===
-SourceFile@0..22
+Root@0..22
   FncDef@0..22
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

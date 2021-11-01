@@ -1,6 +1,6 @@
 fnc {
 ===
-SourceFile@0..5
+Root@0..5
   FncDef@0..5
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

@@ -1,6 +1,6 @@
 fnc (x: s32) -> x
 ===
-SourceFile@0..17
+Root@0..17
   FncDef@0..17
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

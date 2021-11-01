@@ -1,6 +1,6 @@
 foo * bar
 ===
-SourceFile@0..9
+Root@0..9
   BinExpr@0..9
     VarRef@0..4
       Ident@0..3 "foo"

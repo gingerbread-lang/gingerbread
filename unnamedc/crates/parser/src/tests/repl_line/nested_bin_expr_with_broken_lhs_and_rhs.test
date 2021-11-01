@@ -1,6 +1,6 @@
 5 * ($ - foo) / ?
 ===
-SourceFile@0..17
+Root@0..17
   BinExpr@0..17
     BinExpr@0..14
       IntLiteral@0..2

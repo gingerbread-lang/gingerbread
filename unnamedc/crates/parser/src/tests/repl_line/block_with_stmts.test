@@ -4,7 +4,7 @@
   b - 1
 }
 ===
-SourceFile@0..42
+Root@0..42
   Block@0..42
     LBrace@0..1 "{"
     Whitespace@1..4 "\n  "

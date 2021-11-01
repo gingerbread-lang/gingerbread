@@ -1,6 +1,6 @@
 len - 1
 ===
-SourceFile@0..7
+Root@0..7
   BinExpr@0..7
     VarRef@0..4
       Ident@0..3 "len"

@@ -94,15 +94,15 @@ fn render(
         errors.push(Error::from_parse_error(error.clone()));
     }
 
-    let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
-    let validation_errors = ast::validation::validate(&source_file);
+    let root = ast::Root::cast(parse.syntax_node()).unwrap();
+    let validation_errors = ast::validation::validate(&root);
 
     for error in validation_errors {
         errors.push(Error::from_validation_error(error));
     }
 
     let (program, source_map, lower_errors, new_var_def_names) =
-        hir_lower::lower_with_local_defs(&source_file, local_defs.clone(), var_def_names.clone());
+        hir_lower::lower_with_local_defs(&root, local_defs.clone(), var_def_names.clone());
 
     for error in lower_errors {
         errors.push(Error::from_lower_error(error));

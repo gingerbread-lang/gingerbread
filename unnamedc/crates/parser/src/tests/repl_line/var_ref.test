@@ -1,5 +1,5 @@
 foo
 ===
-SourceFile@0..3
+Root@0..3
   VarRef@0..3
     Ident@0..3 "foo"

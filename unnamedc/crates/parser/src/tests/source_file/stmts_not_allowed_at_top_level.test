@@ -2,7 +2,7 @@ fnc hello(): string -> "hello"
 let foo = 5
 fnc world(): string -> "world"
 ===
-SourceFile@0..73
+Root@0..73
   FncDef@0..31
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

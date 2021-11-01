@@ -1,6 +1,6 @@
 fnc main(
 ===
-SourceFile@0..9
+Root@0..9
   FncDef@0..9
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

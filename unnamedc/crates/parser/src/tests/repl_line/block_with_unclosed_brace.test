@@ -1,6 +1,6 @@
 {5
 ===
-SourceFile@0..2
+Root@0..2
   Block@0..2
     LBrace@0..1 "{"
     IntLiteral@1..2

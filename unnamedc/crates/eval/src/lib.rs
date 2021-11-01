@@ -115,8 +115,8 @@ mod tests {
 
     fn check(input: &str, val: Val) {
         let parse = parser::parse_repl_line(&lexer::lex(input));
-        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _) = hir_lower::lower(&source_file);
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let (program, _, errors, _) = hir_lower::lower(&root);
 
         assert_eq!(Evaluator::default().eval(program), val);
         assert!(errors.is_empty());
@@ -212,14 +212,14 @@ mod tests {
         let mut evaluator = Evaluator::default();
 
         let parse = parser::parse_repl_line(&lexer::lex("let foo = 100"));
-        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, local_def_names) = hir_lower::lower(&source_file);
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let (program, _, _, local_def_names) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);
 
         let parse = parser::parse_repl_line(&lexer::lex("foo"));
-        let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, _, _) =
-            hir_lower::lower_with_local_defs(&source_file, program.local_defs, local_def_names);
+            hir_lower::lower_with_local_defs(&root, program.local_defs, local_def_names);
         assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 }

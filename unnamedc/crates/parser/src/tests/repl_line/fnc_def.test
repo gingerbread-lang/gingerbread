@@ -1,6 +1,6 @@
 fnc add(x: s32, y: s32): s32 -> x + y
 ===
-SourceFile@0..37
+Root@0..37
   FncDef@0..37
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

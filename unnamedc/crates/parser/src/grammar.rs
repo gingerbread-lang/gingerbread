@@ -21,7 +21,7 @@ pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
         self::def::parse_def(p);
     }
 
-    m.complete(p, SyntaxKind::SourceFile);
+    m.complete(p, SyntaxKind::Root);
 }
 
 pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
@@ -42,5 +42,5 @@ pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
         }
     }
 
-    m.complete(p, SyntaxKind::SourceFile);
+    m.complete(p, SyntaxKind::Root);
 }

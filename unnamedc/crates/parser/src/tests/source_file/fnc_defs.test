@@ -1,7 +1,7 @@
 fnc average_two(x: s32, y: s32): s32 -> (x + y) / 2
 fnc average_three(x: s32, y: s32, z: s32): s32 -> (x + y + z) / 3
 ===
-SourceFile@0..117
+Root@0..117
   FncDef@0..52
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

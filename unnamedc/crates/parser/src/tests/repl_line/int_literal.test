@@ -1,5 +1,5 @@
 123
 ===
-SourceFile@0..3
+Root@0..3
   IntLiteral@0..3
     Int@0..3 "123"

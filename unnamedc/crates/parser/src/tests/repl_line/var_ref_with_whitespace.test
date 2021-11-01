@@ -1,6 +1,6 @@
  foo   
 ===
-SourceFile@0..7
+Root@0..7
   Whitespace@0..1 " "
   VarRef@1..7
     Ident@1..4 "foo"

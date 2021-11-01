@@ -1,6 +1,6 @@
 (42 + 4) * 2
 ===
-SourceFile@0..12
+Root@0..12
   BinExpr@0..12
     ParenExpr@0..9
       LParen@0..1 "("

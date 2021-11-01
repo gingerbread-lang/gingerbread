@@ -36,7 +36,7 @@ pub enum ValidationErrorKind {
 #[cfg(test)]
 mod validation_tests {
     use super::*;
-    use crate::SourceFile;
+    use crate::Root;
     use std::ops::Range as StdRange;
 
     fn check_source_file<const LEN: usize>(
@@ -52,9 +52,9 @@ mod validation_tests {
             .collect();
 
         let syntax = parser::parse_source_file(&lexer::lex(input)).syntax_node();
-        let source_file = SourceFile::cast(syntax).unwrap();
+        let root = Root::cast(syntax).unwrap();
 
-        assert_eq!(validate(&source_file), errors);
+        assert_eq!(validate(&root), errors);
     }
 
     fn check_repl_line<const LEN: usize>(
@@ -70,9 +70,9 @@ mod validation_tests {
             .collect();
 
         let syntax = parser::parse_repl_line(&lexer::lex(input)).syntax_node();
-        let source_file = SourceFile::cast(syntax).unwrap();
+        let root = Root::cast(syntax).unwrap();
 
-        assert_eq!(validate(&source_file), errors);
+        assert_eq!(validate(&root), errors);
     }
 
     #[test]

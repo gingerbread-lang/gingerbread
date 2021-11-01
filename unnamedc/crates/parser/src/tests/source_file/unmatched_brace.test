@@ -1,6 +1,6 @@
 fnc foo() -> {}}
 ===
-SourceFile@0..16
+Root@0..16
   FncDef@0..15
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

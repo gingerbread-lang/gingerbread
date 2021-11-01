@@ -1,6 +1,6 @@
 (5)
 ===
-SourceFile@0..3
+Root@0..3
   ParenExpr@0..3
     LParen@0..1 "("
     IntLiteral@1..2

@@ -1,6 +1,6 @@
 { 1 + }
 ===
-SourceFile@0..7
+Root@0..7
   Block@0..7
     LBrace@0..1 "{"
     Whitespace@1..2 " "

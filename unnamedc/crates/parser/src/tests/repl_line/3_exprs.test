@@ -2,7 +2,7 @@
 4
 6
 ===
-SourceFile@0..5
+Root@0..5
   IntLiteral@0..2
     Int@0..1 "2"
     Whitespace@1..2 "\n"

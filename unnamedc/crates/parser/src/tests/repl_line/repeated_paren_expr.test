@@ -1,6 +1,6 @@
 ((((10))))
 ===
-SourceFile@0..10
+Root@0..10
   ParenExpr@0..10
     LParen@0..1 "("
     ParenExpr@1..9

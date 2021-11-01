@@ -1,6 +1,6 @@
 1 +
 ===
-SourceFile@0..3
+Root@0..3
   BinExpr@0..3
     IntLiteral@0..2
       Int@0..1 "1"

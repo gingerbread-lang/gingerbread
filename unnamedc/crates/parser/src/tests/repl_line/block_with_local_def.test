@@ -1,6 +1,6 @@
 { let zero = 0 }
 ===
-SourceFile@0..16
+Root@0..16
   Block@0..16
     LBrace@0..1 "{"
     Whitespace@1..2 " "

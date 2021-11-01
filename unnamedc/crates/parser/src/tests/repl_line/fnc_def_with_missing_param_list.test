@@ -1,6 +1,6 @@
 fnc ten -> 10
 ===
-SourceFile@0..13
+Root@0..13
   FncDef@0..13
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

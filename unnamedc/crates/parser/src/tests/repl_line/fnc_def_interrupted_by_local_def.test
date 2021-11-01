@@ -1,7 +1,7 @@
 fnc foo
 let bar = 5
 ===
-SourceFile@0..19
+Root@0..19
   FncDef@0..8
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "

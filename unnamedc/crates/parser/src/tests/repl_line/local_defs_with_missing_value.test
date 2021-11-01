@@ -1,7 +1,7 @@
 let foo =
 let bar = 92
 ===
-SourceFile@0..22
+Root@0..22
   LocalDef@0..10
     LetKw@0..3 "let"
     Whitespace@3..4 " "

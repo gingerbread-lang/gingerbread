@@ -1,6 +1,6 @@
 (foo
 ===
-SourceFile@0..4
+Root@0..4
   ParenExpr@0..4
     LParen@0..1 "("
     VarRef@1..4
