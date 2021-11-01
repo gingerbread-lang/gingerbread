@@ -17,7 +17,12 @@ pub fn lower_with_local_defs(
     let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
     let mut lower_ctx =
         LowerCtx { store: &mut lower_store, var_names: VarNames { this: var_names, parent: None } };
+    let mut defs = Vec::new();
     let mut stmts = Vec::new();
+
+    for def in ast.defs() {
+        defs.push(lower_ctx.lower_def(def));
+    }
 
     for stmt in ast.stmts() {
         stmts.push(lower_ctx.lower_stmt(stmt));
@@ -30,6 +35,7 @@ pub fn lower_with_local_defs(
             fnc_defs: lower_store.fnc_defs,
             params: lower_store.params,
             exprs: lower_store.exprs,
+            defs,
             stmts,
         },
         lower_store.source_map,
@@ -72,10 +78,15 @@ struct LowerStore {
 }
 
 impl LowerCtx<'_> {
+    fn lower_def(&mut self, ast: ast::Def) -> hir::Def {
+        match ast {
+            ast::Def::FncDef(ast) => hir::Def::FncDef(self.lower_fnc_def(ast)),
+        }
+    }
+
     fn lower_stmt(&mut self, ast: ast::Stmt) -> hir::Stmt {
         match ast {
             ast::Stmt::LocalDef(ast) => hir::Stmt::LocalDef(self.lower_local_def(ast)),
-            ast::Stmt::FncDef(ast) => hir::Stmt::FncDef(self.lower_fnc_def(ast)),
             ast::Stmt::Expr(ast) => hir::Stmt::Expr(self.lower_expr(Some(ast))),
         }
     }
@@ -267,7 +278,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let parse = parser::parse(&lexer::lex(input));
+        let parse = parser::parse_repl_line(&lexer::lex(input));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (actual_program, _, actual_errors, _) = lower(&source_file);
 
@@ -473,7 +484,7 @@ mod tests {
         let hello = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
         let a_def = local_defs.alloc(hir::LocalDef { value: hello });
 
-        let parse = parser::parse(&lexer::lex("let a = \"hello\""));
+        let parse = parser::parse_repl_line(&lexer::lex("let a = \"hello\""));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, local_def_names) = lower(&source_file);
 
@@ -491,7 +502,7 @@ mod tests {
         let mut exprs = Arena::new();
         let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
 
-        let parse = parser::parse(&lexer::lex("a"));
+        let parse = parser::parse_repl_line(&lexer::lex("a"));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, _) =
             lower_with_local_defs(&source_file, local_defs.clone(), local_def_names);
@@ -628,7 +639,7 @@ mod tests {
             hir::Program {
                 fnc_defs,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [],
@@ -655,7 +666,7 @@ mod tests {
                 fnc_defs,
                 params,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [],
@@ -682,7 +693,7 @@ mod tests {
                 fnc_defs,
                 params,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [],
@@ -716,7 +727,8 @@ mod tests {
                 fnc_defs,
                 params,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def), hir::Stmt::Expr(missing)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
+                stmts: vec![hir::Stmt::Expr(missing)],
                 ..Default::default()
             },
             [(71..72, LowerErrorKind::UndefinedVar { name: "x".to_string() })],
@@ -743,7 +755,7 @@ mod tests {
                 fnc_defs,
                 params,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [],
@@ -767,7 +779,7 @@ mod tests {
             hir::Program {
                 fnc_defs,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [(9..12, LowerErrorKind::UndefinedTy { name: "foo".to_string() })],
@@ -791,7 +803,7 @@ mod tests {
             hir::Program {
                 fnc_defs,
                 exprs,
-                stmts: vec![hir::Stmt::FncDef(fnc_def)],
+                defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
             [],
@@ -800,14 +812,12 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10\na - 5"));
+        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10\na - 5"));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
+        let mut defs = source_file.defs();
         let mut stmts = source_file.stmts();
 
-        let fnc_def_ast = match stmts.next().unwrap() {
-            ast::Stmt::FncDef(fnc_def) => fnc_def,
-            _ => unreachable!(),
-        };
+        let ast::Def::FncDef(fnc_def_ast) = defs.next().unwrap();
         let four_ast = fnc_def_ast.body().unwrap();
 
         let a_def_ast = match stmts.next().unwrap() {
@@ -851,11 +861,8 @@ mod tests {
                 fnc_defs,
                 local_defs,
                 exprs,
-                stmts: vec![
-                    hir::Stmt::FncDef(f_def_hir),
-                    hir::Stmt::LocalDef(a_def_hir),
-                    hir::Stmt::Expr(bin_expr_hir)
-                ],
+                defs: vec![hir::Def::FncDef(f_def_hir)],
+                stmts: vec![hir::Stmt::LocalDef(a_def_hir), hir::Stmt::Expr(bin_expr_hir)],
                 ..Default::default()
             }
         );

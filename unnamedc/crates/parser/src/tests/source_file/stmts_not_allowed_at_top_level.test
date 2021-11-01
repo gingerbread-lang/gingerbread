@@ -1,0 +1,56 @@
+fnc hello(): string -> "hello"
+let foo = 5
+fnc world(): string -> "world"
+===
+SourceFile@0..73
+  FncDef@0..31
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..9 "hello"
+    ParamList@9..11
+      LParen@9..10 "("
+      RParen@10..11 ")"
+    RetTy@11..20
+      Colon@11..12 ":"
+      Whitespace@12..13 " "
+      Ty@13..20
+        Ident@13..19 "string"
+        Whitespace@19..20 " "
+    Arrow@20..22 "->"
+    Whitespace@22..23 " "
+    StringLiteral@23..31
+      String@23..30 "\"hello\""
+      Whitespace@30..31 "\n"
+  Error@31..35
+    LetKw@31..34 "let"
+    Whitespace@34..35 " "
+  Error@35..39
+    Ident@35..38 "foo"
+    Whitespace@38..39 " "
+  Error@39..41
+    Eq@39..40 "="
+    Whitespace@40..41 " "
+  Error@41..43
+    Int@41..42 "5"
+    Whitespace@42..43 "\n"
+  FncDef@43..73
+    FncKw@43..46 "fnc"
+    Whitespace@46..47 " "
+    Ident@47..52 "world"
+    ParamList@52..54
+      LParen@52..53 "("
+      RParen@53..54 ")"
+    RetTy@54..63
+      Colon@54..55 ":"
+      Whitespace@55..56 " "
+      Ty@56..63
+        Ident@56..62 "string"
+        Whitespace@62..63 " "
+    Arrow@63..65 "->"
+    Whitespace@65..66 " "
+    StringLiteral@66..73
+      String@66..73 "\"world\""
+error at 31..34: expected definition but found LetKw
+error at 35..38: expected definition but found Ident
+error at 39..40: expected definition but found Eq
+error at 41..42: expected definition but found Int

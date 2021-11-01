@@ -19,6 +19,10 @@ pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult 
         exprs: &program.exprs,
     };
 
+    for def in &program.defs {
+        infer_ctx.infer_def(*def);
+    }
+
     for stmt in &program.stmts {
         infer_ctx.infer_stmt(*stmt);
     }
@@ -80,13 +84,18 @@ struct InferCtx<'a> {
 }
 
 impl InferCtx<'_> {
+    fn infer_def(&mut self, def: hir::Def) {
+        match def {
+            hir::Def::FncDef(idx) => self.infer_fnc_def(idx),
+        }
+    }
+
     fn infer_stmt(&mut self, stmt: hir::Stmt) -> hir::Ty {
         match stmt {
             hir::Stmt::LocalDef(local_def) => {
                 let value_ty = self.infer_expr(self.local_defs[local_def].value);
                 self.result.local_tys.insert(local_def, value_ty);
             }
-            hir::Stmt::FncDef(idx) => self.infer_fnc_def(idx),
             hir::Stmt::Expr(expr) => return self.infer_expr(expr),
         }
 
@@ -483,7 +492,7 @@ mod tests {
         let result = infer(&hir::Program {
             fnc_defs,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -511,7 +520,7 @@ mod tests {
             fnc_defs,
             params,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -543,7 +552,7 @@ mod tests {
             fnc_defs,
             params,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -571,7 +580,7 @@ mod tests {
         let result = infer(&hir::Program {
             fnc_defs,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -601,7 +610,7 @@ mod tests {
         let result = infer(&hir::Program {
             fnc_defs,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -625,7 +634,7 @@ mod tests {
         let result = infer(&hir::Program {
             fnc_defs,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 
@@ -649,7 +658,7 @@ mod tests {
         let result = infer(&hir::Program {
             fnc_defs,
             exprs,
-            stmts: vec![hir::Stmt::FncDef(fnc_def)],
+            defs: vec![hir::Def::FncDef(fnc_def)],
             ..Default::default()
         });
 

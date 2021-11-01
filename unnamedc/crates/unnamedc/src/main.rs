@@ -88,7 +88,7 @@ fn render(
     let mut errors = Vec::new();
 
     let tokens = lexer::lex(input);
-    let parse = parser::parse(&tokens);
+    let parse = parser::parse_repl_line(&tokens);
 
     for error in parse.errors() {
         errors.push(Error::from_parse_error(error.clone()));

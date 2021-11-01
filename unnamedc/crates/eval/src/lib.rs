@@ -42,7 +42,6 @@ impl EvalCtx<'_> {
     fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
         match stmt {
             hir::Stmt::LocalDef(local_def) => self.eval_local_def(local_def),
-            hir::Stmt::FncDef(_) => Val::Nil,
             hir::Stmt::Expr(expr) => self.eval_expr(expr),
         }
     }
@@ -115,7 +114,7 @@ mod tests {
     use ast::AstNode;
 
     fn check(input: &str, val: Val) {
-        let parse = parser::parse(&lexer::lex(input));
+        let parse = parser::parse_repl_line(&lexer::lex(input));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, _) = hir_lower::lower(&source_file);
 
@@ -212,12 +211,12 @@ mod tests {
     fn preserve_locals_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
-        let parse = parser::parse(&lexer::lex("let foo = 100"));
+        let parse = parser::parse_repl_line(&lexer::lex("let foo = 100"));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, _, local_def_names) = hir_lower::lower(&source_file);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);
 
-        let parse = parser::parse(&lexer::lex("foo"));
+        let parse = parser::parse_repl_line(&lexer::lex("foo"));
         let source_file = ast::SourceFile::cast(parse.syntax_node()).unwrap();
         let (program, _, _, _) =
             hir_lower::lower_with_local_defs(&source_file, program.local_defs, local_def_names);

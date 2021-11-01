@@ -6,4 +6,4 @@ SourceFile@0..3
     RBrace@1..2 "}"
   Error@2..3
     RBrace@2..3 "}"
-error at 2..3: expected statement but found RBrace
+error at 2..3: expected definition or statement but found RBrace

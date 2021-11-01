@@ -11,19 +11,19 @@ pub struct Program {
     pub fnc_defs: Arena<FncDef>,
     pub params: Arena<Param>,
     pub exprs: Arena<Expr>,
+    pub defs: Vec<Def>,
     pub stmts: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Def {
+    FncDef(FncDefIdx),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Stmt {
     LocalDef(LocalDefIdx),
-    FncDef(FncDefIdx),
     Expr(ExprIdx),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct LocalDef {
-    pub value: ExprIdx,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +31,11 @@ pub struct FncDef {
     pub params: IdxRange<Param>,
     pub ret_ty: Ty,
     pub body: ExprIdx,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LocalDef {
+    pub value: ExprIdx,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -1,6 +1,3 @@
-mod fnc_def;
-
-use self::fnc_def::parse_fnc_def;
 use crate::grammar::expr::{parse_expr, EXPR_FIRST};
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
@@ -14,10 +11,6 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
 
     if p.at(TokenKind::LetKw) {
         return Some(parse_local_def(p));
-    } else if p.at(TokenKind::FncKw) {
-        return Some(parse_fnc_def(p));
-    } else if p.at(TokenKind::RBrace) {
-        return p.error_with_recovery_set_no_default(TokenSet::default());
     }
 
     parse_expr(p, "statement")

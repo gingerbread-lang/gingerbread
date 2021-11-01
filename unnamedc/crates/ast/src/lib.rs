@@ -64,51 +64,32 @@ macro_rules! def_ast_token {
 def_ast_node!(SourceFile);
 
 impl SourceFile {
+    pub fn defs(&self) -> impl Iterator<Item = Def> {
+        nodes(self)
+    }
+
     pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
         nodes(self)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Stmt {
-    LocalDef(LocalDef),
+pub enum Def {
     FncDef(FncDef),
-    Expr(Expr),
 }
 
-impl AstNode for Stmt {
+impl AstNode for Def {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
-            SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
             SyntaxKind::FncDef => Some(Self::FncDef(FncDef(node))),
-            SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
-            SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
-            SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
-            SyntaxKind::VarRef => Some(Self::Expr(Expr::VarRef(VarRef(node)))),
-            SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
-            SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
+
             _ => None,
         }
     }
 
     fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::LocalDef(local_def) => local_def.syntax(),
             Self::FncDef(fnc_def) => fnc_def.syntax(),
-            Self::Expr(expr) => expr.syntax(),
         }
-    }
-}
-
-def_ast_node!(LocalDef);
-
-impl LocalDef {
-    pub fn name(&self) -> Option<Ident> {
-        token(self)
-    }
-
-    pub fn value(&self) -> Option<Expr> {
-        node(self)
     }
 }
 
@@ -128,6 +109,46 @@ impl FncDef {
     }
 
     pub fn body(&self) -> Option<Expr> {
+        node(self)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Stmt {
+    LocalDef(LocalDef),
+    Expr(Expr),
+}
+
+impl AstNode for Stmt {
+    fn cast(node: SyntaxNode) -> Option<Self> {
+        match node.kind() {
+            SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
+            SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
+            SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
+            SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
+            SyntaxKind::VarRef => Some(Self::Expr(Expr::VarRef(VarRef(node)))),
+            SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
+            SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
+            _ => None,
+        }
+    }
+
+    fn syntax(&self) -> &SyntaxNode {
+        match self {
+            Self::LocalDef(local_def) => local_def.syntax(),
+            Self::Expr(expr) => expr.syntax(),
+        }
+    }
+}
+
+def_ast_node!(LocalDef);
+
+impl LocalDef {
+    pub fn name(&self) -> Option<Ident> {
+        token(self)
+    }
+
+    pub fn value(&self) -> Option<Expr> {
         node(self)
     }
 }
@@ -313,7 +334,7 @@ mod tests {
     use super::*;
 
     fn parse(input: &str) -> SourceFile {
-        let syntax = parser::parse(&lexer::lex(input)).syntax_node();
+        let syntax = parser::parse_repl_line(&lexer::lex(input)).syntax_node();
         SourceFile::cast(syntax).unwrap()
     }
 
@@ -489,12 +510,9 @@ mod tests {
     #[test]
     fn get_fnc_def_name() {
         let source_file = parse("fnc a() -> {}");
-        let stmt = source_file.stmts().next().unwrap();
+        let def = source_file.defs().next().unwrap();
 
-        let fnc_def = match stmt {
-            Stmt::FncDef(fnc_def) => fnc_def,
-            _ => unreachable!(),
-        };
+        let Def::FncDef(fnc_def) = def;
 
         assert_eq!(fnc_def.name().unwrap().text(), "a");
     }
@@ -502,12 +520,9 @@ mod tests {
     #[test]
     fn get_fnc_def_params() {
         let source_file = parse("fnc add(x: s32, y: s32) -> {}");
-        let stmt = source_file.stmts().next().unwrap();
+        let def = source_file.defs().next().unwrap();
 
-        let fnc_def = match stmt {
-            Stmt::FncDef(fnc_def) => fnc_def,
-            _ => unreachable!(),
-        };
+        let Def::FncDef(fnc_def) = def;
 
         let mut params = fnc_def.param_list().unwrap().params();
 
@@ -525,12 +540,9 @@ mod tests {
     #[test]
     fn get_fnc_def_ret_ty() {
         let source_file = parse("fnc four(): s32 -> 4");
-        let stmt = source_file.stmts().next().unwrap();
+        let def = source_file.defs().next().unwrap();
 
-        let fnc_def = match stmt {
-            Stmt::FncDef(fnc_def) => fnc_def,
-            _ => unreachable!(),
-        };
+        let Def::FncDef(fnc_def) = def;
 
         assert_eq!(fnc_def.ret_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
     }
@@ -538,12 +550,9 @@ mod tests {
     #[test]
     fn get_fnc_def_body() {
         let source_file = parse("fnc nothing() -> {}");
-        let stmt = source_file.stmts().next().unwrap();
+        let def = source_file.defs().next().unwrap();
 
-        let fnc_def = match stmt {
-            Stmt::FncDef(fnc_def) => fnc_def,
-            _ => unreachable!(),
-        };
+        let Def::FncDef(fnc_def) = def;
 
         let block = match fnc_def.body().unwrap() {
             Expr::Block(block) => block,

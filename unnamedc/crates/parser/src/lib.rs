@@ -15,8 +15,13 @@ use std::fmt;
 use syntax::SyntaxNode;
 use token::Token;
 
-pub fn parse(tokens: &[Token<'_>]) -> Parse {
+pub fn parse_source_file(tokens: &[Token<'_>]) -> Parse {
     let events = Parser::new(tokens).parse(grammar::source_file);
+    Sink::new(events, tokens).finish()
+}
+
+pub fn parse_repl_line(tokens: &[Token<'_>]) -> Parse {
+    let events = Parser::new(tokens).parse(grammar::repl_line);
     Sink::new(events, tokens).finish()
 }
 
