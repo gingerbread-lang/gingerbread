@@ -1,13 +1,13 @@
 fnc foo
-let bar = 5
+let bar = 5;
 ===
-Root@0..19
+Root@0..20
   FncDef@0..8
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
     Whitespace@7..8 "\n"
-  LocalDef@8..19
+  LocalDef@8..20
     LetKw@8..11 "let"
     Whitespace@11..12 " "
     Ident@12..15 "bar"
@@ -16,6 +16,7 @@ Root@0..19
     Whitespace@17..18 " "
     IntLiteral@18..19
       Int@18..19 "5"
+    Semicolon@19..20 ";"
 error at 7: missing function parameters
 error at 7: missing Arrow
 error at 7: missing function body

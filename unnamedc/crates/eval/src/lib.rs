@@ -139,12 +139,12 @@ mod tests {
 
     #[test]
     fn eval_local_def() {
-        check("let a = 5", Val::Nil);
+        check("let a = 5;", Val::Nil);
     }
 
     #[test]
     fn eval_local_def_and_ref() {
-        check("let a = 10\na", Val::Int(10));
+        check("let a = 10; a", Val::Int(10));
     }
 
     #[test]
@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn eval_block_ending_in_stmt() {
-        check("{ let foo = 10 }", Val::Nil);
+        check("{ let foo = 10; }", Val::Nil);
     }
 
     #[test]
@@ -164,18 +164,18 @@ mod tests {
 
     #[test]
     fn eval_block_with_nested_scope() {
-        check("{ let n = 5 \n n+2 }", Val::Int(7));
+        check("{ let n = 5; n+2 }", Val::Int(7));
     }
 
     #[test]
     fn locals_have_lexical_scope() {
         check(
             r#"
-                let foo = "foo"
+                let foo = "foo";
                 let bar = {
-                    let foo = 10
+                    let foo = 10;
                     foo
-                }
+                };
                 foo
             "#,
             Val::String("foo".to_string()),
@@ -211,7 +211,7 @@ mod tests {
     fn preserve_locals_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
-        let parse = parser::parse_repl_line(&lexer::lex("let foo = 100"));
+        let parse = parser::parse_repl_line(&lexer::lex("let foo = 100;"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, _, local_def_names) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);

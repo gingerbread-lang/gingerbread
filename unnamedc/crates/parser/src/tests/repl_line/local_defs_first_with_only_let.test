@@ -1,11 +1,11 @@
 let
-let a = b
+let a = b;
 ===
-Root@0..13
+Root@0..14
   LocalDef@0..4
     LetKw@0..3 "let"
     Whitespace@3..4 "\n"
-  LocalDef@4..13
+  LocalDef@4..14
     LetKw@4..7 "let"
     Whitespace@7..8 " "
     Ident@8..9 "a"
@@ -14,6 +14,8 @@ Root@0..13
     Whitespace@11..12 " "
     VarRef@12..13
       Ident@12..13 "b"
+    Semicolon@13..14 ";"
 error at 3: missing variable name
 error at 3: missing Eq
 error at 3: missing variable value
+error at 3: missing Semicolon

@@ -1,10 +1,10 @@
 fnc gen(): {
-  let foo = 5
+  let foo = 5;
   foo
 }
 ===
-Root@0..34
-  FncDef@0..34
+Root@0..35
+  FncDef@0..35
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "gen"
@@ -15,22 +15,23 @@ Root@0..34
       Colon@9..10 ":"
       Whitespace@10..11 " "
       Ty@11..11
-    Block@11..34
+    Block@11..35
       LBrace@11..12 "{"
       Whitespace@12..15 "\n  "
-      LocalDef@15..29
+      LocalDef@15..30
         LetKw@15..18 "let"
         Whitespace@18..19 " "
         Ident@19..22 "foo"
         Whitespace@22..23 " "
         Eq@23..24 "="
         Whitespace@24..25 " "
-        IntLiteral@25..29
+        IntLiteral@25..26
           Int@25..26 "5"
-          Whitespace@26..29 "\n  "
-      VarRef@29..33
-        Ident@29..32 "foo"
-        Whitespace@32..33 "\n"
-      RBrace@33..34 "}"
+        Semicolon@26..27 ";"
+        Whitespace@27..30 "\n  "
+      VarRef@30..34
+        Ident@30..33 "foo"
+        Whitespace@33..34 "\n"
+      RBrace@34..35 "}"
 error at 10: missing return type
 error at 10: missing Arrow

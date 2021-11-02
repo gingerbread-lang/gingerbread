@@ -1,17 +1,18 @@
-{ let zero = 0 }
+{ let zero = 0; }
 ===
-Root@0..16
-  Block@0..16
+Root@0..17
+  Block@0..17
     LBrace@0..1 "{"
     Whitespace@1..2 " "
-    LocalDef@2..15
+    LocalDef@2..16
       LetKw@2..5 "let"
       Whitespace@5..6 " "
       Ident@6..10 "zero"
       Whitespace@10..11 " "
       Eq@11..12 "="
       Whitespace@12..13 " "
-      IntLiteral@13..15
+      IntLiteral@13..14
         Int@13..14 "0"
-        Whitespace@14..15 " "
-    RBrace@15..16 "}"
+      Semicolon@14..15 ";"
+      Whitespace@15..16 " "
+    RBrace@16..17 "}"

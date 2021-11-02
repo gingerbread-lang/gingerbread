@@ -22,3 +22,4 @@ Root@0..22
     IntLiteral@21..22
       Int@21..22 "1"
 error at 7: missing variable value
+error at 7: missing Semicolon

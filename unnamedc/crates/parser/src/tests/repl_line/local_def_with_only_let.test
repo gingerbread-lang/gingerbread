@@ -6,3 +6,4 @@ Root@0..3
 error at 3: missing variable name
 error at 3: missing Eq
 error at 3: missing variable value
+error at 3: missing Semicolon

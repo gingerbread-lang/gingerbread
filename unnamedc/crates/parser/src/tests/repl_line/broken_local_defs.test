@@ -11,6 +11,8 @@ Root@0..9
     LetKw@6..9 "let"
 error at 5: missing Eq
 error at 5: missing variable value
+error at 5: missing Semicolon
 error at 9: missing variable name
 error at 9: missing Eq
 error at 9: missing variable value
+error at 9: missing Semicolon

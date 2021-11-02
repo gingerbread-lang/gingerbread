@@ -9,8 +9,13 @@ use std::rc::Rc;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
 
-const DEFAULT_RECOVERY_SET: TokenSet =
-    TokenSet::new([TokenKind::LetKw, TokenKind::FncKw, TokenKind::LBrace, TokenKind::RBrace]);
+const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
+    TokenKind::LetKw,
+    TokenKind::FncKw,
+    TokenKind::LBrace,
+    TokenKind::RBrace,
+    TokenKind::Semicolon,
+]);
 
 #[derive(Debug)]
 pub(crate) struct Parser<'tokens, 'input> {

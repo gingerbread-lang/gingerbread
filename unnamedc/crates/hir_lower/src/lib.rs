@@ -295,7 +295,7 @@ mod tests {
         let local_def = local_defs.alloc(hir::LocalDef { value: bar });
 
         check(
-            "let foo = 92",
+            "let foo = 92;",
             hir::Program {
                 local_defs,
                 exprs,
@@ -353,7 +353,7 @@ mod tests {
         let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(idx_def)));
 
         check(
-            "let idx = 0\nidx",
+            "let idx = 0; idx",
             hir::Program {
                 local_defs,
                 exprs,
@@ -413,7 +413,7 @@ mod tests {
             exprs.alloc(hir::Expr::Bin { lhs: a, rhs: four, op: Some(hir::BinOp::Sub) });
 
         check(
-            "let a = 10\na - 4",
+            "let a = 10; a - 4",
             hir::Program {
                 local_defs,
                 exprs,
@@ -539,7 +539,7 @@ mod tests {
         ]));
 
         check(
-            "{ let foo = 100 - 10\nfoo + 2 }",
+            "{ let foo = 100 - 10; foo + 2 }",
             hir::Program {
                 local_defs,
                 exprs,
@@ -568,9 +568,9 @@ mod tests {
 
         check(
             r#"
-                let count = 0
+                let count = 0;
                 {
-                    let count = "hello there"
+                    let count = "hello there";
                     count
                 }
                 count
@@ -606,9 +606,9 @@ mod tests {
 
         check(
             r#"
-                let a = 8
+                let a = 8;
                 {
-                    let b = 16
+                    let b = 16;
                     a * b
                 }
             "#,
@@ -812,7 +812,7 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10\na - 5"));
+        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10; a - 5"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let mut defs = root.defs();
         let mut stmts = root.stmts();

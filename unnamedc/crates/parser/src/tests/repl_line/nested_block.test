@@ -1,53 +1,55 @@
 {
   let foo = {
-    let bar = 23
+    let bar = 23;
     bar * 2
-  }
+  };
   foo * 2
 }
 ===
-Root@0..60
-  Block@0..60
+Root@0..62
+  Block@0..62
     LBrace@0..1 "{"
     Whitespace@1..4 "\n  "
-    LocalDef@4..51
+    LocalDef@4..53
       LetKw@4..7 "let"
       Whitespace@7..8 " "
       Ident@8..11 "foo"
       Whitespace@11..12 " "
       Eq@12..13 "="
       Whitespace@13..14 " "
-      Block@14..51
+      Block@14..49
         LBrace@14..15 "{"
         Whitespace@15..20 "\n    "
-        LocalDef@20..37
+        LocalDef@20..38
           LetKw@20..23 "let"
           Whitespace@23..24 " "
           Ident@24..27 "bar"
           Whitespace@27..28 " "
           Eq@28..29 "="
           Whitespace@29..30 " "
-          IntLiteral@30..37
+          IntLiteral@30..32
             Int@30..32 "23"
-            Whitespace@32..37 "\n    "
-        BinExpr@37..47
-          VarRef@37..41
-            Ident@37..40 "bar"
-            Whitespace@40..41 " "
-          Asterisk@41..42 "*"
-          Whitespace@42..43 " "
-          IntLiteral@43..47
-            Int@43..44 "2"
-            Whitespace@44..47 "\n  "
-        RBrace@47..48 "}"
-        Whitespace@48..51 "\n  "
-    BinExpr@51..59
-      VarRef@51..55
-        Ident@51..54 "foo"
-        Whitespace@54..55 " "
-      Asterisk@55..56 "*"
-      Whitespace@56..57 " "
-      IntLiteral@57..59
-        Int@57..58 "2"
-        Whitespace@58..59 "\n"
-    RBrace@59..60 "}"
+          Semicolon@32..33 ";"
+          Whitespace@33..38 "\n    "
+        BinExpr@38..48
+          VarRef@38..42
+            Ident@38..41 "bar"
+            Whitespace@41..42 " "
+          Asterisk@42..43 "*"
+          Whitespace@43..44 " "
+          IntLiteral@44..48
+            Int@44..45 "2"
+            Whitespace@45..48 "\n  "
+        RBrace@48..49 "}"
+      Semicolon@49..50 ";"
+      Whitespace@50..53 "\n  "
+    BinExpr@53..61
+      VarRef@53..57
+        Ident@53..56 "foo"
+        Whitespace@56..57 " "
+      Asterisk@57..58 "*"
+      Whitespace@58..59 " "
+      IntLiteral@59..61
+        Int@59..60 "2"
+        Whitespace@60..61 "\n"
+    RBrace@61..62 "}"

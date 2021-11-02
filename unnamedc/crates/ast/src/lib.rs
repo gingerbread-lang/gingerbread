@@ -345,13 +345,13 @@ mod tests {
 
     #[test]
     fn get_stmts() {
-        let root = parse("let a = b\na");
+        let root = parse("let a = b; a");
         assert_eq!(root.stmts().count(), 2);
     }
 
     #[test]
     fn inspect_stmt_and_expr_kind() {
-        let root = parse("let foo = bar\nbaz * quuz");
+        let root = parse("let foo = bar; baz * quuz");
         let mut stmts = root.stmts();
         let local_def = stmts.next().unwrap();
         let expr = stmts.next().unwrap();
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn get_name_of_local_def() {
-        let root = parse("let a = 10");
+        let root = parse("let a = 10;");
         let stmt = root.stmts().next().unwrap();
 
         let local_def = match stmt {
@@ -383,7 +383,7 @@ mod tests {
 
     #[test]
     fn get_value_of_local_def() {
-        let root = parse("let foo = 5");
+        let root = parse("let foo = 5;");
         let stmt = root.stmts().next().unwrap();
 
         let local_def = match stmt {
@@ -491,7 +491,7 @@ mod tests {
 
     #[test]
     fn get_block_stmts() {
-        let root = parse("{ let a = 10\nlet b = a * (a - 1)\nb + 5 }");
+        let root = parse("{ let a = 10; let b = a * (a - 1); b + 5 }");
         let stmt = root.stmts().next().unwrap();
 
         let block = match stmt {

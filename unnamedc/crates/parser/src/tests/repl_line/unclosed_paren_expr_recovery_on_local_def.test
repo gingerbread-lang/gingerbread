@@ -1,7 +1,7 @@
 (1 + 1
-let foo = bar
+let foo = bar;
 ===
-Root@0..20
+Root@0..21
   ParenExpr@0..7
     LParen@0..1 "("
     BinExpr@1..7
@@ -13,7 +13,7 @@ Root@0..20
       IntLiteral@5..7
         Int@5..6 "1"
         Whitespace@6..7 "\n"
-  LocalDef@7..20
+  LocalDef@7..21
     LetKw@7..10 "let"
     Whitespace@10..11 " "
     Ident@11..14 "foo"
@@ -22,4 +22,5 @@ Root@0..20
     Whitespace@16..17 " "
     VarRef@17..20
       Ident@17..20 "bar"
+    Semicolon@20..21 ";"
 error at 6: missing RParen

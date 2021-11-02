@@ -29,5 +29,7 @@ fn parse_local_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.expect(TokenKind::Eq);
     parse_expr(p, "variable value");
 
+    p.expect(TokenKind::Semicolon);
+
     m.complete(p, SyntaxKind::LocalDef)
 }
