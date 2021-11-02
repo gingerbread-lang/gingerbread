@@ -1,0 +1,9 @@
+;;
+===
+Root@0..2
+  Error@0..1
+    Semicolon@0..1 ";"
+  Error@1..2
+    Semicolon@1..2 ";"
+error at 0..1: expected definition but found Semicolon
+error at 1..2: expected definition but found Semicolon

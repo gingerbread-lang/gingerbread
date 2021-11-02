@@ -34,7 +34,7 @@ pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
 
         if p.at_set(DEF_FIRST) {
             parse_def(p);
-        } else if p.at(TokenKind::RBrace) {
+        } else if p.at(TokenKind::RBrace) || p.at(TokenKind::Semicolon) {
             let _guard = p.expected_syntax_name("definition or statement");
             p.error_with_recovery_set_no_default(TokenSet::default());
         } else {
