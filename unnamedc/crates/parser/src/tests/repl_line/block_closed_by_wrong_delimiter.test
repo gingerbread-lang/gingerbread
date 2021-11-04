@@ -7,4 +7,5 @@ Root@0..3
       Ident@1..2 "a"
     Error@2..3
       RParen@2..3 ")"
-error at 2..3: expected RBrace but found RParen
+error at 2..3: expected statement but found RParen
+error at 3: missing RBrace

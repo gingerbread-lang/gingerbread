@@ -1,0 +1,9 @@
+{;}
+===
+Root@0..3
+  Block@0..3
+    LBrace@0..1 "{"
+    Error@1..2
+      Semicolon@1..2 ";"
+    RBrace@2..3 "}"
+error at 1..2: expected statement but found Semicolon
