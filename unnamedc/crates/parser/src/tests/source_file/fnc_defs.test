@@ -35,12 +35,12 @@ Root@0..117
       ParenExpr@40..48
         LParen@40..41 "("
         BinExpr@41..46
-          VarRef@41..43
+          FncCall@41..43
             Ident@41..42 "x"
             Whitespace@42..43 " "
           Plus@43..44 "+"
           Whitespace@44..45 " "
-          VarRef@45..46
+          FncCall@45..46
             Ident@45..46 "y"
         RParen@46..47 ")"
         Whitespace@47..48 " "
@@ -91,17 +91,17 @@ Root@0..117
         LParen@102..103 "("
         BinExpr@103..112
           BinExpr@103..109
-            VarRef@103..105
+            FncCall@103..105
               Ident@103..104 "x"
               Whitespace@104..105 " "
             Plus@105..106 "+"
             Whitespace@106..107 " "
-            VarRef@107..109
+            FncCall@107..109
               Ident@107..108 "y"
               Whitespace@108..109 " "
           Plus@109..110 "+"
           Whitespace@110..111 " "
-          VarRef@111..112
+          FncCall@111..112
             Ident@111..112 "z"
         RParen@112..113 ")"
         Whitespace@113..114 " "

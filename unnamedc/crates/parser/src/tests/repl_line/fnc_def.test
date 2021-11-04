@@ -31,10 +31,10 @@ Root@0..37
     Arrow@29..31 "->"
     Whitespace@31..32 " "
     BinExpr@32..37
-      VarRef@32..34
+      FncCall@32..34
         Ident@32..33 "x"
         Whitespace@33..34 " "
       Plus@34..35 "+"
       Whitespace@35..36 " "
-      VarRef@36..37
+      FncCall@36..37
         Ident@36..37 "y"

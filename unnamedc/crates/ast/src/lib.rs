@@ -126,7 +126,7 @@ impl AstNode for Stmt {
             SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
             SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
             SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
-            SyntaxKind::VarRef => Some(Self::Expr(Expr::VarRef(VarRef(node)))),
+            SyntaxKind::FncCall => Some(Self::Expr(Expr::FncCall(FncCall(node)))),
             SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
             SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
             _ => None,
@@ -194,7 +194,7 @@ pub enum Expr {
     Bin(BinExpr),
     Block(Block),
     Paren(ParenExpr),
-    VarRef(VarRef),
+    FncCall(FncCall),
     IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
 }
@@ -205,7 +205,7 @@ impl AstNode for Expr {
             SyntaxKind::BinExpr => Some(Self::Bin(BinExpr(node))),
             SyntaxKind::Block => Some(Self::Block(Block(node))),
             SyntaxKind::ParenExpr => Some(Self::Paren(ParenExpr(node))),
-            SyntaxKind::VarRef => Some(Self::VarRef(VarRef(node))),
+            SyntaxKind::FncCall => Some(Self::FncCall(FncCall(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
             SyntaxKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
             _ => None,
@@ -217,7 +217,7 @@ impl AstNode for Expr {
             Self::Bin(bin_expr) => bin_expr.syntax(),
             Self::Block(block) => block.syntax(),
             Self::Paren(paren_expr) => paren_expr.syntax(),
-            Self::VarRef(var_ref) => var_ref.syntax(),
+            Self::FncCall(fnc_call) => fnc_call.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
             Self::StringLiteral(string_literal) => string_literal.syntax(),
         }
@@ -256,9 +256,9 @@ impl ParenExpr {
     }
 }
 
-def_ast_node!(VarRef);
+def_ast_node!(FncCall);
 
-impl VarRef {
+impl FncCall {
     pub fn name(&self) -> Option<Ident> {
         token(self)
     }
@@ -424,7 +424,7 @@ mod tests {
         };
 
         match bin_expr.lhs() {
-            Some(Expr::VarRef(_)) => {}
+            Some(Expr::FncCall(_)) => {}
             _ => unreachable!(),
         }
 
@@ -451,16 +451,16 @@ mod tests {
     }
 
     #[test]
-    fn get_name_of_var_ref() {
+    fn get_name_of_fnc_call() {
         let root = parse("idx");
         let stmt = root.stmts().next().unwrap();
 
-        let var_ref = match stmt {
-            Stmt::Expr(Expr::VarRef(var_ref)) => var_ref,
+        let fnc_call = match stmt {
+            Stmt::Expr(Expr::FncCall(fnc_call)) => fnc_call,
             _ => unreachable!(),
         };
 
-        assert_eq!(var_ref.name().unwrap().text(), "idx");
+        assert_eq!(fnc_call.name().unwrap().text(), "idx");
     }
 
     #[test]

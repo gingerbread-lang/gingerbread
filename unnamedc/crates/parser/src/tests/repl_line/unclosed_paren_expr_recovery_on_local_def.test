@@ -20,7 +20,7 @@ Root@0..21
     Whitespace@14..15 " "
     Eq@15..16 "="
     Whitespace@16..17 " "
-    VarRef@17..20
+    FncCall@17..20
       Ident@17..20 "bar"
     Semicolon@20..21 ";"
 error at 6: missing RParen

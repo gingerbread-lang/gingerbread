@@ -16,7 +16,7 @@ Root@0..17
             Whitespace@6..7 " "
           Hyphen@7..8 "-"
           Whitespace@8..9 " "
-          VarRef@9..12
+          FncCall@9..12
             Ident@9..12 "foo"
         RParen@12..13 ")"
         Whitespace@13..14 " "

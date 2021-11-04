@@ -67,7 +67,7 @@ pub enum SyntaxKind {
     Error,
 
     Root,
-    VarRef,
+    FncCall,
     Block,
     IntLiteral,
     StringLiteral,

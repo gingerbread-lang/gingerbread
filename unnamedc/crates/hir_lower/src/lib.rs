@@ -58,7 +58,8 @@ pub struct LowerError {
 
 #[derive(Debug, PartialEq)]
 pub enum LowerErrorKind {
-    UndefinedVar { name: String },
+    UndefinedVarOrFnc { name: String },
+    UndefinedFnc { name: String },
     UndefinedTy { name: String },
 }
 
@@ -174,7 +175,7 @@ impl LowerCtx<'_> {
             ast::Expr::Bin(ast) => self.lower_bin_expr(ast),
             ast::Expr::Block(ast) => self.lower_block(ast),
             ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
-            ast::Expr::VarRef(ast) => self.lower_var_ref(ast),
+            ast::Expr::FncCall(ast) => self.lower_fnc_call(ast),
             ast::Expr::IntLiteral(ast) => self.lower_int_literal(ast),
             ast::Expr::StringLiteral(ast) => self.lower_string_literal(ast),
         };
@@ -199,7 +200,7 @@ impl LowerCtx<'_> {
         hir::Expr::Block(ast.stmts().map(|ast| child.lower_stmt(ast)).collect())
     }
 
-    fn lower_var_ref(&mut self, ast: ast::VarRef) -> hir::Expr {
+    fn lower_fnc_call(&mut self, ast: ast::FncCall) -> hir::Expr {
         ast.name().map_or(hir::Expr::Missing, |ast| {
             let name = ast.text();
 
@@ -208,7 +209,7 @@ impl LowerCtx<'_> {
                 None => {
                     self.store.errors.push(LowerError {
                         range: ast.range(),
-                        kind: LowerErrorKind::UndefinedVar { name: name.to_string() },
+                        kind: LowerErrorKind::UndefinedVarOrFnc { name: name.to_string() },
                     });
 
                     hir::Expr::Missing
@@ -365,14 +366,14 @@ mod tests {
     }
 
     #[test]
-    fn lower_undefined_var_ref() {
+    fn lower_undefined_var_or_fnc() {
         let mut exprs = Arena::new();
         let missing = exprs.alloc(hir::Expr::Missing);
 
         check(
             "user",
             hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)], ..Default::default() },
-            [(0..4, LowerErrorKind::UndefinedVar { name: "user".to_string() })],
+            [(0..4, LowerErrorKind::UndefinedVarOrFnc { name: "user".to_string() })],
         );
     }
 
@@ -731,7 +732,7 @@ mod tests {
                 stmts: vec![hir::Stmt::Expr(missing)],
                 ..Default::default()
             },
-            [(71..72, LowerErrorKind::UndefinedVar { name: "x".to_string() })],
+            [(71..72, LowerErrorKind::UndefinedVarOrFnc { name: "x".to_string() })],
         );
     }
 

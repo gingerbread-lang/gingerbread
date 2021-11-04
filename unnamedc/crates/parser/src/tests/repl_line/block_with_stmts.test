@@ -27,7 +27,7 @@ Root@0..44
       Eq@25..26 "="
       Whitespace@26..27 " "
       BinExpr@27..33
-        VarRef@27..29
+        FncCall@27..29
           Ident@27..28 "a"
           Whitespace@28..29 " "
         Asterisk@29..30 "*"
@@ -37,7 +37,7 @@ Root@0..44
       Semicolon@33..34 ";"
       Whitespace@34..37 "\n  "
     BinExpr@37..43
-      VarRef@37..39
+      FncCall@37..39
         Ident@37..38 "b"
         Whitespace@38..39 " "
       Hyphen@39..40 "-"

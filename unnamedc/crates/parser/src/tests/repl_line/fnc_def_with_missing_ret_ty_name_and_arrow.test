@@ -29,7 +29,7 @@ Root@0..35
           Int@25..26 "5"
         Semicolon@26..27 ";"
         Whitespace@27..30 "\n  "
-      VarRef@30..34
+      FncCall@30..34
         Ident@30..33 "foo"
         Whitespace@33..34 "\n"
       RBrace@34..35 "}"

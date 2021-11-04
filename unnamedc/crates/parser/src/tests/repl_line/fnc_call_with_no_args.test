@@ -1,5 +1,5 @@
 foo
 ===
 Root@0..3
-  VarRef@0..3
+  FncCall@0..3
     Ident@0..3 "foo"

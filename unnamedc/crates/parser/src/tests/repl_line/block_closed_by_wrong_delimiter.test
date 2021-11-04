@@ -3,7 +3,7 @@
 Root@0..3
   Block@0..3
     LBrace@0..1 "{"
-    VarRef@1..2
+    FncCall@1..2
       Ident@1..2 "a"
     Error@2..3
       RParen@2..3 ")"

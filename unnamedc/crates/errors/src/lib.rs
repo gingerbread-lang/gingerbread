@@ -157,8 +157,14 @@ fn validation_error_header(
 
 fn lower_error_header(lower_error: &LowerError, start_line_column: &LineColumn) -> String {
     match lower_error.kind {
-        LowerErrorKind::UndefinedVar { ref name } => {
-            format!("undefined variable at {}: `{}` has not been defined", start_line_column, name)
+        LowerErrorKind::UndefinedVarOrFnc { ref name } => {
+            format!(
+                "undefined variable or zero-parameter function at {}: `{}` has not been defined",
+                start_line_column, name
+            )
+        }
+        LowerErrorKind::UndefinedFnc { ref name } => {
+            format!("undefined function at {}: `{}` has not been defined", start_line_column, name)
         }
         LowerErrorKind::UndefinedTy { ref name } => {
             format!("undefined type at {}: `{}` has not been defined", start_line_column, name)
@@ -356,15 +362,29 @@ mod tests {
     }
 
     #[test]
-    fn lower_error_undefined_var() {
+    fn lower_error_undefined_var_or_fnc() {
         check_lower_error(
             "let the_value = 10\nteh_value",
-            LowerErrorKind::UndefinedVar { name: "teh_value".to_string() },
+            LowerErrorKind::UndefinedVarOrFnc { name: "teh_value".to_string() },
             19..28,
             expect![[r#"
-                undefined variable at 2:1: `teh_value` has not been defined
+                undefined variable or zero-parameter function at 2:1: `teh_value` has not been defined
                   teh_value
                   ^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lower_error_undefined_fnc() {
+        check_lower_error(
+            "frobnicate 10, 20",
+            LowerErrorKind::UndefinedFnc { name: "frobnicate".to_string() },
+            0..10,
+            expect![[r#"
+                undefined function at 1:1: `frobnicate` has not been defined
+                  frobnicate 10, 20
+                  ^^^^^^^^^^
             "#]],
         );
     }
