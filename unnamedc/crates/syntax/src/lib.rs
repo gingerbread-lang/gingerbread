@@ -68,6 +68,8 @@ pub enum SyntaxKind {
 
     Root,
     FncCall,
+    ArgList,
+    Arg,
     Block,
     IntLiteral,
     StringLiteral,

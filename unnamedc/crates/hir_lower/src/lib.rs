@@ -721,7 +721,7 @@ mod tests {
 
         check(
             r#"
-                fnc add(x: s32, y: s32): s32 -> x + y
+                fnc add(x: s32, y: s32): s32 -> x + y;
                 x
             "#,
             hir::Program {
@@ -732,7 +732,7 @@ mod tests {
                 stmts: vec![hir::Stmt::Expr(missing)],
                 ..Default::default()
             },
-            [(71..72, LowerErrorKind::UndefinedVarOrFnc { name: "x".to_string() })],
+            [(72..73, LowerErrorKind::UndefinedVarOrFnc { name: "x".to_string() })],
         );
     }
 

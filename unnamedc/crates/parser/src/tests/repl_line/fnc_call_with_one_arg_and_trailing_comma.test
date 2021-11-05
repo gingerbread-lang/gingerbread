@@ -1,0 +1,11 @@
+prompt "Hello",
+===
+Root@0..15
+  FncCall@0..15
+    Ident@0..6 "prompt"
+    Whitespace@6..7 " "
+    ArgList@7..15
+      Arg@7..14
+        StringLiteral@7..14
+          String@7..14 "\"Hello\""
+      Comma@14..15 ","

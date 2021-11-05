@@ -87,7 +87,38 @@ fn parse_fnc_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
     p.bump();
+
+    if p.at_set(EXPR_FIRST) {
+        parse_arg_list(p);
+    }
+
     m.complete(p, SyntaxKind::FncCall)
+}
+
+fn parse_arg_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at_set(EXPR_FIRST));
+    let m = p.start();
+
+    while p.at_set(EXPR_FIRST) {
+        parse_arg(p);
+
+        if p.at(TokenKind::Comma) {
+            p.bump();
+        } else {
+            break;
+        }
+    }
+
+    m.complete(p, SyntaxKind::ArgList)
+}
+
+fn parse_arg(p: &mut Parser<'_, '_>) -> CompletedMarker {
+    assert!(p.at_set(EXPR_FIRST));
+    let m = p.start();
+
+    parse_expr(p, "expression");
+
+    m.complete(p, SyntaxKind::Arg)
 }
 
 fn parse_block(p: &mut Parser<'_, '_>) -> CompletedMarker {
