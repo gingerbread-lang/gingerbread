@@ -262,6 +262,26 @@ impl FncCall {
     pub fn name(&self) -> Option<Ident> {
         token(self)
     }
+
+    pub fn arg_list(&self) -> Option<ArgList> {
+        node(self)
+    }
+}
+
+def_ast_node!(ArgList);
+
+impl ArgList {
+    pub fn args(&self) -> impl Iterator<Item = Arg> {
+        nodes(self)
+    }
+}
+
+def_ast_node!(Arg);
+
+impl Arg {
+    pub fn value(&self) -> Option<Expr> {
+        node(self)
+    }
 }
 
 def_ast_node!(IntLiteral);
@@ -461,6 +481,23 @@ mod tests {
         };
 
         assert_eq!(fnc_call.name().unwrap().text(), "idx");
+    }
+
+    #[test]
+    fn get_args_of_fnc_call() {
+        let root = parse("mul 10, 20");
+        let stmt = root.stmts().next().unwrap();
+
+        let fnc_call = match stmt {
+            Stmt::Expr(Expr::FncCall(fnc_call)) => fnc_call,
+            _ => unreachable!(),
+        };
+
+        let mut args = fnc_call.arg_list().unwrap().args();
+
+        assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "10");
+        assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "20");
+        assert!(args.next().is_none());
     }
 
     #[test]
