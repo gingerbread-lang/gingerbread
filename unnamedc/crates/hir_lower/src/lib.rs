@@ -227,6 +227,8 @@ impl LowerCtx<'_> {
         } else {
             if let Some(var_def) = self.var_names.get(name) {
                 return hir::Expr::VarRef(var_def);
+            } else if let Some(&def) = self.fnc_names.get(name) {
+                return hir::Expr::FncCall { def, args: IdxRange::default() };
             }
 
             self.store.errors.push(LowerError {
@@ -449,6 +451,35 @@ mod tests {
                 exprs,
                 defs: vec![hir::Def::FncDef(add_def)],
                 stmts: vec![hir::Stmt::Expr(add_two_five)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
+    fn lower_zero_arg_fnc_call() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let zero_literal = exprs.alloc(hir::Expr::IntLiteral(0));
+        let zero_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::S32,
+            body: zero_literal,
+        });
+        let zero = exprs.alloc(hir::Expr::FncCall { def: zero_def, args: IdxRange::default() });
+
+        check(
+            r#"
+                fnc zero(): s32 -> 0;
+                zero
+            "#,
+            hir::Program {
+                fnc_defs,
+                exprs,
+                defs: vec![hir::Def::FncDef(zero_def)],
+                stmts: vec![hir::Stmt::Expr(zero)],
                 ..Default::default()
             },
             [],
