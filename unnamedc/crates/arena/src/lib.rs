@@ -117,9 +117,7 @@ impl<T> DoubleEndedIterator for IdxRange<T> {
 
 impl<T> fmt::Debug for IdxRange<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple(&format!("IdxRange::<{}>", std::any::type_name::<T>()))
-            .field(&self.range)
-            .finish()
+        write!(f, "IdxRange::<{}>({:?})", std::any::type_name::<T>(), self.range)
     }
 }
 
@@ -181,8 +179,8 @@ pub struct Arena<T> {
 }
 
 impl<T: fmt::Debug> fmt::Debug for Arena<T> {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.debug_struct("Arena").field("len", &self.len()).field("data", &self.data).finish()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.data, f)
     }
 }
 
