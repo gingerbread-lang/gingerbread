@@ -78,11 +78,7 @@ pub struct IdxRange<T> {
 }
 
 impl<T> IdxRange<T> {
-    pub fn new(range: Range<Idx<T>>) -> Self {
-        Self { range: range.start.into_raw().into()..range.end.into_raw().into(), _p: PhantomData }
-    }
-
-    pub fn new_inclusive(range: RangeInclusive<Idx<T>>) -> Self {
+    pub fn new(range: RangeInclusive<Idx<T>>) -> Self {
         Self {
             range: u32::from(range.start().into_raw())..u32::from(range.end().into_raw()) + 1,
             _p: PhantomData,
@@ -159,10 +155,8 @@ impl<T> IdxRangeBuilder<T> {
     pub fn build(self) -> IdxRange<T> {
         match self.0 {
             IdxRangeBuilderRepr::Empty => IdxRange::default(),
-            IdxRangeBuilderRepr::OnlyFirst(first) => IdxRange::new_inclusive(first..=first),
-            IdxRangeBuilderRepr::FirstAndLast { first, last } => {
-                IdxRange::new_inclusive(first..=last)
-            }
+            IdxRangeBuilderRepr::OnlyFirst(first) => IdxRange::new(first..=first),
+            IdxRangeBuilderRepr::FirstAndLast { first, last } => IdxRange::new(first..=last),
         }
     }
 }

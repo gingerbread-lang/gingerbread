@@ -551,16 +551,14 @@ mod tests {
         let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
         let x_times_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Mul) });
         let mul_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(x_def..=y_def),
+            params: IdxRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_times_y,
         });
         let twenty_three = exprs.alloc(hir::Expr::IntLiteral(23));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
-        let mul = exprs.alloc(hir::Expr::FncCall {
-            def: mul_def,
-            args: IdxRange::new_inclusive(twenty_three..=four),
-        });
+        let mul = exprs
+            .alloc(hir::Expr::FncCall { def: mul_def, args: IdxRange::new(twenty_three..=four) });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -593,7 +591,7 @@ mod tests {
         let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
         let id_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(n_def..=n_def),
+            params: IdxRange::new(n_def..=n_def),
             ret_ty: hir::Ty::S32,
             body: n,
         });
@@ -633,7 +631,7 @@ mod tests {
         let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(b_def)));
         let a_over_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Div) });
         let div_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(a_def..=b_def),
+            params: IdxRange::new(a_def..=b_def),
             ret_ty: hir::Ty::S32,
             body: a_over_b,
         });
@@ -641,7 +639,7 @@ mod tests {
         let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
         let div = exprs.alloc(hir::Expr::FncCall {
             def: div_def,
-            args: IdxRange::new_inclusive(empty_block..=ten_string),
+            args: IdxRange::new(empty_block..=ten_string),
         });
 
         let result = infer(&hir::Program {
@@ -714,7 +712,7 @@ mod tests {
         let param_2 = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(param_1..=param_2),
+            params: IdxRange::new(param_1..=param_2),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -746,7 +744,7 @@ mod tests {
         let param_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let param_ref = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(param_def)));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(param_def..=param_def),
+            params: IdxRange::new(param_def..=param_def),
             ret_ty: hir::Ty::S32,
             body: param_ref,
         });

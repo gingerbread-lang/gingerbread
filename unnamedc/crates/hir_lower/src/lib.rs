@@ -431,14 +431,14 @@ mod tests {
         let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
         let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
         let add_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(x_def..=y_def),
+            params: IdxRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_plus_y,
         });
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let five = exprs.alloc(hir::Expr::IntLiteral(5));
-        let add_two_five = exprs
-            .alloc(hir::Expr::FncCall { def: add_def, args: IdxRange::new_inclusive(two..=five) });
+        let add_two_five =
+            exprs.alloc(hir::Expr::FncCall { def: add_def, args: IdxRange::new(two..=five) });
 
         check(
             r#"
@@ -794,7 +794,7 @@ mod tests {
         let x = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(x..=x),
+            params: IdxRange::new(x..=x),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -821,7 +821,7 @@ mod tests {
         let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(n_def..=n_def),
+            params: IdxRange::new(n_def..=n_def),
             ret_ty: hir::Ty::S32,
             body: n,
         });
@@ -851,7 +851,7 @@ mod tests {
         let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
         let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(x_def..=y_def),
+            params: IdxRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_plus_y,
         });
@@ -883,7 +883,7 @@ mod tests {
         let x_def = params.alloc(hir::Param { ty: hir::Ty::Unknown });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new_inclusive(x_def..=x_def),
+            params: IdxRange::new(x_def..=x_def),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
