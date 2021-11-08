@@ -89,6 +89,10 @@ impl<T> IdxRange<T> {
         }
     }
 
+    pub fn builder() -> IdxRangeBuilder<T> {
+        IdxRangeBuilder(IdxRangeBuilderRepr::Empty)
+    }
+
     pub fn len(&self) -> usize {
         self.range.len()
     }
@@ -137,6 +141,38 @@ impl<T> Default for IdxRange<T> {
     fn default() -> Self {
         Self { range: 0..0, _p: PhantomData }
     }
+}
+
+pub struct IdxRangeBuilder<T>(IdxRangeBuilderRepr<T>);
+
+impl<T> IdxRangeBuilder<T> {
+    pub fn include(&mut self, elem: Idx<T>) {
+        self.0 = match self.0 {
+            IdxRangeBuilderRepr::Empty => IdxRangeBuilderRepr::OnlyFirst(elem),
+            IdxRangeBuilderRepr::OnlyFirst(first) => {
+                IdxRangeBuilderRepr::FirstAndLast { first, last: elem }
+            }
+            IdxRangeBuilderRepr::FirstAndLast { first, last: _last } => {
+                IdxRangeBuilderRepr::FirstAndLast { first, last: elem }
+            }
+        };
+    }
+
+    pub fn build(self) -> IdxRange<T> {
+        match self.0 {
+            IdxRangeBuilderRepr::Empty => IdxRange::default(),
+            IdxRangeBuilderRepr::OnlyFirst(first) => IdxRange::new_inclusive(first..=first),
+            IdxRangeBuilderRepr::FirstAndLast { first, last } => {
+                IdxRange::new_inclusive(first..=last)
+            }
+        }
+    }
+}
+
+enum IdxRangeBuilderRepr<T> {
+    Empty,
+    OnlyFirst(Idx<T>),
+    FirstAndLast { first: Idx<T>, last: Idx<T> },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

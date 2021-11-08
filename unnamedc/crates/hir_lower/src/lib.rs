@@ -5,18 +5,34 @@ use text_size::TextRange;
 
 pub fn lower(
     ast: &ast::Root,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
-    lower_with_local_defs(ast, Arena::new(), HashMap::new())
+) -> (
+    hir::Program,
+    SourceMap,
+    Vec<LowerError>,
+    HashMap<String, hir::FncDefIdx>,
+    HashMap<String, hir::VarDefIdx>,
+) {
+    lower_with_in_scope(ast, Arena::new(), HashMap::new(), HashMap::new())
 }
 
-pub fn lower_with_local_defs(
+pub fn lower_with_in_scope(
     ast: &ast::Root,
     local_defs: Arena<hir::LocalDef>,
+    mut fnc_names: HashMap<String, hir::FncDefIdx>,
     var_names: HashMap<String, hir::VarDefIdx>,
-) -> (hir::Program, SourceMap, Vec<LowerError>, HashMap<String, hir::VarDefIdx>) {
+) -> (
+    hir::Program,
+    SourceMap,
+    Vec<LowerError>,
+    HashMap<String, hir::FncDefIdx>,
+    HashMap<String, hir::VarDefIdx>,
+) {
     let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
-    let mut lower_ctx =
-        LowerCtx { store: &mut lower_store, var_names: VarNames { this: var_names, parent: None } };
+    let mut lower_ctx = LowerCtx {
+        store: &mut lower_store,
+        fnc_names: &mut fnc_names,
+        var_names: VarNames { this: var_names, parent: None },
+    };
     let mut defs = Vec::new();
     let mut stmts = Vec::new();
 
@@ -28,7 +44,7 @@ pub fn lower_with_local_defs(
         stmts.push(lower_ctx.lower_stmt(stmt));
     }
 
-    let var_def_names = lower_ctx.var_names.this;
+    let var_names = lower_ctx.var_names.this;
     (
         hir::Program {
             local_defs: lower_store.local_defs,
@@ -40,7 +56,8 @@ pub fn lower_with_local_defs(
         },
         lower_store.source_map,
         lower_store.errors,
-        var_def_names,
+        fnc_names,
+        var_names,
     )
 }
 
@@ -65,6 +82,7 @@ pub enum LowerErrorKind {
 
 struct LowerCtx<'a> {
     store: &'a mut LowerStore,
+    fnc_names: &'a mut HashMap<String, hir::FncDefIdx>,
     var_names: VarNames<'a>,
 }
 
@@ -106,18 +124,14 @@ impl LowerCtx<'_> {
     fn lower_fnc_def(&mut self, ast: ast::FncDef) -> hir::FncDefIdx {
         let mut child = self.new_child();
 
-        let mut first_and_last_param = None;
+        let mut params = IdxRange::builder();
 
         if let Some(param_list) = ast.param_list() {
             for param in param_list.params() {
                 let ty = child.lower_ty(param.ty());
                 let idx = child.store.params.alloc(hir::Param { ty });
 
-                first_and_last_param = match first_and_last_param {
-                    None => Some((idx, None)),
-                    Some((first, None)) => Some((first, Some(idx))),
-                    Some((first, Some(_))) => Some((first, Some(idx))),
-                };
+                params.include(idx);
 
                 if let Some(name) = param.name() {
                     child
@@ -128,11 +142,7 @@ impl LowerCtx<'_> {
             }
         }
 
-        let params = match first_and_last_param {
-            Some((first, Some(last))) => IdxRange::new_inclusive(first..=last),
-            Some((first, None)) => IdxRange::new_inclusive(first..=first),
-            None => IdxRange::default(),
-        };
+        let params = params.build();
 
         let ret_ty = match ast.ret_ty() {
             Some(ret_ty) => child.lower_ty(ret_ty.ty()),
@@ -141,7 +151,12 @@ impl LowerCtx<'_> {
 
         let body = child.lower_expr(ast.body());
 
-        self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body })
+        let idx = self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body });
+        if let Some(name) = ast.name() {
+            self.fnc_names.insert(name.text().to_string(), idx);
+        }
+
+        idx
     }
 
     fn lower_ty(&mut self, ast: Option<ast::Ty>) -> hir::Ty {
@@ -201,21 +216,45 @@ impl LowerCtx<'_> {
     }
 
     fn lower_fnc_call(&mut self, ast: ast::FncCall) -> hir::Expr {
-        ast.name().map_or(hir::Expr::Missing, |ast| {
-            let name = ast.text();
+        let name_ast = match ast.name() {
+            Some(ast) => ast,
+            None => return hir::Expr::Missing,
+        };
+        let name = name_ast.text();
 
-            match self.var_names.get(name) {
-                Some(var_def) => hir::Expr::VarRef(var_def),
-                None => {
-                    self.store.errors.push(LowerError {
-                        range: ast.range(),
-                        kind: LowerErrorKind::UndefinedVarOrFnc { name: name.to_string() },
-                    });
-
-                    hir::Expr::Missing
-                }
+        let arg_list = if let Some(ast) = ast.arg_list() {
+            ast
+        } else {
+            if let Some(var_def) = self.var_names.get(name) {
+                return hir::Expr::VarRef(var_def);
             }
-        })
+
+            self.store.errors.push(LowerError {
+                range: name_ast.range(),
+                kind: LowerErrorKind::UndefinedVarOrFnc { name: name.to_string() },
+            });
+
+            return hir::Expr::Missing;
+        };
+
+        let mut args = IdxRange::builder();
+
+        for arg in arg_list.args() {
+            let idx = self.lower_expr(arg.value());
+            args.include(idx);
+        }
+
+        match self.fnc_names.get(name) {
+            Some(&def) => hir::Expr::FncCall { def, args: args.build() },
+            None => {
+                self.store.errors.push(LowerError {
+                    range: name_ast.range(),
+                    kind: LowerErrorKind::UndefinedFnc { name: name.to_string() },
+                });
+
+                hir::Expr::Missing
+            }
+        }
     }
 
     fn lower_int_literal(&self, ast: ast::IntLiteral) -> hir::Expr {
@@ -244,6 +283,7 @@ impl LowerCtx<'_> {
     fn new_child(&mut self) -> LowerCtx<'_> {
         LowerCtx {
             store: self.store,
+            fnc_names: self.fnc_names,
             var_names: VarNames { this: HashMap::new(), parent: Some(&self.var_names) },
         }
     }
@@ -281,7 +321,7 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (actual_program, _, actual_errors, _) = lower(&root);
+        let (actual_program, _, actual_errors, _, _) = lower(&root);
 
         pretty_assertions::assert_eq!(actual_program, expected_program);
         pretty_assertions::assert_eq!(actual_errors, expected_errors);
@@ -374,6 +414,44 @@ mod tests {
             "user",
             hir::Program { exprs, stmts: vec![hir::Stmt::Expr(missing)], ..Default::default() },
             [(0..4, LowerErrorKind::UndefinedVarOrFnc { name: "user".to_string() })],
+        );
+    }
+
+    #[test]
+    fn lower_fnc_call() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
+        let add_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(x_def..=y_def),
+            ret_ty: hir::Ty::S32,
+            body: x_plus_y,
+        });
+        let two = exprs.alloc(hir::Expr::IntLiteral(2));
+        let five = exprs.alloc(hir::Expr::IntLiteral(5));
+        let add_two_five = exprs
+            .alloc(hir::Expr::FncCall { def: add_def, args: IdxRange::new_inclusive(two..=five) });
+
+        check(
+            r#"
+                fnc add(x: s32, y: s32): s32 -> x + y;
+                add 2, 5
+            "#,
+            hir::Program {
+                fnc_defs,
+                params,
+                exprs,
+                defs: vec![hir::Def::FncDef(add_def)],
+                stmts: vec![hir::Stmt::Expr(add_two_five)],
+                ..Default::default()
+            },
+            [],
         );
     }
 
@@ -487,7 +565,7 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("let a = \"hello\""));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, local_def_names) = lower(&root);
+        let (program, _, errors, fnc_names, var_names) = lower(&root);
 
         assert_eq!(
             program,
@@ -505,8 +583,8 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _) =
-            lower_with_local_defs(&root, local_defs.clone(), local_def_names);
+        let (program, _, errors, _, _) =
+            lower_with_in_scope(&root, local_defs.clone(), fnc_names, var_names);
 
         assert_eq!(
             program,
@@ -854,7 +932,7 @@ mod tests {
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 
-        let (program, source_map, errors, _) = lower(&root);
+        let (program, source_map, errors, _, _) = lower(&root);
 
         assert_eq!(
             program,

@@ -134,6 +134,8 @@ impl InferCtx<'_> {
                 hir::Ty::S32
             }
 
+            hir::Expr::FncCall { .. } => todo!(),
+
             hir::Expr::Block(ref stmts) => match stmts.split_last() {
                 Some((last, rest)) => {
                     for stmt in rest {

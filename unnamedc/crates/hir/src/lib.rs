@@ -55,6 +55,7 @@ pub enum Ty {
 pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
+    FncCall { def: FncDefIdx, args: IdxRange<Expr> },
     Block(Vec<Stmt>),
     VarRef(VarDefIdx),
     IntLiteral(u32),

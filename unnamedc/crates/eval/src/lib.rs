@@ -57,6 +57,7 @@ impl EvalCtx<'_> {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
+            hir::Expr::FncCall { .. } => todo!(),
             hir::Expr::Block(stmts) => match stmts.split_last() {
                 Some((last, rest)) => {
                     for stmt in rest {
@@ -116,7 +117,7 @@ mod tests {
     fn check(input: &str, val: Val) {
         let parse = parser::parse_repl_line(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _) = hir_lower::lower(&root);
+        let (program, _, errors, _, _) = hir_lower::lower(&root);
 
         assert_eq!(Evaluator::default().eval(program), val);
         assert!(errors.is_empty());
@@ -213,13 +214,13 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("let foo = 100;"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, local_def_names) = hir_lower::lower(&root);
+        let (program, _, _, fnc_names, var_names) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);
 
         let parse = parser::parse_repl_line(&lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, _) =
-            hir_lower::lower_with_local_defs(&root, program.local_defs, local_def_names);
+        let (program, _, _, _, _) =
+            hir_lower::lower_with_in_scope(&root, program.local_defs, fnc_names, var_names);
         assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 }
