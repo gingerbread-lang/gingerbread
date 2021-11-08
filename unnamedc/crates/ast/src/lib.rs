@@ -125,7 +125,6 @@ impl AstNode for Stmt {
             SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
             SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
             SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
-            SyntaxKind::ParenExpr => Some(Self::Expr(Expr::Paren(ParenExpr(node)))),
             SyntaxKind::FncCall => Some(Self::Expr(Expr::FncCall(FncCall(node)))),
             SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
             SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
@@ -193,7 +192,6 @@ impl Ty {
 pub enum Expr {
     Bin(BinExpr),
     Block(Block),
-    Paren(ParenExpr),
     FncCall(FncCall),
     IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
@@ -204,7 +202,6 @@ impl AstNode for Expr {
         match node.kind() {
             SyntaxKind::BinExpr => Some(Self::Bin(BinExpr(node))),
             SyntaxKind::Block => Some(Self::Block(Block(node))),
-            SyntaxKind::ParenExpr => Some(Self::Paren(ParenExpr(node))),
             SyntaxKind::FncCall => Some(Self::FncCall(FncCall(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
             SyntaxKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
@@ -216,7 +213,6 @@ impl AstNode for Expr {
         match self {
             Self::Bin(bin_expr) => bin_expr.syntax(),
             Self::Block(block) => block.syntax(),
-            Self::Paren(paren_expr) => paren_expr.syntax(),
             Self::FncCall(fnc_call) => fnc_call.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
             Self::StringLiteral(string_literal) => string_literal.syntax(),
@@ -245,14 +241,6 @@ def_ast_node!(Block);
 impl Block {
     pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
         nodes(self)
-    }
-}
-
-def_ast_node!(ParenExpr);
-
-impl ParenExpr {
-    pub fn inner(&self) -> Option<Expr> {
-        node(self)
     }
 }
 
@@ -418,22 +406,6 @@ mod tests {
     }
 
     #[test]
-    fn get_inner_expr_of_paren_expr() {
-        let root = parse("(1)");
-        let stmt = root.stmts().next().unwrap();
-
-        let paren_expr = match stmt {
-            Stmt::Expr(Expr::Paren(paren_expr)) => paren_expr,
-            _ => unreachable!(),
-        };
-
-        match paren_expr.inner() {
-            Some(Expr::IntLiteral(_)) => {}
-            _ => unreachable!(),
-        }
-    }
-
-    #[test]
     fn get_lhs_and_rhs_of_bin_expr() {
         let root = parse("foo * 2");
         let stmt = root.stmts().next().unwrap();
@@ -528,7 +500,7 @@ mod tests {
 
     #[test]
     fn get_block_stmts() {
-        let root = parse("{ let a = 10; let b = a * (a - 1); b + 5 }");
+        let root = parse("{ let a = 10; let b = a * {a - 1}; b + 5 }");
         let stmt = root.stmts().next().unwrap();
 
         let block = match stmt {

@@ -1,0 +1,8 @@
+{5}
+===
+Root@0..3
+  Block@0..3
+    LBrace@0..1 "{"
+    IntLiteral@1..2
+      Int@1..2 "5"
+    RBrace@2..3 "}"

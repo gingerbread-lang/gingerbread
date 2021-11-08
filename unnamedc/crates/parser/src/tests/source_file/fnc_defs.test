@@ -1,5 +1,5 @@
-fnc average_two(x: s32, y: s32): s32 -> (x + y) / 2;
-fnc average_three(x: s32, y: s32, z: s32): s32 -> (x + y + z) / 3;
+fnc average_two(x: s32, y: s32): s32 -> {x + y} / 2;
+fnc average_three(x: s32, y: s32, z: s32): s32 -> {x + y + z} / 3;
 ===
 Root@0..119
   FncDef@0..53
@@ -32,8 +32,8 @@ Root@0..119
     Arrow@37..39 "->"
     Whitespace@39..40 " "
     BinExpr@40..51
-      ParenExpr@40..48
-        LParen@40..41 "("
+      Block@40..48
+        LBrace@40..41 "{"
         BinExpr@41..46
           FncCall@41..43
             Ident@41..42 "x"
@@ -42,7 +42,7 @@ Root@0..119
           Whitespace@44..45 " "
           FncCall@45..46
             Ident@45..46 "y"
-        RParen@46..47 ")"
+        RBrace@46..47 "}"
         Whitespace@47..48 " "
       Slash@48..49 "/"
       Whitespace@49..50 " "
@@ -88,8 +88,8 @@ Root@0..119
     Arrow@100..102 "->"
     Whitespace@102..103 " "
     BinExpr@103..118
-      ParenExpr@103..115
-        LParen@103..104 "("
+      Block@103..115
+        LBrace@103..104 "{"
         BinExpr@104..113
           BinExpr@104..110
             FncCall@104..106
@@ -104,7 +104,7 @@ Root@0..119
           Whitespace@111..112 " "
           FncCall@112..113
             Ident@112..113 "z"
-        RParen@113..114 ")"
+        RBrace@113..114 "}"
         Whitespace@114..115 " "
       Slash@115..116 "/"
       Whitespace@116..117 " "

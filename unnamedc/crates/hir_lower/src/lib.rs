@@ -189,7 +189,6 @@ impl LowerCtx<'_> {
         let expr = match ast.clone() {
             ast::Expr::Bin(ast) => self.lower_bin_expr(ast),
             ast::Expr::Block(ast) => self.lower_block(ast),
-            ast::Expr::Paren(ast) => return self.lower_expr(ast.inner()),
             ast::Expr::FncCall(ast) => self.lower_fnc_call(ast),
             ast::Expr::IntLiteral(ast) => self.lower_int_literal(ast),
             ast::Expr::StringLiteral(ast) => self.lower_string_literal(ast),
@@ -370,18 +369,6 @@ mod tests {
                 stmts: vec![hir::Stmt::Expr(ten_minus_five_plus_one)],
                 ..Default::default()
             },
-            [],
-        );
-    }
-
-    #[test]
-    fn lower_paren_expr() {
-        let mut exprs = Arena::new();
-        let ninety_two = exprs.alloc(hir::Expr::IntLiteral(92));
-
-        check(
-            "((((92))))",
-            hir::Program { exprs, stmts: vec![hir::Stmt::Expr(ninety_two)], ..Default::default() },
             [],
         );
     }

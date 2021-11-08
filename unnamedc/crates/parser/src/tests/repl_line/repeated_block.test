@@ -1,0 +1,17 @@
+{{{{10}}}}
+===
+Root@0..10
+  Block@0..10
+    LBrace@0..1 "{"
+    Block@1..9
+      LBrace@1..2 "{"
+      Block@2..8
+        LBrace@2..3 "{"
+        Block@3..7
+          LBrace@3..4 "{"
+          IntLiteral@4..6
+            Int@4..6 "10"
+          RBrace@6..7 "}"
+        RBrace@7..8 "}"
+      RBrace@8..9 "}"
+    RBrace@9..10 "}"

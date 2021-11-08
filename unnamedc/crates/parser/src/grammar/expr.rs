@@ -5,13 +5,8 @@ use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
-pub(super) const EXPR_FIRST: TokenSet = TokenSet::new([
-    TokenKind::Ident,
-    TokenKind::LBrace,
-    TokenKind::Int,
-    TokenKind::String,
-    TokenKind::LParen,
-]);
+pub(super) const EXPR_FIRST: TokenSet =
+    TokenSet::new([TokenKind::Ident, TokenKind::LBrace, TokenKind::Int, TokenKind::String]);
 
 pub(super) fn parse_expr(
     p: &mut Parser<'_, '_>,
@@ -74,8 +69,6 @@ fn parse_lhs(
         parse_int_literal(p)
     } else if p.at(TokenKind::String) {
         parse_string_literal(p)
-    } else if p.at(TokenKind::LParen) {
-        parse_paren_expr(p)
     } else {
         return p.error_with_recovery_set(recovery_set);
     };
@@ -147,15 +140,4 @@ fn parse_string_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::StringLiteral)
-}
-
-fn parse_paren_expr(p: &mut Parser<'_, '_>) -> CompletedMarker {
-    assert!(p.at(TokenKind::LParen));
-    let m = p.start();
-    p.bump();
-
-    parse_expr_with_recovery_set(p, TokenSet::new([TokenKind::RParen]), "inner expression");
-    p.expect(TokenKind::RParen);
-
-    m.complete(p, SyntaxKind::ParenExpr)
 }

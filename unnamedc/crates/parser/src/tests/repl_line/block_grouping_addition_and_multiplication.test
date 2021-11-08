@@ -1,9 +1,9 @@
-(42 + 4) * 2
+{42 + 4} * 2
 ===
 Root@0..12
   BinExpr@0..12
-    ParenExpr@0..9
-      LParen@0..1 "("
+    Block@0..9
+      LBrace@0..1 "{"
       BinExpr@1..7
         IntLiteral@1..4
           Int@1..3 "42"
@@ -12,7 +12,7 @@ Root@0..12
         Whitespace@5..6 " "
         IntLiteral@6..7
           Int@6..7 "4"
-      RParen@7..8 ")"
+      RBrace@7..8 "}"
       Whitespace@8..9 " "
     Asterisk@9..10 "*"
     Whitespace@10..11 " "
