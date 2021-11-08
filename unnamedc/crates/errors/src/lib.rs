@@ -180,6 +180,10 @@ fn ty_error_header(ty_error_kind: &TyErrorKind, start_line_column: &LineColumn) 
             format_ty(*expected),
             format_ty(*found)
         ),
+        TyErrorKind::MismatchedArgCount { expected, found } => format!(
+            "mismatched argument count at {}: expected {} but found {}",
+            start_line_column, expected, found
+        ),
     }
 }
 
@@ -430,6 +434,20 @@ mod tests {
                   "bar"
                   )
                   ^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn ty_error_mismatched_arg_count() {
+        check_ty_error(
+            "add 5",
+            TyErrorKind::MismatchedArgCount { expected: 2, found: 1 },
+            0..5,
+            expect![[r#"
+                mismatched argument count at 1:1: expected 2 but found 1
+                  add 5
+                  ^^^^^
             "#]],
         );
     }

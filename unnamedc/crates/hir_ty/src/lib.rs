@@ -73,6 +73,7 @@ pub struct TyError {
 #[derive(Debug, PartialEq)]
 pub enum TyErrorKind {
     Mismatch { expected: hir::Ty, found: hir::Ty },
+    MismatchedArgCount { expected: u32, found: u32 },
 }
 
 struct InferCtx<'a> {
@@ -134,7 +135,35 @@ impl InferCtx<'_> {
                 hir::Ty::S32
             }
 
-            hir::Expr::FncCall { .. } => todo!(),
+            hir::Expr::FncCall { def, ref args } => {
+                let sig = self.result.fnc_sigs[def].clone();
+
+                let found_params = args.len() as u32;
+                let expected_params = sig.params.len() as u32;
+                if found_params != expected_params {
+                    self.result.errors.push(TyError {
+                        expr,
+                        kind: TyErrorKind::MismatchedArgCount {
+                            expected: expected_params,
+                            found: found_params,
+                        },
+                    });
+                }
+
+                for arg in args.clone() {
+                    self.infer_expr(arg);
+                }
+
+                #[allow(clippy::needless_collect)]
+                let arg_tys: Vec<_> =
+                    args.clone().map(|idx| (idx, self.result.expr_tys[idx])).collect();
+
+                for ((arg, arg_ty), param_ty) in arg_tys.into_iter().zip(sig.params) {
+                    self.expect_tys_match(arg, param_ty, arg_ty);
+                }
+
+                sig.ret_ty
+            }
 
             hir::Expr::Block(ref stmts) => match stmts.split_last() {
                 Some((last, rest)) => {
@@ -477,6 +506,178 @@ mod tests {
         assert_eq!(result.expr_tys[num], hir::Ty::S32);
         assert_eq!(result.expr_tys[block], hir::Ty::S32);
         assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_zero_arg_fnc_call_with_no_params() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let string = exprs.alloc(hir::Expr::StringLiteral("Hello!".to_string()));
+        let greeting_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::String,
+            body: string,
+        });
+        let greeting =
+            exprs.alloc(hir::Expr::FncCall { def: greeting_def, args: IdxRange::default() });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            exprs,
+            defs: vec![hir::Def::FncDef(greeting_def)],
+            stmts: vec![hir::Stmt::Expr(greeting)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(
+            result.fnc_sigs[greeting_def],
+            Sig { params: Vec::new(), ret_ty: hir::Ty::String }
+        );
+        assert_eq!(result.expr_tys[greeting], hir::Ty::String);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_multiple_arg_fnc_call_with_multiple_params() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x_times_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Mul) });
+        let mul_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(x_def..=y_def),
+            ret_ty: hir::Ty::S32,
+            body: x_times_y,
+        });
+        let twenty_three = exprs.alloc(hir::Expr::IntLiteral(23));
+        let four = exprs.alloc(hir::Expr::IntLiteral(4));
+        let mul = exprs.alloc(hir::Expr::FncCall {
+            def: mul_def,
+            args: IdxRange::new_inclusive(twenty_three..=four),
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            params,
+            exprs,
+            defs: vec![hir::Def::FncDef(mul_def)],
+            stmts: vec![hir::Stmt::Expr(mul)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.param_tys[x_def], hir::Ty::S32);
+        assert_eq!(result.param_tys[y_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[x], hir::Ty::S32);
+        assert_eq!(result.expr_tys[y], hir::Ty::S32);
+        assert_eq!(result.expr_tys[x_times_y], hir::Ty::S32);
+        assert_eq!(
+            result.fnc_sigs[mul_def],
+            Sig { params: vec![hir::Ty::S32, hir::Ty::S32], ret_ty: hir::Ty::S32 }
+        );
+        assert_eq!(result.expr_tys[mul], hir::Ty::S32);
+        assert_eq!(result.errors, []);
+    }
+
+    #[test]
+    fn infer_missing_args_for_fnc_call() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
+        let id_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(n_def..=n_def),
+            ret_ty: hir::Ty::S32,
+            body: n,
+        });
+        let id = exprs.alloc(hir::Expr::FncCall { def: id_def, args: IdxRange::default() });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            params,
+            exprs,
+            defs: vec![hir::Def::FncDef(id_def)],
+            stmts: vec![hir::Stmt::Expr(id)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.param_tys[n_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[n], hir::Ty::S32);
+        assert_eq!(
+            result.fnc_sigs[id_def],
+            Sig { params: vec![hir::Ty::S32], ret_ty: hir::Ty::S32 }
+        );
+        assert_eq!(result.expr_tys[id], hir::Ty::S32);
+        assert_eq!(
+            result.errors,
+            [TyError { expr: id, kind: TyErrorKind::MismatchedArgCount { expected: 1, found: 0 } }]
+        );
+    }
+
+    #[test]
+    fn infer_mismatched_fnc_call_arg_tys() {
+        let mut fnc_defs = Arena::new();
+        let mut params = Arena::new();
+        let mut exprs = Arena::new();
+
+        let a_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let b_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(a_def)));
+        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(b_def)));
+        let a_over_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Div) });
+        let div_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::new_inclusive(a_def..=b_def),
+            ret_ty: hir::Ty::S32,
+            body: a_over_b,
+        });
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
+        let div = exprs.alloc(hir::Expr::FncCall {
+            def: div_def,
+            args: IdxRange::new_inclusive(empty_block..=ten_string),
+        });
+
+        let result = infer(&hir::Program {
+            fnc_defs,
+            params,
+            exprs,
+            defs: vec![hir::Def::FncDef(div_def)],
+            stmts: vec![hir::Stmt::Expr(div)],
+            ..Default::default()
+        });
+
+        assert_eq!(result.param_tys[a_def], hir::Ty::S32);
+        assert_eq!(result.param_tys[b_def], hir::Ty::S32);
+        assert_eq!(result.expr_tys[a], hir::Ty::S32);
+        assert_eq!(result.expr_tys[b], hir::Ty::S32);
+        assert_eq!(result.expr_tys[a_over_b], hir::Ty::S32);
+        assert_eq!(
+            result.fnc_sigs[div_def],
+            Sig { params: vec![hir::Ty::S32, hir::Ty::S32], ret_ty: hir::Ty::S32 }
+        );
+        assert_eq!(result.expr_tys[empty_block], hir::Ty::Unit);
+        assert_eq!(result.expr_tys[ten_string], hir::Ty::String);
+        assert_eq!(result.expr_tys[div], hir::Ty::S32);
+        assert_eq!(
+            result.errors,
+            [
+                TyError {
+                    expr: empty_block,
+                    kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::Unit }
+                },
+                TyError {
+                    expr: ten_string,
+                    kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String }
+                }
+            ]
+        );
     }
 
     #[test]
