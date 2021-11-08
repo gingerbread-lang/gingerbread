@@ -1,7 +1,7 @@
-fnc five(): -> 5
+fnc five(): -> 5;
 ===
-Root@0..16
-  FncDef@0..16
+Root@0..17
+  FncDef@0..17
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "five"
@@ -16,4 +16,5 @@ Root@0..16
     Whitespace@14..15 " "
     IntLiteral@15..16
       Int@15..16 "5"
+    Semicolon@16..17 ";"
 error at 11: missing return type

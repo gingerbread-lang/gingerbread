@@ -20,3 +20,4 @@ Root@0..20
 error at 7: missing function parameters
 error at 7: missing Arrow
 error at 7: missing function body
+error at 7: missing Semicolon

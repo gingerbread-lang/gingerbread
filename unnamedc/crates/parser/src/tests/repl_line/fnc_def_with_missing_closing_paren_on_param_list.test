@@ -10,3 +10,4 @@ Root@0..9
 error at 9: missing RParen
 error at 9: missing Arrow
 error at 9: missing function body
+error at 9: missing Semicolon

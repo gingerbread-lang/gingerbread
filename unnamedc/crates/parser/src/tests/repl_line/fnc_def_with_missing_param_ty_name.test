@@ -1,7 +1,7 @@
-fnc f(a:) -> {}
+fnc f(a:) -> {};
 ===
-Root@0..15
-  FncDef@0..15
+Root@0..16
+  FncDef@0..16
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..5 "f"
@@ -18,4 +18,5 @@ Root@0..15
     Block@13..15
       LBrace@13..14 "{"
       RBrace@14..15 "}"
+    Semicolon@15..16 ";"
 error at 8: missing parameter type

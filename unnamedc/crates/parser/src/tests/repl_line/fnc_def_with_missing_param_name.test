@@ -1,7 +1,7 @@
-fnc id(: foo) -> {}
+fnc id(: foo) -> {};
 ===
-Root@0..19
-  FncDef@0..19
+Root@0..20
+  FncDef@0..20
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..6 "id"
@@ -19,4 +19,5 @@ Root@0..19
     Block@17..19
       LBrace@17..18 "{"
       RBrace@18..19 "}"
+    Semicolon@19..20 ";"
 error at 7: missing parameter name

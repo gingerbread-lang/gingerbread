@@ -1,8 +1,8 @@
-fnc average_two(x: s32, y: s32): s32 -> (x + y) / 2
-fnc average_three(x: s32, y: s32, z: s32): s32 -> (x + y + z) / 3
+fnc average_two(x: s32, y: s32): s32 -> (x + y) / 2;
+fnc average_three(x: s32, y: s32, z: s32): s32 -> (x + y + z) / 3;
 ===
-Root@0..117
-  FncDef@0..52
+Root@0..119
+  FncDef@0..53
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..15 "average_two"
@@ -31,7 +31,7 @@ Root@0..117
         Whitespace@36..37 " "
     Arrow@37..39 "->"
     Whitespace@39..40 " "
-    BinExpr@40..52
+    BinExpr@40..51
       ParenExpr@40..48
         LParen@40..41 "("
         BinExpr@41..46
@@ -46,66 +46,68 @@ Root@0..117
         Whitespace@47..48 " "
       Slash@48..49 "/"
       Whitespace@49..50 " "
-      IntLiteral@50..52
+      IntLiteral@50..51
         Int@50..51 "2"
-        Whitespace@51..52 "\n"
-  FncDef@52..117
-    FncKw@52..55 "fnc"
-    Whitespace@55..56 " "
-    Ident@56..69 "average_three"
-    ParamList@69..93
-      LParen@69..70 "("
-      Param@70..76
-        Ident@70..71 "x"
-        Colon@71..72 ":"
-        Whitespace@72..73 " "
-        Ty@73..76
-          Ident@73..76 "s32"
-      Comma@76..77 ","
-      Whitespace@77..78 " "
-      Param@78..84
-        Ident@78..79 "y"
-        Colon@79..80 ":"
-        Whitespace@80..81 " "
-        Ty@81..84
-          Ident@81..84 "s32"
-      Comma@84..85 ","
-      Whitespace@85..86 " "
-      Param@86..92
-        Ident@86..87 "z"
-        Colon@87..88 ":"
-        Whitespace@88..89 " "
-        Ty@89..92
-          Ident@89..92 "s32"
-      RParen@92..93 ")"
-    RetTy@93..99
-      Colon@93..94 ":"
-      Whitespace@94..95 " "
-      Ty@95..99
-        Ident@95..98 "s32"
-        Whitespace@98..99 " "
-    Arrow@99..101 "->"
-    Whitespace@101..102 " "
-    BinExpr@102..117
-      ParenExpr@102..114
-        LParen@102..103 "("
-        BinExpr@103..112
-          BinExpr@103..109
-            FncCall@103..105
-              Ident@103..104 "x"
-              Whitespace@104..105 " "
-            Plus@105..106 "+"
-            Whitespace@106..107 " "
-            FncCall@107..109
-              Ident@107..108 "y"
-              Whitespace@108..109 " "
-          Plus@109..110 "+"
-          Whitespace@110..111 " "
-          FncCall@111..112
-            Ident@111..112 "z"
-        RParen@112..113 ")"
-        Whitespace@113..114 " "
-      Slash@114..115 "/"
-      Whitespace@115..116 " "
-      IntLiteral@116..117
-        Int@116..117 "3"
+    Semicolon@51..52 ";"
+    Whitespace@52..53 "\n"
+  FncDef@53..119
+    FncKw@53..56 "fnc"
+    Whitespace@56..57 " "
+    Ident@57..70 "average_three"
+    ParamList@70..94
+      LParen@70..71 "("
+      Param@71..77
+        Ident@71..72 "x"
+        Colon@72..73 ":"
+        Whitespace@73..74 " "
+        Ty@74..77
+          Ident@74..77 "s32"
+      Comma@77..78 ","
+      Whitespace@78..79 " "
+      Param@79..85
+        Ident@79..80 "y"
+        Colon@80..81 ":"
+        Whitespace@81..82 " "
+        Ty@82..85
+          Ident@82..85 "s32"
+      Comma@85..86 ","
+      Whitespace@86..87 " "
+      Param@87..93
+        Ident@87..88 "z"
+        Colon@88..89 ":"
+        Whitespace@89..90 " "
+        Ty@90..93
+          Ident@90..93 "s32"
+      RParen@93..94 ")"
+    RetTy@94..100
+      Colon@94..95 ":"
+      Whitespace@95..96 " "
+      Ty@96..100
+        Ident@96..99 "s32"
+        Whitespace@99..100 " "
+    Arrow@100..102 "->"
+    Whitespace@102..103 " "
+    BinExpr@103..118
+      ParenExpr@103..115
+        LParen@103..104 "("
+        BinExpr@104..113
+          BinExpr@104..110
+            FncCall@104..106
+              Ident@104..105 "x"
+              Whitespace@105..106 " "
+            Plus@106..107 "+"
+            Whitespace@107..108 " "
+            FncCall@108..110
+              Ident@108..109 "y"
+              Whitespace@109..110 " "
+          Plus@110..111 "+"
+          Whitespace@111..112 " "
+          FncCall@112..113
+            Ident@112..113 "z"
+        RParen@113..114 ")"
+        Whitespace@114..115 " "
+      Slash@115..116 "/"
+      Whitespace@116..117 " "
+      IntLiteral@117..118
+        Int@117..118 "3"
+    Semicolon@118..119 ";"

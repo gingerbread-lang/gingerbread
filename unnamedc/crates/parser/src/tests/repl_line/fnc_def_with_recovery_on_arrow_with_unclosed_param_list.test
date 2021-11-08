@@ -1,7 +1,7 @@
-fnc foo(bar: s32 -> {}
+fnc foo(bar: s32 -> {};
 ===
-Root@0..22
-  FncDef@0..22
+Root@0..23
+  FncDef@0..23
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
@@ -19,4 +19,5 @@ Root@0..22
     Block@20..22
       LBrace@20..21 "{"
       RBrace@21..22 "}"
+    Semicolon@22..23 ";"
 error at 16: missing RParen

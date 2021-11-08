@@ -10,3 +10,4 @@ error at 3: missing function name
 error at 3: missing function parameters
 error at 3: missing Arrow
 error at 5: missing RBrace
+error at 5: missing Semicolon

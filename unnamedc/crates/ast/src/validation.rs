@@ -77,7 +77,7 @@ mod validation_tests {
 
     #[test]
     fn validate_correct_code() {
-        check_repl_line("let a = 92\na - 5 * 10", []);
+        check_repl_line("let a = 92; a - 5 * 10", []);
     }
 
     #[test]
@@ -95,13 +95,13 @@ mod validation_tests {
         check_source_file(
             "
                 fnc main() -> {
-                  let b = 5000000000
-                  let a = 9999999999999999999 + b
-                }
+                  let b = 5000000000;
+                  let a = 9999999999999999999 + b;
+                };
             ",
             [
                 (ValidationErrorKind::IntLiteralTooBig, 59..69),
-                (ValidationErrorKind::IntLiteralTooBig, 96..115),
+                (ValidationErrorKind::IntLiteralTooBig, 97..116),
             ],
         );
     }

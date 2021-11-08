@@ -623,7 +623,7 @@ mod tests {
         let hello = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
         let a_def = local_defs.alloc(hir::LocalDef { value: hello });
 
-        let parse = parser::parse_repl_line(&lexer::lex("let a = \"hello\""));
+        let parse = parser::parse_repl_line(&lexer::lex("let a = \"hello\";"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, fnc_names, var_names) = lower(&root);
 
@@ -774,7 +774,7 @@ mod tests {
         });
 
         check(
-            "fnc f() -> {}",
+            "fnc f() -> {};",
             hir::Program {
                 fnc_defs,
                 exprs,
@@ -800,7 +800,7 @@ mod tests {
         });
 
         check(
-            "fnc drop(x: s32) -> {}",
+            "fnc drop(x: s32) -> {};",
             hir::Program {
                 fnc_defs,
                 params,
@@ -827,7 +827,7 @@ mod tests {
         });
 
         check(
-            "fnc id(n: s32): s32 -> n",
+            "fnc id(n: s32): s32 -> n;",
             hir::Program {
                 fnc_defs,
                 params,
@@ -889,7 +889,7 @@ mod tests {
         });
 
         check(
-            "fnc f(x) -> {}",
+            "fnc f(x) -> {};",
             hir::Program {
                 fnc_defs,
                 params,
@@ -914,7 +914,7 @@ mod tests {
         });
 
         check(
-            "fnc a(): foo -> {}",
+            "fnc a(): foo -> {};",
             hir::Program {
                 fnc_defs,
                 exprs,
@@ -938,7 +938,7 @@ mod tests {
         });
 
         check(
-            r#"fnc crab(): string -> "🦀""#,
+            r#"fnc crab(): string -> "🦀";"#,
             hir::Program {
                 fnc_defs,
                 exprs,
@@ -951,7 +951,7 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4\nlet a = 10; a - 5"));
+        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4; let a = 10; a - 5"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let mut defs = root.defs();
         let mut stmts = root.stmts();

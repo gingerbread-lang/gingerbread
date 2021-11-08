@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn get_fnc_def_name() {
-        let root = parse("fnc a() -> {}");
+        let root = parse("fnc a() -> {};");
         let def = root.defs().next().unwrap();
 
         let Def::FncDef(fnc_def) = def;
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn get_fnc_def_params() {
-        let root = parse("fnc add(x: s32, y: s32) -> {}");
+        let root = parse("fnc add(x: s32, y: s32) -> {};");
         let def = root.defs().next().unwrap();
 
         let Def::FncDef(fnc_def) = def;
@@ -576,7 +576,7 @@ mod tests {
 
     #[test]
     fn get_fnc_def_ret_ty() {
-        let root = parse("fnc four(): s32 -> 4");
+        let root = parse("fnc four(): s32 -> 4;");
         let def = root.defs().next().unwrap();
 
         let Def::FncDef(fnc_def) = def;
@@ -586,7 +586,7 @@ mod tests {
 
     #[test]
     fn get_fnc_def_body() {
-        let root = parse("fnc nothing() -> {}");
+        let root = parse("fnc nothing() -> {};");
         let def = root.defs().next().unwrap();
 
         let Def::FncDef(fnc_def) = def;

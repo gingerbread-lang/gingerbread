@@ -1,7 +1,7 @@
-fnc drop(n: s32,) -> {}
+fnc drop(n: s32,) -> {};
 ===
-Root@0..23
-  FncDef@0..23
+Root@0..24
+  FncDef@0..24
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "drop"
@@ -21,3 +21,4 @@ Root@0..23
     Block@21..23
       LBrace@21..22 "{"
       RBrace@22..23 "}"
+    Semicolon@23..24 ";"

@@ -30,6 +30,7 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     p.expect_with_recovery_set(TokenKind::Arrow, EXPR_FIRST);
     parse_expr(p, "function body");
+    p.expect(TokenKind::Semicolon);
 
     m.complete(p, SyntaxKind::FncDef)
 }

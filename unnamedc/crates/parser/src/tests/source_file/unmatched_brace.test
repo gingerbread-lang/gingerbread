@@ -1,7 +1,8 @@
-fnc foo() -> {}}
+fnc foo() -> {};
+}
 ===
-Root@0..16
-  FncDef@0..15
+Root@0..18
+  FncDef@0..17
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
@@ -14,6 +15,8 @@ Root@0..16
     Block@13..15
       LBrace@13..14 "{"
       RBrace@14..15 "}"
-  Error@15..16
-    RBrace@15..16 "}"
-error at 15..16: expected definition but found RBrace
+    Semicolon@15..16 ";"
+    Whitespace@16..17 "\n"
+  Error@17..18
+    RBrace@17..18 "}"
+error at 17..18: expected definition but found RBrace

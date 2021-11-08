@@ -1,7 +1,7 @@
-fnc add(x: s32, y: s32): s32 -> x + y
+fnc add(x: s32, y: s32): s32 -> x + y;
 ===
-Root@0..37
-  FncDef@0..37
+Root@0..38
+  FncDef@0..38
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "add"
@@ -38,3 +38,4 @@ Root@0..37
       Whitespace@35..36 " "
       FncCall@36..37
         Ident@36..37 "y"
+    Semicolon@37..38 ";"

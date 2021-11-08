@@ -11,3 +11,4 @@ error at 5: missing function name
 error at 5: missing function parameters
 error at 5: missing Arrow
 error at 5: missing function body
+error at 5: missing Semicolon

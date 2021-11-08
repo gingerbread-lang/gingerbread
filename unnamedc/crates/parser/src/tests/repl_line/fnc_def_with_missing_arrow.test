@@ -1,7 +1,7 @@
-fnc five(): s32 5
+fnc five(): s32 5;
 ===
-Root@0..17
-  FncDef@0..17
+Root@0..18
+  FncDef@0..18
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "five"
@@ -16,4 +16,5 @@ Root@0..17
         Whitespace@15..16 " "
     IntLiteral@16..17
       Int@16..17 "5"
+    Semicolon@17..18 ";"
 error at 15: missing Arrow

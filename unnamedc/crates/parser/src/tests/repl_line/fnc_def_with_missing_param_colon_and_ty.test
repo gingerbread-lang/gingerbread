@@ -1,7 +1,7 @@
-fnc a(param) -> {}
+fnc a(param) -> {};
 ===
-Root@0..18
-  FncDef@0..18
+Root@0..19
+  FncDef@0..19
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..5 "a"
@@ -17,5 +17,6 @@ Root@0..18
     Block@16..18
       LBrace@16..17 "{"
       RBrace@17..18 "}"
+    Semicolon@18..19 ";"
 error at 11: missing Colon
 error at 11: missing parameter type
