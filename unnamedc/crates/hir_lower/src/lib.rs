@@ -487,6 +487,35 @@ mod tests {
     }
 
     #[test]
+    fn call_fnc_before_def() {
+        let mut fnc_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let unit_def = fnc_defs.alloc(hir::FncDef {
+            params: IdxRange::default(),
+            ret_ty: hir::Ty::Unit,
+            body: empty_block,
+        });
+        let unit = exprs.alloc(hir::Expr::FncCall { def: unit_def, args: IdxRange::default() });
+
+        check(
+            r#"
+                unit
+                fnc unit() -> {};
+            "#,
+            hir::Program {
+                fnc_defs,
+                exprs,
+                defs: vec![hir::Def::FncDef(unit_def)],
+                stmts: vec![hir::Stmt::Expr(unit)],
+                ..Default::default()
+            },
+            [],
+        );
+    }
+
+    #[test]
     fn lower_int_literal() {
         let mut exprs = Arena::new();
         let ninety_two = exprs.alloc(hir::Expr::IntLiteral(92));
