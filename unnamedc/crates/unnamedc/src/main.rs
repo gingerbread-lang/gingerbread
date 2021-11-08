@@ -149,6 +149,7 @@ fn render(
             | TokenKind::LBrace
             | TokenKind::RBrace => c.dark_grey(),
             TokenKind::Whitespace => StyledContent::new(ContentStyle::new(), c),
+            TokenKind::Comment => c.dark_grey().italic(),
             TokenKind::Error => c.red().bold(),
         };
 

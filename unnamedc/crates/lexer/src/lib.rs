@@ -90,6 +90,9 @@ enum LexerTokenKind {
     #[regex("[ \n]+")]
     Whitespace,
 
+    #[regex("#.*")]
+    Comment,
+
     #[error]
     Error,
 }
@@ -111,6 +114,35 @@ mod tests {
     #[test]
     fn lex_whitespace() {
         check("  \n ", TokenKind::Whitespace);
+    }
+
+    #[test]
+    fn lex_comment() {
+        check("# ignore me", TokenKind::Comment);
+    }
+
+    #[test]
+    fn comments_go_to_end_of_line() {
+        assert_eq!(
+            lex("# foo\n100"),
+            [
+                Token {
+                    text: "# foo",
+                    kind: TokenKind::Comment,
+                    range: TextRange::new(0.into(), 5.into())
+                },
+                Token {
+                    text: "\n",
+                    kind: TokenKind::Whitespace,
+                    range: TextRange::new(5.into(), 6.into())
+                },
+                Token {
+                    text: "100",
+                    kind: TokenKind::Int,
+                    range: TextRange::new(6.into(), 9.into())
+                },
+            ]
+        );
     }
 
     #[test]

@@ -43,5 +43,6 @@ pub enum TokenKind {
     LBrace,
     RBrace,
     Whitespace,
+    Comment,
     Error,
 }

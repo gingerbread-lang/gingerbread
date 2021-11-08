@@ -117,12 +117,12 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             self.expected_syntax = Some(ExpectedSyntax::Unnamed(kind));
         }
 
-        self.skip_whitespace();
+        self.skip_trivia();
         self.at_raw(kind)
     }
 
     pub(crate) fn at_eof(&mut self) -> bool {
-        self.skip_whitespace();
+        self.skip_trivia();
         self.current_token().is_none()
     }
 
@@ -131,7 +131,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
     }
 
     pub(crate) fn at_set(&mut self, set: TokenSet) -> bool {
-        self.skip_whitespace();
+        self.skip_trivia();
         self.peek().map_or(false, |kind| set.contains(kind))
     }
 
@@ -148,7 +148,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     fn previous_token(&mut self) -> Token<'input> {
         let mut previous_token_idx = self.token_idx - 1;
-        while let Some(Token { kind: TokenKind::Whitespace, .. }) =
+        while let Some(Token { kind: TokenKind::Whitespace | TokenKind::Comment, .. }) =
             self.tokens.get(previous_token_idx)
         {
             previous_token_idx -= 1;
@@ -157,8 +157,8 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.tokens[previous_token_idx]
     }
 
-    fn skip_whitespace(&mut self) {
-        if self.at_raw(TokenKind::Whitespace) {
+    fn skip_trivia(&mut self) {
+        while self.at_raw(TokenKind::Whitespace) || self.at_raw(TokenKind::Comment) {
             self.token_idx += 1;
         }
     }

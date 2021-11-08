@@ -64,6 +64,7 @@ pub enum SyntaxKind {
     LBrace,
     RBrace,
     Whitespace,
+    Comment,
     Error,
 
     Root,

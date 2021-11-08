@@ -28,14 +28,16 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
                 Event::Placeholder => unreachable!(),
             }
 
-            self.skip_whitespace();
+            self.skip_trivia();
         }
 
         Parse { syntax_node: self.builder.finish(), errors: self.errors }
     }
 
-    fn skip_whitespace(&mut self) {
-        if let Some(Token { kind: TokenKind::Whitespace, .. }) = self.current_token() {
+    fn skip_trivia(&mut self) {
+        while let Some(Token { kind: TokenKind::Whitespace | TokenKind::Comment, .. }) =
+            self.current_token()
+        {
             self.add_token();
         }
     }
