@@ -6,35 +6,8 @@ use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut, Range, RangeInclusive};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RawIdx(u32);
-
-impl From<RawIdx> for u32 {
-    fn from(raw: RawIdx) -> u32 {
-        raw.0
-    }
-}
-
-impl From<u32> for RawIdx {
-    fn from(idx: u32) -> RawIdx {
-        RawIdx(idx)
-    }
-}
-
-impl fmt::Debug for RawIdx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl fmt::Display for RawIdx {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
 pub struct Idx<T> {
-    raw: RawIdx,
+    raw: u32,
     phantom: PhantomData<fn() -> T>,
 }
 
@@ -63,12 +36,8 @@ impl<T> fmt::Debug for Idx<T> {
 }
 
 impl<T> Idx<T> {
-    pub fn from_raw(raw: RawIdx) -> Self {
-        Idx { raw, phantom: PhantomData }
-    }
-
-    pub fn into_raw(self) -> RawIdx {
-        self.raw
+    fn from_raw(raw: u32) -> Self {
+        Self { raw, phantom: PhantomData }
     }
 }
 
@@ -79,10 +48,7 @@ pub struct IdxRange<T> {
 
 impl<T> IdxRange<T> {
     pub fn new(range: RangeInclusive<Idx<T>>) -> Self {
-        Self {
-            range: u32::from(range.start().into_raw())..u32::from(range.end().into_raw()) + 1,
-            phantom: PhantomData,
-        }
+        Self { range: range.start().raw..range.end().raw + 1, phantom: PhantomData }
     }
 
     pub fn builder() -> IdxRangeBuilder<T> {
@@ -101,13 +67,13 @@ impl<T> IdxRange<T> {
 impl<T> Iterator for IdxRange<T> {
     type Item = Idx<T>;
     fn next(&mut self) -> Option<Self::Item> {
-        self.range.next().map(|raw| Idx::from_raw(raw.into()))
+        self.range.next().map(Idx::from_raw)
     }
 }
 
 impl<T> DoubleEndedIterator for IdxRange<T> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.range.next_back().map(|raw| Idx::from_raw(raw.into()))
+        self.range.next_back().map(Idx::from_raw)
     }
 }
 
@@ -204,16 +170,13 @@ impl<T> Arena<T> {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = (Idx<T>, &T)> + ExactSizeIterator + DoubleEndedIterator {
-        self.data.iter().enumerate().map(|(idx, value)| (Idx::from_raw(RawIdx(idx as u32)), value))
+        self.data.iter().enumerate().map(|(idx, value)| (Idx::from_raw(idx as u32), value))
     }
 
     pub fn iter_mut(
         &mut self,
     ) -> impl Iterator<Item = (Idx<T>, &mut T)> + ExactSizeIterator + DoubleEndedIterator {
-        self.data
-            .iter_mut()
-            .enumerate()
-            .map(|(idx, value)| (Idx::from_raw(RawIdx(idx as u32)), value))
+        self.data.iter_mut().enumerate().map(|(idx, value)| (Idx::from_raw(idx as u32), value))
     }
 
     pub fn shrink_to_fit(&mut self) {
@@ -221,7 +184,7 @@ impl<T> Arena<T> {
     }
 
     fn next_idx(&self) -> Idx<T> {
-        Idx::from_raw(RawIdx(self.data.len() as u32))
+        Idx::from_raw(self.data.len() as u32)
     }
 }
 
@@ -234,15 +197,13 @@ impl<T> Default for Arena<T> {
 impl<T> Index<Idx<T>> for Arena<T> {
     type Output = T;
     fn index(&self, idx: Idx<T>) -> &T {
-        let idx = idx.into_raw().0 as usize;
-        &self.data[idx]
+        &self.data[(idx.raw as usize)]
     }
 }
 
 impl<T> IndexMut<Idx<T>> for Arena<T> {
     fn index_mut(&mut self, idx: Idx<T>) -> &mut T {
-        let idx = idx.into_raw().0 as usize;
-        &mut self.data[idx]
+        &mut self.data[(idx.raw as usize)]
     }
 }
 
