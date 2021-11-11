@@ -9,13 +9,12 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn eval(&mut self, program: hir::Program) -> Val {
-        let local_defs = &program.local_defs;
-        let exprs = &program.exprs;
         let mut eval_ctx = EvalCtx {
             locals: mem::take(&mut self.locals),
             params: mem::take(&mut self.params),
-            local_defs,
-            exprs,
+            local_defs: &program.local_defs,
+            fnc_defs: &program.fnc_defs,
+            exprs: &program.exprs,
         };
 
         for stmt in program.stmts {
@@ -30,10 +29,12 @@ impl Evaluator {
     }
 }
 
+#[derive(Debug)]
 struct EvalCtx<'program> {
     locals: ArenaMap<hir::LocalDefId, Val>,
     params: ArenaMap<hir::ParamId, Val>,
     local_defs: &'program Arena<hir::LocalDef>,
+    fnc_defs: &'program Arena<hir::FncDef>,
     exprs: &'program Arena<hir::Expr>,
 }
 
@@ -56,7 +57,16 @@ impl EvalCtx<'_> {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
-            hir::Expr::FncCall { .. } => todo!(),
+            hir::Expr::FncCall { def, args } => {
+                let fnc_def = &self.fnc_defs[*def];
+
+                for (param, arg) in fnc_def.params.clone().zip(args.clone()) {
+                    let arg = self.eval_expr(arg);
+                    self.params.insert(param, arg);
+                }
+
+                self.eval_expr(fnc_def.body)
+            }
             hir::Expr::Block { stmts, tail_expr } => {
                 for stmt in stmts {
                     self.eval_stmt(*stmt);
@@ -215,5 +225,43 @@ mod tests {
         let (program, _, _, _, _) =
             hir_lower::lower_with_in_scope(&root, program.local_defs, fnc_names, var_names);
         assert_eq!(evaluator.eval(program), Val::Int(100));
+    }
+
+    #[test]
+    fn eval_fnc_call_with_zero_args() {
+        check("fnc magic_number -> 3735928559; magic_number", Val::Int(3735928559));
+    }
+
+    #[test]
+    fn eval_fnc_call_with_one_arg() {
+        check(
+            r#"
+                fnc id(x: s32): s32 -> x;
+                id 10
+            "#,
+            Val::Int(10),
+        );
+    }
+
+    #[test]
+    fn eval_fnc_call_with_multiple_args() {
+        check(
+            r#"
+                fnc add(x: s32, y: s32, z: s32): s32 -> x + y + z;
+                add 29, 31, 32
+            "#,
+            Val::Int(92),
+        );
+    }
+
+    #[test]
+    fn eval_nested_fnc_call() {
+        check(
+            r#"
+                fnc mul(n: s32, m: s32): s32 -> n * m;
+                mul {mul 2, 6}, 8
+            "#,
+            Val::Int(96),
+        );
     }
 }
