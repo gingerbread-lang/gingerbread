@@ -33,6 +33,13 @@ fn main() -> anyhow::Result<()> {
 
             match key_event {
                 KeyEvent { code: KeyCode::Char('d'), modifiers: KeyModifiers::CONTROL } => break,
+                KeyEvent { code: KeyCode::Char('l'), modifiers: KeyModifiers::CONTROL } => {
+                    queue!(
+                        stdout,
+                        terminal::Clear(terminal::ClearType::All),
+                        cursor::MoveTo(0, 0)
+                    )?;
+                }
                 KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
                     input.insert(cursor_pos.into(), c);
                     cursor_pos += 1;
