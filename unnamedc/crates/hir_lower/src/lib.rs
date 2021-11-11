@@ -928,13 +928,13 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4; let a = 10; a - 5;"));
+        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4; let a = 10; a - 5; f"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let mut defs = root.defs();
         let mut stmts = root.stmts();
 
-        let ast::Def::FncDef(fnc_def_ast) = defs.next().unwrap();
-        let four_ast = fnc_def_ast.body().unwrap();
+        let ast::Def::FncDef(f_def_ast) = defs.next().unwrap();
+        let four_ast = f_def_ast.body().unwrap();
 
         let a_def_ast = match stmts.next().unwrap() {
             ast::Stmt::LocalDef(local_def) => local_def,
@@ -953,6 +953,8 @@ mod tests {
         let a_ast = bin_expr_ast.lhs().unwrap();
         let five_ast = bin_expr_ast.rhs().unwrap();
         let bin_expr_ast = ast::Expr::Bin(bin_expr_ast);
+
+        let f_call_ast = root.tail_expr().unwrap();
 
         let mut fnc_defs = Arena::new();
         let mut local_defs = Arena::new();
@@ -973,6 +975,9 @@ mod tests {
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 
+        let f_call_hir =
+            exprs.alloc(hir::Expr::FncCall { def: f_def_hir, args: IdRange::default() });
+
         let (program, source_map, errors, _, _) = lower(&root);
 
         assert_eq!(
@@ -983,6 +988,7 @@ mod tests {
                 exprs,
                 defs: vec![hir::Def::FncDef(f_def_hir)],
                 stmts: vec![hir::Stmt::LocalDef(a_def_hir), hir::Stmt::Expr(bin_expr_hir)],
+                tail_expr: Some(f_call_hir),
                 ..Default::default()
             }
         );
@@ -992,11 +998,13 @@ mod tests {
         assert_eq!(source_map.expr_map[a_hir], a_ast);
         assert_eq!(source_map.expr_map[five_hir], five_ast);
         assert_eq!(source_map.expr_map[bin_expr_hir], bin_expr_ast);
+        assert_eq!(source_map.expr_map[f_call_hir], f_call_ast);
         assert_eq!(source_map.expr_map_back[&four_ast], four_hir);
         assert_eq!(source_map.expr_map_back[&ten_ast], ten_hir);
         assert_eq!(source_map.expr_map_back[&a_ast], a_hir);
         assert_eq!(source_map.expr_map_back[&five_ast], five_hir);
         assert_eq!(source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
+        assert_eq!(source_map.expr_map_back[&f_call_ast], f_call_hir);
 
         assert!(errors.is_empty());
     }
