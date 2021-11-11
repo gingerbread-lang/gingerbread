@@ -20,7 +20,7 @@ impl fmt::Debug for ParseError {
         match self.kind {
             ParseErrorKind::Missing { offset } => write!(f, "{}", u32::from(offset))?,
             ParseErrorKind::Unexpected { range, .. } => {
-                write!(f, "{}..{}", u32::from(range.start()), u32::from(range.end()),)?
+                write!(f, "{}..{}", u32::from(range.start()), u32::from(range.end()))?
             }
         };
         write!(f, ": ")?;
