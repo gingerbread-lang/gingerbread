@@ -1,11 +1,28 @@
 use crate::Idx;
+use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Index, IndexMut};
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ArenaMap<IDX, V> {
     v: Vec<Option<V>>,
     _ty: PhantomData<IDX>,
+}
+
+impl<T, V> fmt::Debug for ArenaMap<Idx<T>, V>
+where
+    V: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ArenaMap ")?;
+        f.debug_map()
+            .entries(
+                self.v.iter().enumerate().filter_map(|(idx, elem)| {
+                    elem.as_ref().map(|elem| (Self::from_idx(idx), elem))
+                }),
+            )
+            .finish()
+    }
 }
 
 impl<T, V> ArenaMap<Idx<T>, V> {

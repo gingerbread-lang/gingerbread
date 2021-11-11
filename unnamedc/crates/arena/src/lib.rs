@@ -174,7 +174,7 @@ pub struct Arena<T> {
 
 impl<T: fmt::Debug> fmt::Debug for Arena<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.data, f)
+        f.debug_map().entries(self.iter()).finish()
     }
 }
 
