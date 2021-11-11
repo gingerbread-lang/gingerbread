@@ -57,7 +57,7 @@ impl EvalCtx<'_> {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
             hir::Expr::FncCall { .. } => todo!(),
-            hir::Expr::Block(stmts, tail_expr) => {
+            hir::Expr::Block { stmts, tail_expr } => {
                 for stmt in stmts {
                     self.eval_stmt(*stmt);
                 }

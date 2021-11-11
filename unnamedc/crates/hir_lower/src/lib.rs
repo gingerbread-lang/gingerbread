@@ -212,10 +212,10 @@ impl LowerCtx<'_> {
     fn lower_block(&mut self, ast: ast::Block) -> hir::Expr {
         let mut child = self.new_child();
 
-        hir::Expr::Block(
-            ast.stmts().map(|ast| child.lower_stmt(ast)).collect(),
-            ast.tail_expr().map(|ast| child.lower_expr(Some(ast))),
-        )
+        let stmts = ast.stmts().map(|ast| child.lower_stmt(ast)).collect();
+        let tail_expr = ast.tail_expr().map(|ast| child.lower_expr(Some(ast)));
+
+        hir::Expr::Block { stmts, tail_expr }
     }
 
     fn lower_fnc_call(&mut self, ast: ast::FncCall) -> hir::Expr {
@@ -379,16 +379,16 @@ mod tests {
         let mut exprs = Arena::new();
 
         let zero = exprs.alloc(hir::Expr::IntLiteral(0));
-        let idx_def = local_defs.alloc(hir::LocalDef { value: zero });
-        let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(idx_def)));
+        let foo_def = local_defs.alloc(hir::LocalDef { value: zero });
+        let foo = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(foo_def)));
 
         check(
-            "let idx = 0; idx",
+            "let foo = 0; foo",
             hir::Program {
                 local_defs,
                 exprs,
-                stmts: vec![hir::Stmt::LocalDef(idx_def)],
-                tail_expr: Some(idx),
+                stmts: vec![hir::Stmt::LocalDef(foo_def)],
+                tail_expr: Some(foo),
                 ..Default::default()
             },
             [],
@@ -479,7 +479,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let unit_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
@@ -651,8 +651,10 @@ mod tests {
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let foo_plus_two =
             exprs.alloc(hir::Expr::Bin { lhs: foo, rhs: two, op: Some(hir::BinOp::Add) });
-        let block =
-            exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(foo_def)], Some(foo_plus_two)));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(foo_def)],
+            tail_expr: Some(foo_plus_two),
+        });
 
         check(
             "{ let foo = 100 - 10; foo + 2 }",
@@ -671,8 +673,10 @@ mod tests {
         let string = exprs.alloc(hir::Expr::StringLiteral("hello there".to_string()));
         let inner_count_def = local_defs.alloc(hir::LocalDef { value: string });
         let inner_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(inner_count_def)));
-        let block = exprs
-            .alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(inner_count_def)], Some(inner_count)));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(inner_count_def)],
+            tail_expr: Some(inner_count),
+        });
         let outer_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(outer_count_def)));
 
         check(
@@ -710,8 +714,10 @@ mod tests {
         let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
         let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(b_def)));
         let a_times_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Mul) });
-        let block =
-            exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(b_def)], Some(a_times_b)));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(b_def)],
+            tail_expr: Some(a_times_b),
+        });
 
         check(
             r#"
@@ -737,7 +743,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
@@ -763,7 +769,7 @@ mod tests {
         let mut exprs = Arena::new();
 
         let x = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::new(x..=x),
             ret_ty: hir::Ty::Unit,
@@ -852,7 +858,7 @@ mod tests {
         let mut exprs = Arena::new();
 
         let x_def = params.alloc(hir::Param { ty: hir::Ty::Unknown });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::new(x_def..=x_def),
             ret_ty: hir::Ty::Unit,
@@ -877,7 +883,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::default(),
             ret_ty: hir::Ty::Unknown,

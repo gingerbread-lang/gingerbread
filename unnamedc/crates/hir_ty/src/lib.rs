@@ -172,7 +172,7 @@ impl InferCtx<'_> {
                 sig.ret_ty
             }
 
-            hir::Expr::Block(ref stmts, tail_expr) => {
+            hir::Expr::Block { ref stmts, tail_expr } => {
                 for stmt in stmts {
                     self.infer_stmt(*stmt);
                 }
@@ -203,7 +203,7 @@ impl InferCtx<'_> {
         }
 
         let expr = match &self.exprs[expr] {
-            hir::Expr::Block(_, Some(tail_expr)) => *tail_expr,
+            hir::Expr::Block { tail_expr: Some(tail_expr), .. } => *tail_expr,
             _ => expr,
         };
 
@@ -448,7 +448,7 @@ mod tests {
     #[test]
     fn infer_empty_block() {
         let mut exprs = Arena::new();
-        let block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
 
         let result = infer(&hir::Program {
             exprs,
@@ -467,7 +467,10 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("🌈".to_string()));
         let local_def = local_defs.alloc(hir::LocalDef { value: string });
-        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], None));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(local_def)],
+            tail_expr: None,
+        });
 
         let result = infer(&hir::Program {
             local_defs,
@@ -490,7 +493,10 @@ mod tests {
         let seven = exprs.alloc(hir::Expr::IntLiteral(7));
         let num_def = local_defs.alloc(hir::LocalDef { value: seven });
         let num = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(num_def)));
-        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(num_def)], Some(num)));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(num_def)],
+            tail_expr: Some(num),
+        });
 
         let result = infer(&hir::Program {
             local_defs,
@@ -633,7 +639,7 @@ mod tests {
             ret_ty: hir::Ty::S32,
             body: a_over_b,
         });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
         let div = exprs.alloc(hir::Expr::FncCall {
             def: div_def,
@@ -681,7 +687,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
@@ -708,7 +714,7 @@ mod tests {
 
         let param_1 = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let param_2 = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::new(param_1..=param_2),
             ret_ty: hir::Ty::Unit,
@@ -847,7 +853,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
+        let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdRange::default(),
             ret_ty: hir::Ty::Unknown,
@@ -874,8 +880,10 @@ mod tests {
         let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
         let local_def = local_defs.alloc(hir::LocalDef { value: string });
         let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(local_def)));
-        let block =
-            exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], Some(local)));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(local_def)],
+            tail_expr: Some(local),
+        });
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
         let block_plus_ten =
             exprs.alloc(hir::Expr::Bin { lhs: block, rhs: ten, op: Some(hir::BinOp::Add) });
@@ -909,7 +917,10 @@ mod tests {
 
         let five = exprs.alloc(hir::Expr::IntLiteral(5));
         let local_def = local_defs.alloc(hir::LocalDef { value: five });
-        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], None));
+        let block = exprs.alloc(hir::Expr::Block {
+            stmts: vec![hir::Stmt::LocalDef(local_def)],
+            tail_expr: None,
+        });
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let block_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: block, rhs: four, op: Some(hir::BinOp::Add) });
