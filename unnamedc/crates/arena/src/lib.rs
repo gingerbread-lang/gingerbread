@@ -79,7 +79,17 @@ impl<T> DoubleEndedIterator for IdRange<T> {
 
 impl<T> fmt::Debug for IdRange<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "IdRange::<{}>({:?})", std::any::type_name::<T>(), self.range)
+        if self.range.start == 0 && self.range.end == 0 {
+            return write!(f, "IdRange::<{}>(0..0)", std::any::type_name::<T>());
+        }
+
+        write!(
+            f,
+            "IdRange::<{}>({}..={})",
+            std::any::type_name::<T>(),
+            self.range.start,
+            self.range.end - 1
+        )
     }
 }
 
