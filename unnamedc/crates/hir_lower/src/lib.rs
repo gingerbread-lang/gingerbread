@@ -1,4 +1,4 @@
-use arena::{Arena, ArenaMap, IdxRange};
+use arena::{Arena, ArenaMap, IdRange};
 use ast::AstToken;
 use std::collections::HashMap;
 use text_size::TextRange;
@@ -9,8 +9,8 @@ pub fn lower(
     hir::Program,
     SourceMap,
     Vec<LowerError>,
-    HashMap<String, hir::FncDefIdx>,
-    HashMap<String, hir::VarDefIdx>,
+    HashMap<String, hir::FncDefId>,
+    HashMap<String, hir::VarDefId>,
 ) {
     lower_with_in_scope(ast, Arena::new(), HashMap::new(), HashMap::new())
 }
@@ -18,14 +18,14 @@ pub fn lower(
 pub fn lower_with_in_scope(
     ast: &ast::Root,
     local_defs: Arena<hir::LocalDef>,
-    mut fnc_names: HashMap<String, hir::FncDefIdx>,
-    var_names: HashMap<String, hir::VarDefIdx>,
+    mut fnc_names: HashMap<String, hir::FncDefId>,
+    var_names: HashMap<String, hir::VarDefId>,
 ) -> (
     hir::Program,
     SourceMap,
     Vec<LowerError>,
-    HashMap<String, hir::FncDefIdx>,
-    HashMap<String, hir::VarDefIdx>,
+    HashMap<String, hir::FncDefId>,
+    HashMap<String, hir::VarDefId>,
 ) {
     let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
     let mut lower_ctx = LowerCtx {
@@ -66,8 +66,8 @@ pub fn lower_with_in_scope(
 
 #[derive(Debug, Default)]
 pub struct SourceMap {
-    pub expr_map: ArenaMap<hir::ExprIdx, ast::Expr>,
-    pub expr_map_back: HashMap<ast::Expr, hir::ExprIdx>,
+    pub expr_map: ArenaMap<hir::ExprId, ast::Expr>,
+    pub expr_map_back: HashMap<ast::Expr, hir::ExprId>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -85,7 +85,7 @@ pub enum LowerErrorKind {
 
 struct LowerCtx<'a> {
     store: &'a mut LowerStore,
-    fnc_names: &'a mut HashMap<String, hir::FncDefIdx>,
+    fnc_names: &'a mut HashMap<String, hir::FncDefId>,
     var_names: VarNames<'a>,
 }
 
@@ -113,34 +113,31 @@ impl LowerCtx<'_> {
         }
     }
 
-    fn lower_local_def(&mut self, ast: ast::LocalDef) -> hir::LocalDefIdx {
+    fn lower_local_def(&mut self, ast: ast::LocalDef) -> hir::LocalDefId {
         let value = self.lower_expr(ast.value());
-        let idx = self.store.local_defs.alloc(hir::LocalDef { value });
+        let id = self.store.local_defs.alloc(hir::LocalDef { value });
 
         if let Some(name) = ast.name() {
-            self.var_names.this.insert(name.text().to_string(), hir::VarDefIdx::Local(idx));
+            self.var_names.this.insert(name.text().to_string(), hir::VarDefId::Local(id));
         }
 
-        idx
+        id
     }
 
-    fn lower_fnc_def(&mut self, ast: ast::FncDef) -> hir::FncDefIdx {
+    fn lower_fnc_def(&mut self, ast: ast::FncDef) -> hir::FncDefId {
         let mut child = self.new_child();
 
-        let mut params = IdxRange::builder();
+        let mut params = IdRange::builder();
 
         if let Some(param_list) = ast.param_list() {
             for param in param_list.params() {
                 let ty = child.lower_ty(param.ty());
-                let idx = child.store.params.alloc(hir::Param { ty });
+                let id = child.store.params.alloc(hir::Param { ty });
 
-                params.include(idx);
+                params.include(id);
 
                 if let Some(name) = param.name() {
-                    child
-                        .var_names
-                        .this
-                        .insert(name.text().to_string(), hir::VarDefIdx::Param(idx));
+                    child.var_names.this.insert(name.text().to_string(), hir::VarDefId::Param(id));
                 }
             }
         }
@@ -154,12 +151,12 @@ impl LowerCtx<'_> {
 
         let body = child.lower_expr(ast.body());
 
-        let idx = self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body });
+        let id = self.store.fnc_defs.alloc(hir::FncDef { params, ret_ty, body });
         if let Some(name) = ast.name() {
-            self.fnc_names.insert(name.text().to_string(), idx);
+            self.fnc_names.insert(name.text().to_string(), id);
         }
 
-        idx
+        id
     }
 
     fn lower_ty(&mut self, ast: Option<ast::Ty>) -> hir::Ty {
@@ -183,7 +180,7 @@ impl LowerCtx<'_> {
         hir::Ty::Unknown
     }
 
-    fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprIdx {
+    fn lower_expr(&mut self, ast: Option<ast::Expr>) -> hir::ExprId {
         let ast = match ast {
             Some(ast) => ast,
             None => return self.store.exprs.alloc(hir::Expr::Missing),
@@ -234,7 +231,7 @@ impl LowerCtx<'_> {
             if let Some(var_def) = self.var_names.get(name) {
                 return hir::Expr::VarRef(var_def);
             } else if let Some(&def) = self.fnc_names.get(name) {
-                return hir::Expr::FncCall { def, args: IdxRange::default() };
+                return hir::Expr::FncCall { def, args: IdRange::default() };
             }
 
             self.store.errors.push(LowerError {
@@ -245,11 +242,11 @@ impl LowerCtx<'_> {
             return hir::Expr::Missing;
         };
 
-        let mut args = IdxRange::builder();
+        let mut args = IdRange::builder();
 
         for arg in arg_list.args() {
-            let idx = self.lower_expr(arg.value());
-            args.include(idx);
+            let id = self.lower_expr(arg.value());
+            args.include(id);
         }
 
         match self.fnc_names.get(name) {
@@ -298,12 +295,12 @@ impl LowerCtx<'_> {
 }
 
 struct VarNames<'a> {
-    this: HashMap<String, hir::VarDefIdx>,
+    this: HashMap<String, hir::VarDefId>,
     parent: Option<&'a Self>,
 }
 
 impl VarNames<'_> {
-    fn get(&self, name: &str) -> Option<hir::VarDefIdx> {
+    fn get(&self, name: &str) -> Option<hir::VarDefId> {
         self.this.get(name).copied().or_else(|| self.parent.and_then(|parent| parent.get(name)))
     }
 }
@@ -383,7 +380,7 @@ mod tests {
 
         let zero = exprs.alloc(hir::Expr::IntLiteral(0));
         let idx_def = local_defs.alloc(hir::LocalDef { value: zero });
-        let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(idx_def)));
+        let idx = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(idx_def)));
 
         check(
             "let idx = 0; idx",
@@ -418,18 +415,18 @@ mod tests {
 
         let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
-        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(y_def)));
         let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
         let add_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(x_def..=y_def),
+            params: IdRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_plus_y,
         });
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let five = exprs.alloc(hir::Expr::IntLiteral(5));
         let add_two_five =
-            exprs.alloc(hir::Expr::FncCall { def: add_def, args: IdxRange::new(two..=five) });
+            exprs.alloc(hir::Expr::FncCall { def: add_def, args: IdRange::new(two..=five) });
 
         check(
             r#"
@@ -455,11 +452,11 @@ mod tests {
 
         let zero_literal = exprs.alloc(hir::Expr::IntLiteral(0));
         let zero_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::S32,
             body: zero_literal,
         });
-        let zero = exprs.alloc(hir::Expr::FncCall { def: zero_def, args: IdxRange::default() });
+        let zero = exprs.alloc(hir::Expr::FncCall { def: zero_def, args: IdRange::default() });
 
         check(
             r#"
@@ -484,11 +481,11 @@ mod tests {
 
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let unit_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
-        let unit = exprs.alloc(hir::Expr::FncCall { def: unit_def, args: IdxRange::default() });
+        let unit = exprs.alloc(hir::Expr::FncCall { def: unit_def, args: IdRange::default() });
 
         check(
             r#"
@@ -533,7 +530,7 @@ mod tests {
 
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
         let a_def = local_defs.alloc(hir::LocalDef { value: ten });
-        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let a_minus_four =
             exprs.alloc(hir::Expr::Bin { lhs: a, rhs: four, op: Some(hir::BinOp::Sub) });
@@ -626,7 +623,7 @@ mod tests {
         assert!(errors.is_empty());
 
         let mut exprs = Arena::new();
-        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
 
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
@@ -650,7 +647,7 @@ mod tests {
         let one_hundred_minus_ten =
             exprs.alloc(hir::Expr::Bin { lhs: one_hundred, rhs: ten, op: Some(hir::BinOp::Sub) });
         let foo_def = local_defs.alloc(hir::LocalDef { value: one_hundred_minus_ten });
-        let foo = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(foo_def)));
+        let foo = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(foo_def)));
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let foo_plus_two =
             exprs.alloc(hir::Expr::Bin { lhs: foo, rhs: two, op: Some(hir::BinOp::Add) });
@@ -673,10 +670,10 @@ mod tests {
         let outer_count_def = local_defs.alloc(hir::LocalDef { value: zero });
         let string = exprs.alloc(hir::Expr::StringLiteral("hello there".to_string()));
         let inner_count_def = local_defs.alloc(hir::LocalDef { value: string });
-        let inner_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(inner_count_def)));
+        let inner_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(inner_count_def)));
         let block = exprs
             .alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(inner_count_def)], Some(inner_count)));
-        let outer_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(outer_count_def)));
+        let outer_count = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(outer_count_def)));
 
         check(
             r#"
@@ -710,8 +707,8 @@ mod tests {
         let a_def = local_defs.alloc(hir::LocalDef { value: eight });
         let sixteen = exprs.alloc(hir::Expr::IntLiteral(16));
         let b_def = local_defs.alloc(hir::LocalDef { value: sixteen });
-        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
-        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(b_def)));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
+        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(b_def)));
         let a_times_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Mul) });
         let block =
             exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(b_def)], Some(a_times_b)));
@@ -742,7 +739,7 @@ mod tests {
 
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -768,7 +765,7 @@ mod tests {
         let x = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(x..=x),
+            params: IdRange::new(x..=x),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -793,9 +790,9 @@ mod tests {
         let mut exprs = Arena::new();
 
         let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
+        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(n_def)));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(n_def..=n_def),
+            params: IdRange::new(n_def..=n_def),
             ret_ty: hir::Ty::S32,
             body: n,
         });
@@ -821,11 +818,11 @@ mod tests {
 
         let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
-        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(y_def)));
         let x_plus_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Add) });
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(x_def..=y_def),
+            params: IdRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_plus_y,
         });
@@ -857,7 +854,7 @@ mod tests {
         let x_def = params.alloc(hir::Param { ty: hir::Ty::Unknown });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(x_def..=x_def),
+            params: IdRange::new(x_def..=x_def),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -882,7 +879,7 @@ mod tests {
 
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unknown,
             body: empty_block,
         });
@@ -906,7 +903,7 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("🦀".to_string()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::String,
             body: string,
         });
@@ -957,7 +954,7 @@ mod tests {
 
         let four_hir = exprs.alloc(hir::Expr::IntLiteral(4));
         let f_def_hir = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::S32,
             body: four_hir,
         });
@@ -965,7 +962,7 @@ mod tests {
         let ten_hir = exprs.alloc(hir::Expr::IntLiteral(10));
         let a_def_hir = local_defs.alloc(hir::LocalDef { value: ten_hir });
 
-        let a_hir = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def_hir)));
+        let a_hir = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def_hir)));
         let five_hir = exprs.alloc(hir::Expr::IntLiteral(5));
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });

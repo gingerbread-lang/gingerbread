@@ -3,8 +3,8 @@ use std::mem;
 
 #[derive(Default)]
 pub struct Evaluator {
-    locals: ArenaMap<hir::LocalDefIdx, Val>,
-    params: ArenaMap<hir::ParamIdx, Val>,
+    locals: ArenaMap<hir::LocalDefId, Val>,
+    params: ArenaMap<hir::ParamId, Val>,
 }
 
 impl Evaluator {
@@ -31,8 +31,8 @@ impl Evaluator {
 }
 
 struct EvalCtx<'program> {
-    locals: ArenaMap<hir::LocalDefIdx, Val>,
-    params: ArenaMap<hir::ParamIdx, Val>,
+    locals: ArenaMap<hir::LocalDefId, Val>,
+    params: ArenaMap<hir::ParamId, Val>,
     local_defs: &'program Arena<hir::LocalDef>,
     exprs: &'program Arena<hir::Expr>,
 }
@@ -47,12 +47,12 @@ impl EvalCtx<'_> {
         }
     }
 
-    fn eval_local_def(&mut self, local_def: hir::LocalDefIdx) {
+    fn eval_local_def(&mut self, local_def: hir::LocalDefId) {
         let value = self.eval_expr(self.local_defs[local_def].value);
         self.locals.insert(local_def, value);
     }
 
-    fn eval_expr(&mut self, expr: hir::ExprIdx) -> Val {
+    fn eval_expr(&mut self, expr: hir::ExprId) -> Val {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
@@ -67,19 +67,14 @@ impl EvalCtx<'_> {
                     None => Val::Nil,
                 }
             }
-            hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.locals[*local_def].clone(),
-            hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.params[*param].clone(),
+            hir::Expr::VarRef(hir::VarDefId::Local(local_def)) => self.locals[*local_def].clone(),
+            hir::Expr::VarRef(hir::VarDefId::Param(param)) => self.params[*param].clone(),
             hir::Expr::IntLiteral(value) => Val::Int(*value),
             hir::Expr::StringLiteral(value) => Val::String(value.clone()),
         }
     }
 
-    fn eval_bin_expr(
-        &mut self,
-        op: Option<hir::BinOp>,
-        lhs: hir::ExprIdx,
-        rhs: hir::ExprIdx,
-    ) -> Val {
+    fn eval_bin_expr(&mut self, op: Option<hir::BinOp>, lhs: hir::ExprId, rhs: hir::ExprId) -> Val {
         let op = match op {
             Some(op) => op,
             None => return Val::Nil,

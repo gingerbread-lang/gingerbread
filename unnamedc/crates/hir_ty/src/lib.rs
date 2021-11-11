@@ -36,10 +36,10 @@ pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult 
 
 #[derive(Debug)]
 pub struct InferResult {
-    local_tys: ArenaMap<hir::LocalDefIdx, hir::Ty>,
-    fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
-    param_tys: ArenaMap<hir::ParamIdx, hir::Ty>,
-    expr_tys: ArenaMap<hir::ExprIdx, hir::Ty>,
+    local_tys: ArenaMap<hir::LocalDefId, hir::Ty>,
+    fnc_sigs: ArenaMap<hir::FncDefId, Sig>,
+    param_tys: ArenaMap<hir::ParamId, hir::Ty>,
+    expr_tys: ArenaMap<hir::ExprId, hir::Ty>,
     errors: Vec<TyError>,
 }
 
@@ -57,9 +57,9 @@ impl InferResult {
 
 #[derive(Debug, Clone, Default)]
 pub struct InScope {
-    local_tys: ArenaMap<hir::LocalDefIdx, hir::Ty>,
-    fnc_sigs: ArenaMap<hir::FncDefIdx, Sig>,
-    param_tys: ArenaMap<hir::ParamIdx, hir::Ty>,
+    local_tys: ArenaMap<hir::LocalDefId, hir::Ty>,
+    fnc_sigs: ArenaMap<hir::FncDefId, Sig>,
+    param_tys: ArenaMap<hir::ParamId, hir::Ty>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -70,7 +70,7 @@ pub struct Sig {
 
 #[derive(Debug, PartialEq)]
 pub struct TyError {
-    pub expr: hir::ExprIdx,
+    pub expr: hir::ExprId,
     pub kind: TyErrorKind,
 }
 
@@ -91,7 +91,7 @@ struct InferCtx<'a> {
 impl InferCtx<'_> {
     fn infer_def(&mut self, def: hir::Def) {
         match def {
-            hir::Def::FncDef(idx) => self.infer_fnc_def(idx),
+            hir::Def::FncDef(id) => self.infer_fnc_def(id),
         }
     }
 
@@ -110,24 +110,24 @@ impl InferCtx<'_> {
         hir::Ty::Unit
     }
 
-    fn infer_fnc_def(&mut self, idx: arena::Idx<hir::FncDef>) {
-        let fnc_def = self.fnc_defs[idx].clone();
+    fn infer_fnc_def(&mut self, id: arena::Id<hir::FncDef>) {
+        let fnc_def = self.fnc_defs[id].clone();
 
         let mut params = Vec::with_capacity(fnc_def.params.len());
 
-        for param_idx in fnc_def.params {
-            let param = self.params[param_idx];
+        for param_id in fnc_def.params {
+            let param = self.params[param_id];
             params.push(param.ty);
-            self.result.param_tys.insert(param_idx, param.ty);
+            self.result.param_tys.insert(param_id, param.ty);
         }
 
         let actual_ret_ty = self.infer_expr(fnc_def.body);
         self.expect_tys_match(fnc_def.body, fnc_def.ret_ty, actual_ret_ty);
 
-        self.result.fnc_sigs.insert(idx, Sig { params, ret_ty: fnc_def.ret_ty });
+        self.result.fnc_sigs.insert(id, Sig { params, ret_ty: fnc_def.ret_ty });
     }
 
-    fn infer_expr(&mut self, expr: hir::ExprIdx) -> hir::Ty {
+    fn infer_expr(&mut self, expr: hir::ExprId) -> hir::Ty {
         let ty = match self.exprs[expr] {
             hir::Expr::Missing => hir::Ty::Unknown,
 
@@ -163,7 +163,7 @@ impl InferCtx<'_> {
 
                 #[allow(clippy::needless_collect)]
                 let arg_tys: Vec<_> =
-                    args.clone().map(|idx| (idx, self.result.expr_tys[idx])).collect();
+                    args.clone().map(|id| (id, self.result.expr_tys[id])).collect();
 
                 for ((arg, arg_ty), param_ty) in arg_tys.into_iter().zip(sig.params) {
                     self.expect_tys_match(arg, param_ty, arg_ty);
@@ -183,9 +183,9 @@ impl InferCtx<'_> {
                 }
             }
 
-            hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.result.local_tys[local_def],
+            hir::Expr::VarRef(hir::VarDefId::Local(local_def)) => self.result.local_tys[local_def],
 
-            hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.result.param_tys[param],
+            hir::Expr::VarRef(hir::VarDefId::Param(param)) => self.result.param_tys[param],
 
             hir::Expr::IntLiteral(_) => hir::Ty::S32,
 
@@ -197,7 +197,7 @@ impl InferCtx<'_> {
         ty
     }
 
-    fn expect_tys_match(&mut self, expr: hir::ExprIdx, expected: hir::Ty, found: hir::Ty) {
+    fn expect_tys_match(&mut self, expr: hir::ExprId, expected: hir::Ty, found: hir::Ty) {
         if found == expected || found == hir::Ty::Unknown || expected == hir::Ty::Unknown {
             return;
         }
@@ -214,7 +214,7 @@ impl InferCtx<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use arena::IdxRange;
+    use arena::IdRange;
 
     #[test]
     fn infer_int_literal() {
@@ -316,11 +316,11 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("test".to_string()));
         let a_def = local_defs.alloc(hir::LocalDef { value: string });
-        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(a_def)));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
         let b_def = local_defs.alloc(hir::LocalDef { value: a });
-        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(b_def)));
+        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(b_def)));
         let c_def = local_defs.alloc(hir::LocalDef { value: b });
-        let c = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(c_def)));
+        let c = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(c_def)));
 
         let result = infer(&hir::Program {
             local_defs,
@@ -368,7 +368,7 @@ mod tests {
         };
 
         let mut exprs = Arena::new();
-        let local_value = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
+        let local_value = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(local_def)));
 
         let program = hir::Program {
             local_defs,
@@ -405,7 +405,7 @@ mod tests {
 
         let missing = exprs.alloc(hir::Expr::Missing);
         let user_def = local_defs.alloc(hir::LocalDef { value: missing });
-        let user = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(user_def)));
+        let user = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(user_def)));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let user_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: user, rhs: four, op: Some(hir::BinOp::Add) });
@@ -489,7 +489,7 @@ mod tests {
 
         let seven = exprs.alloc(hir::Expr::IntLiteral(7));
         let num_def = local_defs.alloc(hir::LocalDef { value: seven });
-        let num = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(num_def)));
+        let num = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(num_def)));
         let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(num_def)], Some(num)));
 
         let result = infer(&hir::Program {
@@ -513,12 +513,12 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("Hello!".to_string()));
         let greeting_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::String,
             body: string,
         });
         let greeting =
-            exprs.alloc(hir::Expr::FncCall { def: greeting_def, args: IdxRange::default() });
+            exprs.alloc(hir::Expr::FncCall { def: greeting_def, args: IdRange::default() });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -545,18 +545,18 @@ mod tests {
 
         let x_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let y_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(x_def)));
-        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(y_def)));
+        let x = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(x_def)));
+        let y = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(y_def)));
         let x_times_y = exprs.alloc(hir::Expr::Bin { lhs: x, rhs: y, op: Some(hir::BinOp::Mul) });
         let mul_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(x_def..=y_def),
+            params: IdRange::new(x_def..=y_def),
             ret_ty: hir::Ty::S32,
             body: x_times_y,
         });
         let twenty_three = exprs.alloc(hir::Expr::IntLiteral(23));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let mul = exprs
-            .alloc(hir::Expr::FncCall { def: mul_def, args: IdxRange::new(twenty_three..=four) });
+            .alloc(hir::Expr::FncCall { def: mul_def, args: IdRange::new(twenty_three..=four) });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -587,13 +587,13 @@ mod tests {
         let mut exprs = Arena::new();
 
         let n_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(n_def)));
+        let n = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(n_def)));
         let id_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(n_def..=n_def),
+            params: IdRange::new(n_def..=n_def),
             ret_ty: hir::Ty::S32,
             body: n,
         });
-        let id = exprs.alloc(hir::Expr::FncCall { def: id_def, args: IdxRange::default() });
+        let id = exprs.alloc(hir::Expr::FncCall { def: id_def, args: IdRange::default() });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -625,11 +625,11 @@ mod tests {
 
         let a_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let b_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(a_def)));
-        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(b_def)));
+        let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(a_def)));
+        let b = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(b_def)));
         let a_over_b = exprs.alloc(hir::Expr::Bin { lhs: a, rhs: b, op: Some(hir::BinOp::Div) });
         let div_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(a_def..=b_def),
+            params: IdRange::new(a_def..=b_def),
             ret_ty: hir::Ty::S32,
             body: a_over_b,
         });
@@ -637,7 +637,7 @@ mod tests {
         let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
         let div = exprs.alloc(hir::Expr::FncCall {
             def: div_def,
-            args: IdxRange::new(empty_block..=ten_string),
+            args: IdRange::new(empty_block..=ten_string),
         });
 
         let result = infer(&hir::Program {
@@ -683,7 +683,7 @@ mod tests {
 
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -710,7 +710,7 @@ mod tests {
         let param_2 = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(param_1..=param_2),
+            params: IdRange::new(param_1..=param_2),
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
@@ -740,9 +740,9 @@ mod tests {
         let mut exprs = Arena::new();
 
         let param_def = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let param_ref = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Param(param_def)));
+        let param_ref = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Param(param_def)));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::new(param_def..=param_def),
+            params: IdRange::new(param_def..=param_def),
             ret_ty: hir::Ty::S32,
             body: param_ref,
         });
@@ -771,7 +771,7 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("hello".to_string()));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unit,
             body: string,
         });
@@ -801,7 +801,7 @@ mod tests {
 
         let missing = exprs.alloc(hir::Expr::Missing);
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::S32,
             body: missing,
         });
@@ -825,7 +825,7 @@ mod tests {
 
         let missing = exprs.alloc(hir::Expr::Missing);
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::S32,
             body: missing,
         });
@@ -849,7 +849,7 @@ mod tests {
 
         let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
-            params: IdxRange::default(),
+            params: IdRange::default(),
             ret_ty: hir::Ty::Unknown,
             body: empty_block,
         });
@@ -873,7 +873,7 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
         let local_def = local_defs.alloc(hir::LocalDef { value: string });
-        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
+        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(local_def)));
         let block =
             exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], Some(local)));
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
@@ -942,7 +942,7 @@ mod tests {
 
         let seven = exprs.alloc(hir::Expr::IntLiteral(7));
         let local_def = local_defs.alloc(hir::LocalDef { value: seven });
-        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
+        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(local_def)));
         let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
         let local_plus_string =
             exprs.alloc(hir::Expr::Bin { lhs: local, rhs: string, op: Some(hir::BinOp::Add) });

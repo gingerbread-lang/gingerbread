@@ -1,9 +1,9 @@
-use arena::{Arena, Idx, IdxRange};
+use arena::{Arena, Id, IdRange};
 
-pub type ExprIdx = Idx<Expr>;
-pub type LocalDefIdx = Idx<LocalDef>;
-pub type FncDefIdx = Idx<FncDef>;
-pub type ParamIdx = Idx<Param>;
+pub type ExprId = Id<Expr>;
+pub type LocalDefId = Id<LocalDef>;
+pub type FncDefId = Id<FncDef>;
+pub type ParamId = Id<Param>;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Program {
@@ -13,30 +13,30 @@ pub struct Program {
     pub exprs: Arena<Expr>,
     pub defs: Vec<Def>,
     pub stmts: Vec<Stmt>,
-    pub tail_expr: Option<ExprIdx>,
+    pub tail_expr: Option<ExprId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Def {
-    FncDef(FncDefIdx),
+    FncDef(FncDefId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Stmt {
-    LocalDef(LocalDefIdx),
-    Expr(ExprIdx),
+    LocalDef(LocalDefId),
+    Expr(ExprId),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FncDef {
-    pub params: IdxRange<Param>,
+    pub params: IdRange<Param>,
     pub ret_ty: Ty,
-    pub body: ExprIdx,
+    pub body: ExprId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocalDef {
-    pub value: ExprIdx,
+    pub value: ExprId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,18 +55,18 @@ pub enum Ty {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Missing,
-    Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
-    FncCall { def: FncDefIdx, args: IdxRange<Expr> },
-    Block(Vec<Stmt>, Option<ExprIdx>),
-    VarRef(VarDefIdx),
+    Bin { lhs: ExprId, rhs: ExprId, op: Option<BinOp> },
+    FncCall { def: FncDefId, args: IdRange<Expr> },
+    Block(Vec<Stmt>, Option<ExprId>),
+    VarRef(VarDefId),
     IntLiteral(u32),
     StringLiteral(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum VarDefIdx {
-    Local(LocalDefIdx),
-    Param(ParamIdx),
+pub enum VarDefId {
+    Local(LocalDefId),
+    Param(ParamId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
