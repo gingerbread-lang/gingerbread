@@ -35,7 +35,7 @@ impl fmt::Display for RawIdx {
 
 pub struct Idx<T> {
     raw: RawIdx,
-    _ty: PhantomData<fn() -> T>,
+    phantom: PhantomData<fn() -> T>,
 }
 
 impl<T> Clone for Idx<T> {
@@ -64,7 +64,7 @@ impl<T> fmt::Debug for Idx<T> {
 
 impl<T> Idx<T> {
     pub fn from_raw(raw: RawIdx) -> Self {
-        Idx { raw, _ty: PhantomData }
+        Idx { raw, phantom: PhantomData }
     }
 
     pub fn into_raw(self) -> RawIdx {
@@ -74,14 +74,14 @@ impl<T> Idx<T> {
 
 pub struct IdxRange<T> {
     range: Range<u32>,
-    _p: PhantomData<T>,
+    phantom: PhantomData<T>,
 }
 
 impl<T> IdxRange<T> {
     pub fn new(range: RangeInclusive<Idx<T>>) -> Self {
         Self {
             range: u32::from(range.start().into_raw())..u32::from(range.end().into_raw()) + 1,
-            _p: PhantomData,
+            phantom: PhantomData,
         }
     }
 
@@ -119,7 +119,7 @@ impl<T> fmt::Debug for IdxRange<T> {
 
 impl<T> Clone for IdxRange<T> {
     fn clone(&self) -> Self {
-        Self { range: self.range.clone(), _p: PhantomData }
+        Self { range: self.range.clone(), phantom: PhantomData }
     }
 }
 
@@ -133,7 +133,7 @@ impl<T> Eq for IdxRange<T> {}
 
 impl<T> Default for IdxRange<T> {
     fn default() -> Self {
-        Self { range: 0..0, _p: PhantomData }
+        Self { range: 0..0, phantom: PhantomData }
     }
 }
 
