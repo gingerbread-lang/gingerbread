@@ -71,6 +71,10 @@ impl Root {
     pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
         nodes(self)
     }
+
+    pub fn tail_expr(&self) -> Option<Expr> {
+        node(self)
+    }
 }
 
 pub enum Def {
@@ -116,18 +120,14 @@ impl FncDef {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Stmt {
     LocalDef(LocalDef),
-    Expr(Expr),
+    ExprStmt(ExprStmt),
 }
 
 impl AstNode for Stmt {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
             SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
-            SyntaxKind::BinExpr => Some(Self::Expr(Expr::Bin(BinExpr(node)))),
-            SyntaxKind::Block => Some(Self::Expr(Expr::Block(Block(node)))),
-            SyntaxKind::FncCall => Some(Self::Expr(Expr::FncCall(FncCall(node)))),
-            SyntaxKind::IntLiteral => Some(Self::Expr(Expr::IntLiteral(IntLiteral(node)))),
-            SyntaxKind::StringLiteral => Some(Self::Expr(Expr::StringLiteral(StringLiteral(node)))),
+            SyntaxKind::ExprStmt => Some(Self::ExprStmt(ExprStmt(node))),
             _ => None,
         }
     }
@@ -135,7 +135,7 @@ impl AstNode for Stmt {
     fn syntax(&self) -> &SyntaxNode {
         match self {
             Self::LocalDef(local_def) => local_def.syntax(),
-            Self::Expr(expr) => expr.syntax(),
+            Self::ExprStmt(expr) => expr.syntax(),
         }
     }
 }
@@ -185,6 +185,14 @@ def_ast_node!(Ty);
 impl Ty {
     pub fn name(&self) -> Option<Ident> {
         token(self)
+    }
+}
+
+def_ast_node!(ExprStmt);
+
+impl ExprStmt {
+    pub fn expr(&self) -> Option<Expr> {
+        node(self)
     }
 }
 
@@ -241,6 +249,10 @@ def_ast_node!(Block);
 impl Block {
     pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
         nodes(self)
+    }
+
+    pub fn tail_expr(&self) -> Option<Expr> {
+        node(self)
     }
 }
 
@@ -353,27 +365,18 @@ mod tests {
 
     #[test]
     fn get_stmts() {
-        let root = parse("let a = b; a");
+        let root = parse("let a = b; a;");
         assert_eq!(root.stmts().count(), 2);
     }
 
     #[test]
-    fn inspect_stmt_and_expr_kind() {
-        let root = parse("let foo = bar; baz * quuz");
+    fn inspect_stmt_kind() {
+        let root = parse("let foo = bar; baz * quuz;");
         let mut stmts = root.stmts();
-        let local_def = stmts.next().unwrap();
-        let expr = stmts.next().unwrap();
+
+        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
+        assert!(matches!(stmts.next(), Some(Stmt::ExprStmt(_))));
         assert!(stmts.next().is_none());
-
-        match local_def {
-            Stmt::LocalDef(_) => {}
-            _ => unreachable!(),
-        }
-
-        match expr {
-            Stmt::Expr(Expr::Bin(_)) => {}
-            _ => unreachable!(),
-        }
     }
 
     #[test]
@@ -399,56 +402,41 @@ mod tests {
             _ => unreachable!(),
         };
 
-        match local_def.value() {
-            Some(Expr::IntLiteral(_)) => {}
-            _ => unreachable!(),
-        }
+        assert!(matches!(local_def.value(), Some(Expr::IntLiteral(_))));
     }
 
     #[test]
     fn get_lhs_and_rhs_of_bin_expr() {
         let root = parse("foo * 2");
-        let stmt = root.stmts().next().unwrap();
+        assert!(root.stmts().next().is_none());
 
-        let bin_expr = match stmt {
-            Stmt::Expr(Expr::Bin(bin_expr)) => bin_expr,
+        let bin_expr = match root.tail_expr() {
+            Some(Expr::Bin(bin_expr)) => bin_expr,
             _ => unreachable!(),
         };
 
-        match bin_expr.lhs() {
-            Some(Expr::FncCall(_)) => {}
-            _ => unreachable!(),
-        }
-
-        match bin_expr.rhs() {
-            Some(Expr::IntLiteral(_)) => {}
-            _ => unreachable!(),
-        }
+        assert!(matches!(bin_expr.lhs(), Some(Expr::FncCall(_))));
+        assert!(matches!(bin_expr.rhs(), Some(Expr::IntLiteral(_))));
     }
 
     #[test]
     fn get_operator_of_bin_expr() {
         let root = parse("a + b");
-        let stmt = root.stmts().next().unwrap();
 
-        let bin_expr = match stmt {
-            Stmt::Expr(Expr::Bin(bin_expr)) => bin_expr,
+        let bin_expr = match root.tail_expr() {
+            Some(Expr::Bin(bin_expr)) => bin_expr,
             _ => unreachable!(),
         };
 
-        match bin_expr.op() {
-            Some(Op::Add(_)) => {}
-            _ => unreachable!(),
-        }
+        assert!(matches!(bin_expr.op(), Some(Op::Add(_))));
     }
 
     #[test]
     fn get_name_of_fnc_call() {
         let root = parse("idx");
-        let stmt = root.stmts().next().unwrap();
 
-        let fnc_call = match stmt {
-            Stmt::Expr(Expr::FncCall(fnc_call)) => fnc_call,
+        let fnc_call = match root.tail_expr() {
+            Some(Expr::FncCall(fnc_call)) => fnc_call,
             _ => unreachable!(),
         };
 
@@ -458,10 +446,9 @@ mod tests {
     #[test]
     fn get_args_of_fnc_call() {
         let root = parse("mul 10, 20");
-        let stmt = root.stmts().next().unwrap();
 
-        let fnc_call = match stmt {
-            Stmt::Expr(Expr::FncCall(fnc_call)) => fnc_call,
+        let fnc_call = match root.tail_expr() {
+            Some(Expr::FncCall(fnc_call)) => fnc_call,
             _ => unreachable!(),
         };
 
@@ -475,10 +462,9 @@ mod tests {
     #[test]
     fn get_value_of_int_literal() {
         let root = parse("92");
-        let stmt = root.stmts().next().unwrap();
 
-        let int_literal = match stmt {
-            Stmt::Expr(Expr::IntLiteral(int_literal)) => int_literal,
+        let int_literal = match root.tail_expr() {
+            Some(Expr::IntLiteral(int_literal)) => int_literal,
             _ => unreachable!(),
         };
 
@@ -488,10 +474,9 @@ mod tests {
     #[test]
     fn get_value_of_string_literal() {
         let root = parse("\"👀\"");
-        let stmt = root.stmts().next().unwrap();
 
-        let string_literal = match stmt {
-            Stmt::Expr(Expr::StringLiteral(string_literal)) => string_literal,
+        let string_literal = match root.tail_expr() {
+            Some(Expr::StringLiteral(string_literal)) => string_literal,
             _ => unreachable!(),
         };
 
@@ -499,12 +484,11 @@ mod tests {
     }
 
     #[test]
-    fn get_block_stmts() {
+    fn get_block_stmts_and_tail_expr() {
         let root = parse("{ let a = 10; let b = a * {a - 1}; b + 5 }");
-        let stmt = root.stmts().next().unwrap();
 
-        let block = match stmt {
-            Stmt::Expr(Expr::Block(block)) => block,
+        let block = match root.tail_expr() {
+            Some(Expr::Block(block)) => block,
             _ => unreachable!(),
         };
 
@@ -512,8 +496,9 @@ mod tests {
 
         assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
         assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
-        assert!(matches!(stmts.next(), Some(Stmt::Expr(Expr::Bin(_)))));
         assert!(stmts.next().is_none());
+
+        assert!(matches!(block.tail_expr(), Some(Expr::Bin(_))));
     }
 
     #[test]

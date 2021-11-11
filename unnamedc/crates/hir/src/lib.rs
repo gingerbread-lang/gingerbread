@@ -13,6 +13,7 @@ pub struct Program {
     pub exprs: Arena<Expr>,
     pub defs: Vec<Def>,
     pub stmts: Vec<Stmt>,
+    pub tail_expr: Option<ExprIdx>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,7 +57,7 @@ pub enum Expr {
     Missing,
     Bin { lhs: ExprIdx, rhs: ExprIdx, op: Option<BinOp> },
     FncCall { def: FncDefIdx, args: IdxRange<Expr> },
-    Block(Vec<Stmt>),
+    Block(Vec<Stmt>, Option<ExprIdx>),
     VarRef(VarDefIdx),
     IntLiteral(u32),
     StringLiteral(String),

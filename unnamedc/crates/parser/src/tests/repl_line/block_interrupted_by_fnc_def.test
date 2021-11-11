@@ -1,12 +1,14 @@
 { fnc
 ===
 Root@0..5
-  Block@0..2
-    LBrace@0..1 "{"
-    Whitespace@1..2 " "
+  ExprStmt@0..2
+    Block@0..2
+      LBrace@0..1 "{"
+      Whitespace@1..2 " "
   FncDef@2..5
     FncKw@2..5 "fnc"
 error at 1: missing RBrace
+error at 1: missing Semicolon
 error at 5: missing function name
 error at 5: missing function parameters
 error at 5: missing Arrow

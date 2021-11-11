@@ -15,7 +15,16 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
         return Some(parse_local_def(p));
     }
 
-    parse_expr(p, "statement")
+    let cm = parse_expr(p, "statement")?;
+
+    if p.at(TokenKind::RBrace) || p.at_eof() {
+        return Some(cm);
+    }
+
+    let m = cm.precede(p);
+    p.expect_with_recovery_set(TokenKind::Semicolon, TokenSet::ALL);
+
+    Some(m.complete(p, SyntaxKind::ExprStmt))
 }
 
 fn parse_local_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
@@ -31,7 +40,7 @@ fn parse_local_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.expect(TokenKind::Eq);
     parse_expr(p, "variable value");
 
-    p.expect(TokenKind::Semicolon);
+    p.expect_with_recovery_set(TokenKind::Semicolon, TokenSet::ALL);
 
     m.complete(p, SyntaxKind::LocalDef)
 }

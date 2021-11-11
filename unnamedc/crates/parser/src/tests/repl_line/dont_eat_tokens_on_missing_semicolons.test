@@ -1,0 +1,46 @@
+let a = 0
+a + 1
+a + 2
+foo bar
+===
+Root@0..29
+  LocalDef@0..10
+    LetKw@0..3 "let"
+    Whitespace@3..4 " "
+    Ident@4..5 "a"
+    Whitespace@5..6 " "
+    Eq@6..7 "="
+    Whitespace@7..8 " "
+    IntLiteral@8..10
+      Int@8..9 "0"
+      Whitespace@9..10 "\n"
+  ExprStmt@10..16
+    BinExpr@10..16
+      FncCall@10..12
+        Ident@10..11 "a"
+        Whitespace@11..12 " "
+      Plus@12..13 "+"
+      Whitespace@13..14 " "
+      IntLiteral@14..16
+        Int@14..15 "1"
+        Whitespace@15..16 "\n"
+  ExprStmt@16..22
+    BinExpr@16..22
+      FncCall@16..18
+        Ident@16..17 "a"
+        Whitespace@17..18 " "
+      Plus@18..19 "+"
+      Whitespace@19..20 " "
+      IntLiteral@20..22
+        Int@20..21 "2"
+        Whitespace@21..22 "\n"
+  FncCall@22..29
+    Ident@22..25 "foo"
+    Whitespace@25..26 " "
+    ArgList@26..29
+      Arg@26..29
+        FncCall@26..29
+          Ident@26..29 "bar"
+error at 9: missing Semicolon
+error at 15: missing Semicolon
+error at 21: missing Semicolon

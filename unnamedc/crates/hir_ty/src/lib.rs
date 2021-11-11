@@ -27,6 +27,10 @@ pub fn infer_in_scope(program: &hir::Program, in_scope: InScope) -> InferResult 
         infer_ctx.infer_stmt(*stmt);
     }
 
+    if let Some(tail_expr) = program.tail_expr {
+        infer_ctx.infer_expr(tail_expr);
+    }
+
     infer_ctx.result
 }
 
@@ -97,7 +101,10 @@ impl InferCtx<'_> {
                 let value_ty = self.infer_expr(self.local_defs[local_def].value);
                 self.result.local_tys.insert(local_def, value_ty);
             }
-            hir::Stmt::Expr(expr) => return self.infer_expr(expr),
+
+            hir::Stmt::Expr(expr) => {
+                self.infer_expr(expr);
+            }
         }
 
         hir::Ty::Unit
@@ -165,17 +172,16 @@ impl InferCtx<'_> {
                 sig.ret_ty
             }
 
-            hir::Expr::Block(ref stmts) => match stmts.split_last() {
-                Some((last, rest)) => {
-                    for stmt in rest {
-                        self.infer_stmt(*stmt);
-                    }
-
-                    self.infer_stmt(*last)
+            hir::Expr::Block(ref stmts, tail_expr) => {
+                for stmt in stmts {
+                    self.infer_stmt(*stmt);
                 }
 
-                None => hir::Ty::Unit,
-            },
+                match tail_expr {
+                    Some(tail_expr) => self.infer_expr(tail_expr),
+                    None => hir::Ty::Unit,
+                }
+            }
 
             hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.result.local_tys[local_def],
 
@@ -197,14 +203,7 @@ impl InferCtx<'_> {
         }
 
         let expr = match &self.exprs[expr] {
-            hir::Expr::Block(stmts) => stmts
-                .last()
-                .copied()
-                .and_then(|stmt| match stmt {
-                    hir::Stmt::Expr(e) => Some(e),
-                    _ => None,
-                })
-                .unwrap_or(expr),
+            hir::Expr::Block(_, Some(tail_expr)) => *tail_expr,
             _ => expr,
         };
 
@@ -449,7 +448,7 @@ mod tests {
     #[test]
     fn infer_empty_block() {
         let mut exprs = Arena::new();
-        let block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
 
         let result = infer(&hir::Program {
             exprs,
@@ -468,7 +467,7 @@ mod tests {
 
         let string = exprs.alloc(hir::Expr::StringLiteral("🌈".to_string()));
         let local_def = local_defs.alloc(hir::LocalDef { value: string });
-        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)]));
+        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], None));
 
         let result = infer(&hir::Program {
             local_defs,
@@ -491,8 +490,7 @@ mod tests {
         let seven = exprs.alloc(hir::Expr::IntLiteral(7));
         let num_def = local_defs.alloc(hir::LocalDef { value: seven });
         let num = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(num_def)));
-        let block =
-            exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(num_def), hir::Stmt::Expr(num)]));
+        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(num_def)], Some(num)));
 
         let result = infer(&hir::Program {
             local_defs,
@@ -635,7 +633,7 @@ mod tests {
             ret_ty: hir::Ty::S32,
             body: a_over_b,
         });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
         let div = exprs.alloc(hir::Expr::FncCall {
             def: div_def,
@@ -683,7 +681,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::default(),
             ret_ty: hir::Ty::Unit,
@@ -710,7 +708,7 @@ mod tests {
 
         let param_1 = params.alloc(hir::Param { ty: hir::Ty::S32 });
         let param_2 = params.alloc(hir::Param { ty: hir::Ty::S32 });
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::new(param_1..=param_2),
             ret_ty: hir::Ty::Unit,
@@ -849,7 +847,7 @@ mod tests {
         let mut fnc_defs = Arena::new();
         let mut exprs = Arena::new();
 
-        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new()));
+        let empty_block = exprs.alloc(hir::Expr::Block(Vec::new(), None));
         let fnc_def = fnc_defs.alloc(hir::FncDef {
             params: IdxRange::default(),
             ret_ty: hir::Ty::Unknown,
@@ -869,15 +867,15 @@ mod tests {
     }
 
     #[test]
-    fn show_mismatched_ty_error_on_last_expr_of_block() {
+    fn attach_mismatched_ty_error_to_block_tail_expr() {
         let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
         let local_def = local_defs.alloc(hir::LocalDef { value: string });
         let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
-        let block = exprs
-            .alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def), hir::Stmt::Expr(local)]));
+        let block =
+            exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], Some(local)));
         let ten = exprs.alloc(hir::Expr::IntLiteral(10));
         let block_plus_ten =
             exprs.alloc(hir::Expr::Bin { lhs: block, rhs: ten, op: Some(hir::BinOp::Add) });
@@ -905,13 +903,13 @@ mod tests {
     }
 
     #[test]
-    fn show_mismatched_ty_error_on_entire_block_if_last_stmt_is_not_expr() {
+    fn show_mismatched_ty_error_on_entire_block_without_tail_expr() {
         let mut local_defs = Arena::new();
         let mut exprs = Arena::new();
 
         let five = exprs.alloc(hir::Expr::IntLiteral(5));
         let local_def = local_defs.alloc(hir::LocalDef { value: five });
-        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)]));
+        let block = exprs.alloc(hir::Expr::Block(vec![hir::Stmt::LocalDef(local_def)], None));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
         let block_plus_four =
             exprs.alloc(hir::Expr::Bin { lhs: block, rhs: four, op: Some(hir::BinOp::Add) });
@@ -933,6 +931,39 @@ mod tests {
             [TyError {
                 expr: block,
                 kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::Unit }
+            }]
+        );
+    }
+
+    #[test]
+    fn infer_program_tail_expr() {
+        let mut local_defs = Arena::new();
+        let mut exprs = Arena::new();
+
+        let seven = exprs.alloc(hir::Expr::IntLiteral(7));
+        let local_def = local_defs.alloc(hir::LocalDef { value: seven });
+        let local = exprs.alloc(hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)));
+        let string = exprs.alloc(hir::Expr::StringLiteral("foo".to_string()));
+        let local_plus_string =
+            exprs.alloc(hir::Expr::Bin { lhs: local, rhs: string, op: Some(hir::BinOp::Add) });
+
+        let result = infer(&hir::Program {
+            local_defs,
+            exprs,
+            stmts: vec![hir::Stmt::LocalDef(local_def)],
+            tail_expr: Some(local_plus_string),
+            ..Default::default()
+        });
+
+        assert_eq!(result.expr_tys[seven], hir::Ty::S32);
+        assert_eq!(result.expr_tys[local], hir::Ty::S32);
+        assert_eq!(result.expr_tys[string], hir::Ty::String);
+        assert_eq!(result.expr_tys[local_plus_string], hir::Ty::S32);
+        assert_eq!(
+            result.errors,
+            [TyError {
+                expr: string,
+                kind: TyErrorKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String }
             }]
         );
     }

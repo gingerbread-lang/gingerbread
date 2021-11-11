@@ -8,10 +8,9 @@ pub struct Evaluator {
 }
 
 impl Evaluator {
-    pub fn eval(&mut self, mut program: hir::Program) -> Val {
+    pub fn eval(&mut self, program: hir::Program) -> Val {
         let local_defs = &program.local_defs;
         let exprs = &program.exprs;
-        let last_stmt = program.stmts.pop();
         let mut eval_ctx = EvalCtx {
             locals: mem::take(&mut self.locals),
             params: mem::take(&mut self.params),
@@ -23,7 +22,7 @@ impl Evaluator {
             eval_ctx.eval_stmt(stmt);
         }
 
-        let result = last_stmt.map_or(Val::Nil, |stmt| eval_ctx.eval_stmt(stmt));
+        let result = program.tail_expr.map_or(Val::Nil, |expr| eval_ctx.eval_expr(expr));
 
         self.locals = eval_ctx.locals;
 
@@ -39,18 +38,18 @@ struct EvalCtx<'program> {
 }
 
 impl EvalCtx<'_> {
-    fn eval_stmt(&mut self, stmt: hir::Stmt) -> Val {
+    fn eval_stmt(&mut self, stmt: hir::Stmt) {
         match stmt {
             hir::Stmt::LocalDef(local_def) => self.eval_local_def(local_def),
-            hir::Stmt::Expr(expr) => self.eval_expr(expr),
+            hir::Stmt::Expr(expr) => {
+                self.eval_expr(expr);
+            }
         }
     }
 
-    fn eval_local_def(&mut self, local_def: hir::LocalDefIdx) -> Val {
+    fn eval_local_def(&mut self, local_def: hir::LocalDefIdx) {
         let value = self.eval_expr(self.local_defs[local_def].value);
         self.locals.insert(local_def, value);
-
-        Val::Nil
     }
 
     fn eval_expr(&mut self, expr: hir::ExprIdx) -> Val {
@@ -58,17 +57,16 @@ impl EvalCtx<'_> {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
             hir::Expr::FncCall { .. } => todo!(),
-            hir::Expr::Block(stmts) => match stmts.split_last() {
-                Some((last, rest)) => {
-                    for stmt in rest {
-                        self.eval_stmt(*stmt);
-                    }
-
-                    self.eval_stmt(*last)
+            hir::Expr::Block(stmts, tail_expr) => {
+                for stmt in stmts {
+                    self.eval_stmt(*stmt);
                 }
 
-                None => Val::Nil,
-            },
+                match tail_expr {
+                    Some(tail_expr) => self.eval_expr(*tail_expr),
+                    None => Val::Nil,
+                }
+            }
             hir::Expr::VarRef(hir::VarDefIdx::Local(local_def)) => self.locals[*local_def].clone(),
             hir::Expr::VarRef(hir::VarDefIdx::Param(param)) => self.params[*param].clone(),
             hir::Expr::IntLiteral(value) => Val::Int(*value),
