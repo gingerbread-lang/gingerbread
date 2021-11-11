@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
     let mut var_names = HashMap::new();
     let mut in_scope = InScope::default();
 
+    queue!(stdout, cursor::SetCursorShape(cursor::CursorShape::Line))?;
     write!(stdout, "> ")?;
     stdout.flush()?;
 
@@ -71,6 +72,9 @@ fn main() -> anyhow::Result<()> {
             )?;
         }
     }
+
+    queue!(stdout, cursor::SetCursorShape(cursor::CursorShape::Block))?;
+    stdout.flush()?;
 
     terminal::disable_raw_mode()?;
 
