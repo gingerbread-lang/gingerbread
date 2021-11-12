@@ -41,6 +41,12 @@ fn main() -> anyhow::Result<()> {
                         cursor::MoveTo(0, 0)
                     )?;
                 }
+                KeyEvent { code: KeyCode::Char('a'), modifiers: KeyModifiers::CONTROL } => {
+                    cursor_pos = 0;
+                }
+                KeyEvent { code: KeyCode::Char('e'), modifiers: KeyModifiers::CONTROL } => {
+                    cursor_pos = input.len() as u16;
+                }
                 KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
                     input.insert(cursor_pos.into(), c);
                     cursor_pos += 1;
