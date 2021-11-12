@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn eval_fnc_call_with_zero_args() {
-        check("fnc magic_number -> 3735928559; magic_number", Val::Int(3735928559));
+        check("fnc magic_number -> 3735928559; magic_number", Val::Int(0xdeadbeef));
     }
 
     #[test]
