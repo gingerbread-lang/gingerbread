@@ -40,7 +40,7 @@ impl<T> Arena<T> {
     }
 
     pub fn alloc(&mut self, value: T) -> Id<T> {
-        let id = self.next_id();
+        let id = Id::from_raw(self.data.len() as u32);
         self.data.push(value);
         id
     }
@@ -55,14 +55,6 @@ impl<T> Arena<T> {
         &mut self,
     ) -> impl Iterator<Item = (Id<T>, &mut T)> + ExactSizeIterator + DoubleEndedIterator {
         self.data.iter_mut().enumerate().map(|(raw, value)| (Id::from_raw(raw as u32), value))
-    }
-
-    pub fn shrink_to_fit(&mut self) {
-        self.data.shrink_to_fit();
-    }
-
-    fn next_id(&self) -> Id<T> {
-        Id::from_raw(self.data.len() as u32)
     }
 }
 
