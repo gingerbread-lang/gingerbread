@@ -19,6 +19,7 @@ fn main() -> anyhow::Result<()> {
     let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
     let mut local_defs = Arena::new();
+    let mut fnc_defs = Arena::new();
     let mut fnc_names = HashMap::new();
     let mut var_names = HashMap::new();
     let mut in_scope = InScope::default();
@@ -70,6 +71,7 @@ fn main() -> anyhow::Result<()> {
                 &mut input,
                 &mut stdout.lock(),
                 &mut local_defs,
+                &mut fnc_defs,
                 &mut fnc_names,
                 &mut var_names,
                 &mut in_scope,
@@ -92,6 +94,7 @@ fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
     local_defs: &mut Arena<hir::LocalDef>,
+    fnc_defs: &mut Arena<hir::FncDef>,
     fnc_names: &mut HashMap<String, hir::FncDefId>,
     var_names: &mut HashMap<String, hir::VarDefId>,
     in_scope: &mut InScope,
@@ -119,6 +122,7 @@ fn render(
         hir_lower::lower_with_in_scope(
             &root,
             local_defs.clone(),
+            fnc_defs.clone(),
             fnc_names.clone(),
             var_names.clone(),
         );
@@ -174,6 +178,7 @@ fn render(
 
         if errors.is_empty() {
             *local_defs = program.local_defs.clone();
+            *fnc_defs = program.fnc_defs.clone();
             *fnc_names = new_fnc_names;
             *var_names = new_var_names;
             *in_scope = in_scope_new;
@@ -194,7 +199,8 @@ fn render(
         write!(stdout, "> ")?;
 
         render(
-            input, stdout, local_defs, fnc_names, var_names, in_scope, false, evaluator, cursor_pos,
+            input, stdout, local_defs, fnc_defs, fnc_names, var_names, in_scope, false, evaluator,
+            cursor_pos,
         )?;
     }
 

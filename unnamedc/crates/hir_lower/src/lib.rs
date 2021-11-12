@@ -12,12 +12,13 @@ pub fn lower(
     HashMap<String, hir::FncDefId>,
     HashMap<String, hir::VarDefId>,
 ) {
-    lower_with_in_scope(ast, Arena::new(), HashMap::new(), HashMap::new())
+    lower_with_in_scope(ast, Arena::new(), Arena::new(), HashMap::new(), HashMap::new())
 }
 
 pub fn lower_with_in_scope(
     ast: &ast::Root,
     local_defs: Arena<hir::LocalDef>,
+    fnc_defs: Arena<hir::FncDef>,
     mut fnc_names: HashMap<String, hir::FncDefId>,
     var_names: HashMap<String, hir::VarDefId>,
 ) -> (
@@ -27,7 +28,7 @@ pub fn lower_with_in_scope(
     HashMap<String, hir::FncDefId>,
     HashMap<String, hir::VarDefId>,
 ) {
-    let mut lower_store = LowerStore { local_defs, ..LowerStore::default() };
+    let mut lower_store = LowerStore { local_defs, fnc_defs, ..LowerStore::default() };
     let mut lower_ctx = LowerCtx {
         store: &mut lower_store,
         fnc_names: &mut fnc_names,
@@ -628,7 +629,7 @@ mod tests {
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, errors, _, _) =
-            lower_with_in_scope(&root, local_defs.clone(), fnc_names, var_names);
+            lower_with_in_scope(&root, local_defs.clone(), Arena::new(), fnc_names, var_names);
 
         assert_eq!(
             program,
