@@ -232,7 +232,7 @@ impl LowerCtx<'_> {
             if let Some(var_def) = self.var_names.get(name) {
                 return hir::Expr::VarRef(var_def);
             } else if let Some(&def) = self.fnc_names.get(name) {
-                return hir::Expr::FncCall { def, args: IdRange::default() };
+                return hir::Expr::FncCall { def, args: Vec::new() };
             }
 
             self.store.errors.push(LowerError {
@@ -243,15 +243,11 @@ impl LowerCtx<'_> {
             return hir::Expr::Missing;
         };
 
-        let mut args = IdRange::builder();
-
-        for arg in arg_list.args() {
-            let id = self.lower_expr(arg.value());
-            args.include(id);
-        }
-
         match self.fnc_names.get(name) {
-            Some(&def) => hir::Expr::FncCall { def, args: args.build() },
+            Some(&def) => {
+                let args = arg_list.args().map(|ast| self.lower_expr(ast.value())).collect();
+                hir::Expr::FncCall { def, args }
+            }
             None => {
                 self.store.errors.push(LowerError {
                     range: name_ast.range(),
@@ -426,8 +422,7 @@ mod tests {
         });
         let two = exprs.alloc(hir::Expr::IntLiteral(2));
         let five = exprs.alloc(hir::Expr::IntLiteral(5));
-        let add_two_five =
-            exprs.alloc(hir::Expr::FncCall { def: add_def, args: IdRange::new(two..=five) });
+        let add_two_five = exprs.alloc(hir::Expr::FncCall { def: add_def, args: vec![two, five] });
 
         check(
             r#"
@@ -457,7 +452,7 @@ mod tests {
             ret_ty: hir::Ty::S32,
             body: zero_literal,
         });
-        let zero = exprs.alloc(hir::Expr::FncCall { def: zero_def, args: IdRange::default() });
+        let zero = exprs.alloc(hir::Expr::FncCall { def: zero_def, args: Vec::new() });
 
         check(
             r#"
@@ -486,7 +481,7 @@ mod tests {
             ret_ty: hir::Ty::Unit,
             body: empty_block,
         });
-        let unit = exprs.alloc(hir::Expr::FncCall { def: unit_def, args: IdRange::default() });
+        let unit = exprs.alloc(hir::Expr::FncCall { def: unit_def, args: Vec::new() });
 
         check(
             r#"
@@ -976,8 +971,7 @@ mod tests {
         let bin_expr_hir =
             exprs.alloc(hir::Expr::Bin { lhs: a_hir, rhs: five_hir, op: Some(hir::BinOp::Sub) });
 
-        let f_call_hir =
-            exprs.alloc(hir::Expr::FncCall { def: f_def_hir, args: IdRange::default() });
+        let f_call_hir = exprs.alloc(hir::Expr::FncCall { def: f_def_hir, args: Vec::new() });
 
         let (program, source_map, errors, _, _) = lower(&root);
 

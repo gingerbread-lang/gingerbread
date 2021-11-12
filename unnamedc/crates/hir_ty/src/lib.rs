@@ -157,13 +157,13 @@ impl InferCtx<'_> {
                     });
                 }
 
-                for arg in args.clone() {
-                    self.infer_expr(arg);
+                for arg in args {
+                    self.infer_expr(*arg);
                 }
 
                 #[allow(clippy::needless_collect)]
                 let arg_tys: Vec<_> =
-                    args.clone().map(|id| (id, self.result.expr_tys[id])).collect();
+                    args.iter().map(|&id| (id, self.result.expr_tys[id])).collect();
 
                 for ((arg, arg_ty), param_ty) in arg_tys.into_iter().zip(sig.params) {
                     self.expect_tys_match(arg, param_ty, arg_ty);
@@ -523,8 +523,7 @@ mod tests {
             ret_ty: hir::Ty::String,
             body: string,
         });
-        let greeting =
-            exprs.alloc(hir::Expr::FncCall { def: greeting_def, args: IdRange::default() });
+        let greeting = exprs.alloc(hir::Expr::FncCall { def: greeting_def, args: Vec::new() });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -561,8 +560,7 @@ mod tests {
         });
         let twenty_three = exprs.alloc(hir::Expr::IntLiteral(23));
         let four = exprs.alloc(hir::Expr::IntLiteral(4));
-        let mul = exprs
-            .alloc(hir::Expr::FncCall { def: mul_def, args: IdRange::new(twenty_three..=four) });
+        let mul = exprs.alloc(hir::Expr::FncCall { def: mul_def, args: vec![twenty_three, four] });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -599,7 +597,7 @@ mod tests {
             ret_ty: hir::Ty::S32,
             body: n,
         });
-        let id = exprs.alloc(hir::Expr::FncCall { def: id_def, args: IdRange::default() });
+        let id = exprs.alloc(hir::Expr::FncCall { def: id_def, args: Vec::new() });
 
         let result = infer(&hir::Program {
             fnc_defs,
@@ -641,10 +639,8 @@ mod tests {
         });
         let empty_block = exprs.alloc(hir::Expr::Block { stmts: Vec::new(), tail_expr: None });
         let ten_string = exprs.alloc(hir::Expr::StringLiteral("10".to_string()));
-        let div = exprs.alloc(hir::Expr::FncCall {
-            def: div_def,
-            args: IdRange::new(empty_block..=ten_string),
-        });
+        let div =
+            exprs.alloc(hir::Expr::FncCall { def: div_def, args: vec![empty_block, ten_string] });
 
         let result = infer(&hir::Program {
             fnc_defs,

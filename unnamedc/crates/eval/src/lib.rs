@@ -60,7 +60,7 @@ impl EvalCtx<'_> {
             hir::Expr::FncCall { def, args } => {
                 let fnc_def = &self.fnc_defs[*def];
 
-                for (param, arg) in fnc_def.params.clone().zip(args.clone()) {
+                for (param, &arg) in fnc_def.params.clone().zip(args) {
                     let arg = self.eval_expr(arg);
                     self.params.insert(param, arg);
                 }
