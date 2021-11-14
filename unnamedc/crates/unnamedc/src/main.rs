@@ -1,4 +1,3 @@
-use arena::Arena;
 use ast::AstNode;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::style::{ContentStyle, StyledContent, Stylize};
@@ -18,8 +17,7 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
-    let mut local_defs = Arena::new();
-    let mut fnc_defs = Arena::new();
+    let mut program = hir::Program::default();
     let mut fnc_names = HashMap::new();
     let mut var_names = HashMap::new();
     let mut in_scope = InScope::default();
@@ -76,8 +74,7 @@ fn main() -> anyhow::Result<()> {
             render(
                 &mut input,
                 &mut stdout.lock(),
-                &mut local_defs,
-                &mut fnc_defs,
+                &mut program,
                 &mut fnc_names,
                 &mut var_names,
                 &mut in_scope,
@@ -99,8 +96,7 @@ fn main() -> anyhow::Result<()> {
 fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
-    local_defs: &mut Arena<hir::LocalDef>,
-    fnc_defs: &mut Arena<hir::FncDef>,
+    program: &mut hir::Program,
     fnc_names: &mut HashMap<String, hir::FncDefId>,
     var_names: &mut HashMap<String, hir::VarDefId>,
     in_scope: &mut InScope,
@@ -124,11 +120,10 @@ fn render(
         errors.push(Error::from_validation_error(error));
     }
 
-    let (program, source_map, lower_errors, new_fnc_names, new_var_names) =
+    let (new_program, source_map, lower_errors, new_fnc_names, new_var_names) =
         hir_lower::lower_with_in_scope(
             &root,
-            local_defs.clone(),
-            fnc_defs.clone(),
+            program.clone(),
             fnc_names.clone(),
             var_names.clone(),
         );
@@ -137,7 +132,7 @@ fn render(
         errors.push(Error::from_lower_error(error));
     }
 
-    let infer_result = hir_ty::infer_in_scope(&program, in_scope.clone());
+    let infer_result = hir_ty::infer_in_scope(&new_program, in_scope.clone());
     let (in_scope_new, ty_errors) = infer_result.in_scope();
 
     for error in ty_errors {
@@ -183,12 +178,11 @@ fn render(
         writeln!(stdout, "\r")?;
 
         if errors.is_empty() {
-            *local_defs = program.local_defs.clone();
-            *fnc_defs = program.fnc_defs.clone();
+            *program = new_program;
             *fnc_names = new_fnc_names;
             *var_names = new_var_names;
             *in_scope = in_scope_new;
-            let result = evaluator.eval(program);
+            let result = evaluator.eval(program.clone());
 
             writeln!(stdout, "{:?}\r", result)?;
 
@@ -205,8 +199,7 @@ fn render(
         write!(stdout, "> ")?;
 
         render(
-            input, stdout, local_defs, fnc_defs, fnc_names, var_names, in_scope, false, evaluator,
-            cursor_pos,
+            input, stdout, program, fnc_names, var_names, in_scope, false, evaluator, cursor_pos,
         )?;
     }
 

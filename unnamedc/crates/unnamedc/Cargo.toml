@@ -6,7 +6,6 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
-arena = {path = "../arena"}
 ast = {path = "../ast"}
 crossterm = "0.21.0"
 errors = {path = "../errors"}

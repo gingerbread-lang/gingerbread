@@ -222,13 +222,7 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, ..) = hir_lower::lower_with_in_scope(
-            &root,
-            program.local_defs,
-            program.fnc_defs,
-            fnc_names,
-            var_names,
-        );
+        let (program, ..) = hir_lower::lower_with_in_scope(&root, program, fnc_names, var_names);
         assert_eq!(evaluator.eval(program), Val::Int(100));
     }
 
@@ -285,21 +279,16 @@ mod tests {
     fn preserve_fnc_defs_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
-        let parse = parser::parse_repl_line(&lexer::lex("fnc id(s: string): string -> s;"));
+        let parse = parser::parse_source_file(&lexer::lex(
+            "fnc div(dividend: s32, divisor: s32): s32 -> dividend / divisor;",
+        ));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (program, _, _, fnc_names, var_names) = hir_lower::lower(&root);
         assert_eq!(evaluator.eval(program.clone()), Val::Nil);
 
-        let parse = parser::parse_repl_line(&lexer::lex("id \"hello!\""));
+        let parse = parser::parse_repl_line(&lexer::lex("div 10, 2"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, ..) = hir_lower::lower_with_in_scope(
-            &root,
-            program.local_defs,
-            program.fnc_defs,
-            fnc_names,
-            var_names,
-        );
-
-        assert_eq!(evaluator.eval(program), Val::String("hello!".to_string()));
+        let (program, ..) = hir_lower::lower_with_in_scope(&root, program, fnc_names, var_names);
+        assert_eq!(evaluator.eval(program), Val::Int(5));
     }
 }

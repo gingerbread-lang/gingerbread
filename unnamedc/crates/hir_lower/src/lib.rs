@@ -12,13 +12,12 @@ pub fn lower(
     HashMap<String, hir::FncDefId>,
     HashMap<String, hir::VarDefId>,
 ) {
-    lower_with_in_scope(ast, Arena::new(), Arena::new(), HashMap::new(), HashMap::new())
+    lower_with_in_scope(ast, hir::Program::default(), HashMap::new(), HashMap::new())
 }
 
 pub fn lower_with_in_scope(
     ast: &ast::Root,
-    local_defs: Arena<hir::LocalDef>,
-    fnc_defs: Arena<hir::FncDef>,
+    program: hir::Program,
     mut fnc_names: HashMap<String, hir::FncDefId>,
     var_names: HashMap<String, hir::VarDefId>,
 ) -> (
@@ -28,7 +27,14 @@ pub fn lower_with_in_scope(
     HashMap<String, hir::FncDefId>,
     HashMap<String, hir::VarDefId>,
 ) {
-    let mut lower_store = LowerStore { local_defs, fnc_defs, ..LowerStore::default() };
+    let mut lower_store = LowerStore {
+        local_defs: program.local_defs,
+        fnc_defs: program.fnc_defs,
+        params: program.params,
+        exprs: program.exprs,
+        source_map: SourceMap::default(),
+        errors: Vec::new(),
+    };
     let mut lower_ctx = LowerCtx {
         store: &mut lower_store,
         fnc_names: &mut fnc_names,
@@ -611,20 +617,18 @@ mod tests {
             program,
             hir::Program {
                 local_defs: local_defs.clone(),
-                exprs,
+                exprs: exprs.clone(),
                 stmts: vec![hir::Stmt::LocalDef(a_def)],
                 ..Default::default()
             }
         );
         assert!(errors.is_empty());
 
-        let mut exprs = Arena::new();
         let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
 
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _, _) =
-            lower_with_in_scope(&root, local_defs.clone(), Arena::new(), fnc_names, var_names);
+        let (program, _, errors, _, _) = lower_with_in_scope(&root, program, fnc_names, var_names);
 
         assert_eq!(
             program,

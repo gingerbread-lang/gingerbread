@@ -549,7 +549,6 @@ name = "unnamedc"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arena",
  "ast",
  "crossterm",
  "errors",
