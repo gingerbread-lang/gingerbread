@@ -1,0 +1,25 @@
+{
+  "name": "unnamed-vscode",
+  "description": "A VS Code extension for unnamed-language",
+  "license": "MIT",
+  "version": "0.0.0",
+  "engines": {
+    "vscode": "^1.43.0"
+  },
+  "activationEvents": [
+    "onLanguage:plaintext"
+  ],
+  "main": "./out/extension",
+  "scripts": {
+    "compile": "tsc -b",
+    "watch": "tsc -b -w"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^12.12.0",
+    "@types/vscode": "^1.52.0",
+    "typescript": "^4.4.3"
+  }
+}

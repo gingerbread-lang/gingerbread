@@ -1,2 +1,2 @@
 [workspace]
-members = ["unnamedc/crates/*", "unnamedvm"]
+members = ["unnamedc/crates/*", "unnamedvm", "unnamed-server"]
