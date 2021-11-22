@@ -12,8 +12,7 @@ fn main() -> anyhow::Result<()> {
     terminal::enable_raw_mode()?;
 
     let mut stdout = io::stdout();
-    let mut input = String::new();
-    let mut cursor_pos: u16 = 0;
+    let mut editor = Editor::default();
     let mut evaluator = Evaluator::default();
     let mut analysis_state = AnalysisState::default();
 
@@ -25,66 +24,38 @@ fn main() -> anyhow::Result<()> {
         if let Event::Key(key_event) = event::read()? {
             let mut pressed_enter = false;
 
-            match key_event {
-                KeyEvent { code: KeyCode::Char('d'), modifiers: KeyModifiers::CONTROL } => break,
-                KeyEvent { code: KeyCode::Char('l'), modifiers: KeyModifiers::CONTROL } => {
-                    queue!(
-                        stdout,
-                        terminal::Clear(terminal::ClearType::All),
-                        cursor::MoveTo(0, 0)
-                    )?;
+            match editor.handle_key_event(key_event) {
+                KeyPressHandleResult::Editing => {}
+                KeyPressHandleResult::SubmitLine => pressed_enter = true,
+                KeyPressHandleResult::Exit => break,
+                KeyPressHandleResult::Clear => {
+                    queue!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(0, 0))?
                 }
-                KeyEvent { code: KeyCode::Char('a'), modifiers: KeyModifiers::CONTROL } => {
-                    cursor_pos = 0;
-                }
-                KeyEvent { code: KeyCode::Char('e'), modifiers: KeyModifiers::CONTROL } => {
-                    cursor_pos = input.len() as u16;
-                }
-                KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
-                    input.insert(cursor_pos.into(), c);
-                    cursor_pos += 1;
-                }
-                KeyEvent { code: KeyCode::Backspace, modifiers: KeyModifiers::NONE } => {
-                    if cursor_pos != 0 {
-                        cursor_pos -= 1;
-                        input.remove(cursor_pos.into());
-                    }
-                }
-                KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE } => {
-                    pressed_enter = true;
-                }
-                KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE } => {
-                    if cursor_pos != 0 {
-                        cursor_pos -= 1;
-                    }
-                }
-                KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE } => {
-                    if usize::from(cursor_pos) < input.len() {
-                        cursor_pos += 1;
-                    }
-                }
-                _ => {}
             }
 
-            let (new_analysis_state, should_redraw) = render(
-                &mut input,
+            let (new_analysis_state, should_redraw, should_clear) = render(
+                &editor.buf,
+                editor.cursor_pos,
                 &mut stdout.lock(),
                 analysis_state,
                 pressed_enter,
                 &mut evaluator,
-                &mut cursor_pos,
             )?;
 
             analysis_state = new_analysis_state;
 
+            if should_clear {
+                editor.clear();
+            }
+
             if should_redraw {
-                let (new_analysis_state, _) = render(
-                    &mut input,
+                let (new_analysis_state, ..) = render(
+                    &editor.buf,
+                    editor.cursor_pos,
                     &mut stdout.lock(),
                     analysis_state,
                     false,
                     &mut evaluator,
-                    &mut cursor_pos,
                 )?;
 
                 analysis_state = new_analysis_state;
@@ -100,15 +71,88 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Default)]
+struct Editor {
+    cursor_pos: u16,
+    buf: String,
+}
+
+impl Editor {
+    fn handle_key_event(&mut self, key_event: KeyEvent) -> KeyPressHandleResult {
+        match key_event {
+            KeyEvent { code: KeyCode::Char('d'), modifiers: KeyModifiers::CONTROL } => {
+                return KeyPressHandleResult::Exit;
+            }
+
+            KeyEvent { code: KeyCode::Char('l'), modifiers: KeyModifiers::CONTROL } => {
+                return KeyPressHandleResult::Clear;
+            }
+
+            KeyEvent { code: KeyCode::Char('a'), modifiers: KeyModifiers::CONTROL } => {
+                self.cursor_pos = 0;
+            }
+
+            KeyEvent { code: KeyCode::Char('e'), modifiers: KeyModifiers::CONTROL } => {
+                self.cursor_pos = self.buf.len() as u16;
+            }
+
+            KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
+                self.buf.insert(self.cursor_pos.into(), c);
+                self.cursor_pos += 1;
+            }
+
+            KeyEvent { code: KeyCode::Backspace, modifiers: KeyModifiers::NONE } => {
+                if self.cursor_pos != 0 {
+                    self.cursor_pos -= 1;
+                    self.buf.remove(self.cursor_pos.into());
+                }
+            }
+
+            KeyEvent { code: KeyCode::Enter, modifiers: KeyModifiers::NONE } => {
+                return KeyPressHandleResult::SubmitLine;
+            }
+
+            KeyEvent { code: KeyCode::Left, modifiers: KeyModifiers::NONE } => {
+                if self.cursor_pos != 0 {
+                    self.cursor_pos -= 1;
+                }
+            }
+
+            KeyEvent { code: KeyCode::Right, modifiers: KeyModifiers::NONE } => {
+                if usize::from(self.cursor_pos) < self.buf.len() {
+                    self.cursor_pos += 1;
+                }
+            }
+
+            _ => {}
+        }
+
+        KeyPressHandleResult::Editing
+    }
+
+    fn clear(&mut self) {
+        self.buf.clear();
+        self.cursor_pos = 0;
+    }
+}
+
+enum KeyPressHandleResult {
+    Editing,
+    SubmitLine,
+    Exit,
+    Clear,
+}
+
 fn render(
-    input: &mut String,
+    input: &str,
+    cursor_pos: u16,
     stdout: &mut io::StdoutLock<'_>,
     analysis_state: AnalysisState,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
-    cursor_pos: &mut u16,
-) -> anyhow::Result<(AnalysisState, bool)> {
+) -> anyhow::Result<(AnalysisState, bool, bool)> {
     let mut should_redraw = false;
+    let mut should_clear = false;
 
     queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
     write!(stdout, "> ")?;
@@ -123,9 +167,8 @@ fn render(
             writeln!(stdout, "\r")?;
             writeln!(stdout, "{:?}\r", result)?;
 
-            input.clear();
-            *cursor_pos = 0;
             should_redraw = true;
+            should_clear = true;
 
             new_state
         }
@@ -149,11 +192,11 @@ fn render(
         Err((old_state, _)) => old_state,
     };
 
-    queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
+    queue!(stdout, cursor::MoveToColumn(3 + cursor_pos))?;
 
     stdout.flush()?;
 
-    Ok((analysis_state, should_redraw))
+    Ok((analysis_state, should_redraw, should_clear))
 }
 
 #[derive(Clone, Default)]
