@@ -3,15 +3,7 @@ use ast::AstToken;
 use std::collections::HashMap;
 use text_size::TextRange;
 
-pub fn lower(
-    ast: &ast::Root,
-) -> (
-    hir::Program,
-    SourceMap,
-    Vec<LowerError>,
-    HashMap<String, hir::FncDefId>,
-    HashMap<String, hir::VarDefId>,
-) {
+pub fn lower(ast: &ast::Root) -> LowerResult {
     lower_with_in_scope(ast, hir::Program::default(), HashMap::new(), HashMap::new())
 }
 
@@ -20,13 +12,7 @@ pub fn lower_with_in_scope(
     program: hir::Program,
     mut fnc_names: HashMap<String, hir::FncDefId>,
     var_names: HashMap<String, hir::VarDefId>,
-) -> (
-    hir::Program,
-    SourceMap,
-    Vec<LowerError>,
-    HashMap<String, hir::FncDefId>,
-    HashMap<String, hir::VarDefId>,
-) {
+) -> LowerResult {
     let mut lower_store = LowerStore {
         local_defs: program.local_defs,
         fnc_defs: program.fnc_defs,
@@ -54,8 +40,9 @@ pub fn lower_with_in_scope(
     let tail_expr = ast.tail_expr().map(|ast| lower_ctx.lower_expr(Some(ast)));
 
     let var_names = lower_ctx.var_names.this;
-    (
-        hir::Program {
+
+    LowerResult {
+        program: hir::Program {
             local_defs: lower_store.local_defs,
             fnc_defs: lower_store.fnc_defs,
             params: lower_store.params,
@@ -64,11 +51,19 @@ pub fn lower_with_in_scope(
             stmts,
             tail_expr,
         },
-        lower_store.source_map,
-        lower_store.errors,
+        source_map: lower_store.source_map,
+        errors: lower_store.errors,
         fnc_names,
         var_names,
-    )
+    }
+}
+
+pub struct LowerResult {
+    pub program: hir::Program,
+    pub source_map: SourceMap,
+    pub errors: Vec<LowerError>,
+    pub fnc_names: HashMap<String, hir::FncDefId>,
+    pub var_names: HashMap<String, hir::VarDefId>,
 }
 
 #[derive(Debug, Default)]
@@ -329,10 +324,10 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (actual_program, _, actual_errors, _, _) = lower(&root);
+        let result = lower(&root);
 
-        pretty_assertions::assert_eq!(actual_program, expected_program);
-        pretty_assertions::assert_eq!(actual_errors, expected_errors);
+        pretty_assertions::assert_eq!(result.program, expected_program);
+        pretty_assertions::assert_eq!(result.errors, expected_errors);
     }
 
     #[test]
@@ -611,10 +606,10 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("let a = \"hello\";"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, fnc_names, var_names) = lower(&root);
+        let result = lower(&root);
 
         assert_eq!(
-            program,
+            result.program,
             hir::Program {
                 local_defs: local_defs.clone(),
                 exprs: exprs.clone(),
@@ -622,19 +617,19 @@ mod tests {
                 ..Default::default()
             }
         );
-        assert!(errors.is_empty());
+        assert!(result.errors.is_empty());
 
         let a = exprs.alloc(hir::Expr::VarRef(hir::VarDefId::Local(a_def)));
 
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _, _) = lower_with_in_scope(&root, program, fnc_names, var_names);
+        let result = lower_with_in_scope(&root, result.program, result.fnc_names, result.var_names);
 
         assert_eq!(
-            program,
+            result.program,
             hir::Program { local_defs, exprs, tail_expr: Some(a), ..Default::default() }
         );
-        assert!(errors.is_empty());
+        assert!(result.errors.is_empty());
     }
 
     #[test]
@@ -977,10 +972,10 @@ mod tests {
 
         let f_call_hir = exprs.alloc(hir::Expr::FncCall { def: f_def_hir, args: Vec::new() });
 
-        let (program, source_map, errors, _, _) = lower(&root);
+        let result = lower(&root);
 
         assert_eq!(
-            program,
+            result.program,
             hir::Program {
                 fnc_defs,
                 local_defs,
@@ -992,19 +987,19 @@ mod tests {
             }
         );
 
-        assert_eq!(source_map.expr_map[four_hir], four_ast);
-        assert_eq!(source_map.expr_map[ten_hir], ten_ast);
-        assert_eq!(source_map.expr_map[a_hir], a_ast);
-        assert_eq!(source_map.expr_map[five_hir], five_ast);
-        assert_eq!(source_map.expr_map[bin_expr_hir], bin_expr_ast);
-        assert_eq!(source_map.expr_map[f_call_hir], f_call_ast);
-        assert_eq!(source_map.expr_map_back[&four_ast], four_hir);
-        assert_eq!(source_map.expr_map_back[&ten_ast], ten_hir);
-        assert_eq!(source_map.expr_map_back[&a_ast], a_hir);
-        assert_eq!(source_map.expr_map_back[&five_ast], five_hir);
-        assert_eq!(source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
-        assert_eq!(source_map.expr_map_back[&f_call_ast], f_call_hir);
+        assert_eq!(result.source_map.expr_map[four_hir], four_ast);
+        assert_eq!(result.source_map.expr_map[ten_hir], ten_ast);
+        assert_eq!(result.source_map.expr_map[a_hir], a_ast);
+        assert_eq!(result.source_map.expr_map[five_hir], five_ast);
+        assert_eq!(result.source_map.expr_map[bin_expr_hir], bin_expr_ast);
+        assert_eq!(result.source_map.expr_map[f_call_hir], f_call_ast);
+        assert_eq!(result.source_map.expr_map_back[&four_ast], four_hir);
+        assert_eq!(result.source_map.expr_map_back[&ten_ast], ten_hir);
+        assert_eq!(result.source_map.expr_map_back[&a_ast], a_hir);
+        assert_eq!(result.source_map.expr_map_back[&five_ast], five_hir);
+        assert_eq!(result.source_map.expr_map_back[&bin_expr_ast], bin_expr_hir);
+        assert_eq!(result.source_map.expr_map_back[&f_call_ast], f_call_hir);
 
-        assert!(errors.is_empty());
+        assert!(result.errors.is_empty());
     }
 }

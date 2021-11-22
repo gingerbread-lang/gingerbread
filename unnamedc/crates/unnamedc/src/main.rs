@@ -120,23 +120,22 @@ fn render(
         errors.push(Error::from_validation_error(error));
     }
 
-    let (new_program, source_map, lower_errors, new_fnc_names, new_var_names) =
-        hir_lower::lower_with_in_scope(
-            &root,
-            program.clone(),
-            fnc_names.clone(),
-            var_names.clone(),
-        );
+    let lower_result = hir_lower::lower_with_in_scope(
+        &root,
+        program.clone(),
+        fnc_names.clone(),
+        var_names.clone(),
+    );
 
-    for error in lower_errors {
+    for error in lower_result.errors {
         errors.push(Error::from_lower_error(error));
     }
 
-    let infer_result = hir_ty::infer_in_scope(&new_program, in_scope.clone());
+    let infer_result = hir_ty::infer_in_scope(&lower_result.program, in_scope.clone());
     let (in_scope_new, ty_errors) = infer_result.in_scope();
 
     for error in ty_errors {
-        errors.push(Error::from_ty_error(error, &source_map));
+        errors.push(Error::from_ty_error(error, &lower_result.source_map));
     }
 
     queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
@@ -178,9 +177,9 @@ fn render(
         writeln!(stdout, "\r")?;
 
         if errors.is_empty() {
-            *program = new_program;
-            *fnc_names = new_fnc_names;
-            *var_names = new_var_names;
+            *program = lower_result.program;
+            *fnc_names = lower_result.fnc_names;
+            *var_names = lower_result.var_names;
             *in_scope = in_scope_new;
             let result = evaluator.eval(program.clone());
 

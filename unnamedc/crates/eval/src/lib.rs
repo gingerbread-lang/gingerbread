@@ -120,10 +120,10 @@ mod tests {
     fn check(input: &str, val: Val) {
         let parse = parser::parse_repl_line(&lexer::lex(input));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, errors, _, _) = hir_lower::lower(&root);
+        let lower_result = hir_lower::lower(&root);
 
-        assert_eq!(Evaluator::default().eval(program), val);
-        assert!(errors.is_empty());
+        assert_eq!(Evaluator::default().eval(lower_result.program), val);
+        assert!(lower_result.errors.is_empty());
     }
 
     #[test]
@@ -217,13 +217,18 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("let foo = 100;"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, fnc_names, var_names) = hir_lower::lower(&root);
-        assert_eq!(evaluator.eval(program.clone()), Val::Nil);
+        let lower_result = hir_lower::lower(&root);
+        assert_eq!(evaluator.eval(lower_result.program.clone()), Val::Nil);
 
         let parse = parser::parse_repl_line(&lexer::lex("foo"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, ..) = hir_lower::lower_with_in_scope(&root, program, fnc_names, var_names);
-        assert_eq!(evaluator.eval(program), Val::Int(100));
+        let lower_result = hir_lower::lower_with_in_scope(
+            &root,
+            lower_result.program,
+            lower_result.fnc_names,
+            lower_result.var_names,
+        );
+        assert_eq!(evaluator.eval(lower_result.program), Val::Int(100));
     }
 
     #[test]
@@ -283,12 +288,17 @@ mod tests {
             "fnc div(dividend: s32, divisor: s32): s32 -> dividend / divisor;",
         ));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, _, _, fnc_names, var_names) = hir_lower::lower(&root);
-        assert_eq!(evaluator.eval(program.clone()), Val::Nil);
+        let lower_result = hir_lower::lower(&root);
+        assert_eq!(evaluator.eval(lower_result.program.clone()), Val::Nil);
 
         let parse = parser::parse_repl_line(&lexer::lex("div 10, 2"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (program, ..) = hir_lower::lower_with_in_scope(&root, program, fnc_names, var_names);
-        assert_eq!(evaluator.eval(program), Val::Int(5));
+        let lower_result = hir_lower::lower_with_in_scope(
+            &root,
+            lower_result.program,
+            lower_result.fnc_names,
+            lower_result.var_names,
+        );
+        assert_eq!(evaluator.eval(lower_result.program), Val::Int(5));
     }
 }
