@@ -6,6 +6,7 @@ use errors::Error;
 use eval::Evaluator;
 use std::convert::TryInto;
 use std::io::{self, Write};
+use std::mem;
 use token::{Token, TokenKind};
 
 fn main() -> anyhow::Result<()> {
@@ -75,6 +76,7 @@ fn main() -> anyhow::Result<()> {
 struct Editor {
     cursor_pos: u16,
     buf: String,
+    clipboard: String,
 }
 
 impl Editor {
@@ -94,6 +96,21 @@ impl Editor {
 
             KeyEvent { code: KeyCode::Char('e'), modifiers: KeyModifiers::CONTROL } => {
                 self.cursor_pos = self.buf.len() as u16;
+            }
+
+            KeyEvent { code: KeyCode::Char('u'), modifiers: KeyModifiers::CONTROL } => {
+                self.clipboard = self.buf.split_off(self.cursor_pos as usize);
+                mem::swap(&mut self.clipboard, &mut self.buf);
+                self.cursor_pos = 0;
+            }
+
+            KeyEvent { code: KeyCode::Char('k'), modifiers: KeyModifiers::CONTROL } => {
+                self.clipboard = self.buf.split_off(self.cursor_pos as usize);
+            }
+
+            KeyEvent { code: KeyCode::Char('y'), modifiers: KeyModifiers::CONTROL } => {
+                self.buf.insert_str(self.cursor_pos as usize, &self.clipboard);
+                self.cursor_pos += self.clipboard.len() as u16;
             }
 
             KeyEvent { code: KeyCode::Char(c), modifiers: KeyModifiers::NONE } => {
