@@ -6,7 +6,7 @@ use errors::Error;
 use eval::Evaluator;
 use std::convert::TryInto;
 use std::io::{self, Write};
-use token::TokenKind;
+use token::{Token, TokenKind};
 
 fn main() -> anyhow::Result<()> {
     terminal::enable_raw_mode()?;
@@ -15,8 +15,7 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
-    let mut hir_in_scope = hir_lower::InScope::default();
-    let mut tys_in_scope = hir_ty::InScope::default();
+    let mut analysis_state = AnalysisState::default();
 
     queue!(stdout, cursor::SetCursorShape(cursor::CursorShape::Line))?;
     write!(stdout, "> ")?;
@@ -67,15 +66,29 @@ fn main() -> anyhow::Result<()> {
                 _ => {}
             }
 
-            render(
+            let (new_analysis_state, should_redraw) = render(
                 &mut input,
                 &mut stdout.lock(),
-                &mut hir_in_scope,
-                &mut tys_in_scope,
+                analysis_state,
                 pressed_enter,
                 &mut evaluator,
                 &mut cursor_pos,
             )?;
+
+            analysis_state = new_analysis_state;
+
+            if should_redraw {
+                let (new_analysis_state, _) = render(
+                    &mut input,
+                    &mut stdout.lock(),
+                    analysis_state,
+                    false,
+                    &mut evaluator,
+                    &mut cursor_pos,
+                )?;
+
+                analysis_state = new_analysis_state;
+            }
         }
     }
 
@@ -90,44 +103,121 @@ fn main() -> anyhow::Result<()> {
 fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
-    hir_in_scope: &mut hir_lower::InScope,
-    tys_in_scope: &mut hir_ty::InScope,
+    analysis_state: AnalysisState,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
     cursor_pos: &mut u16,
-) -> anyhow::Result<()> {
-    let mut errors = Vec::new();
-
-    let tokens = lexer::lex(input);
-    let parse = parser::parse_repl_line(&tokens);
-
-    for error in parse.errors() {
-        errors.push(Error::from_parse_error(error.clone()));
-    }
-
-    let root = ast::Root::cast(parse.syntax_node()).unwrap();
-    let validation_errors = ast::validation::validate(&root);
-
-    for error in validation_errors {
-        errors.push(Error::from_validation_error(error));
-    }
-
-    let lower_result = hir_lower::lower_with_in_scope(&root, hir_in_scope.clone());
-
-    for error in lower_result.errors {
-        errors.push(Error::from_lower_error(error));
-    }
-
-    let infer_result = hir_ty::infer_in_scope(&lower_result.program, tys_in_scope.clone());
-    let (tys_in_scope_new, ty_errors) = infer_result.in_scope();
-
-    for error in ty_errors {
-        errors.push(Error::from_ty_error(error, &lower_result.source_map));
-    }
+) -> anyhow::Result<(AnalysisState, bool)> {
+    let mut should_redraw = false;
 
     queue!(stdout, terminal::Clear(terminal::ClearType::CurrentLine), cursor::MoveToColumn(0))?;
-
     write!(stdout, "> ")?;
+
+    let analysis = analysis_state.clone().analyze_repl_line(input);
+
+    write!(stdout, "{}", analysis.highlighted)?;
+
+    let analysis_state = match analysis.new_state {
+        Ok((new_state, program)) if pressed_enter => {
+            let result = evaluator.eval(program);
+            writeln!(stdout, "\r")?;
+            writeln!(stdout, "{:?}\r", result)?;
+
+            input.clear();
+            *cursor_pos = 0;
+            should_redraw = true;
+
+            new_state
+        }
+
+        Ok(_) => analysis_state,
+
+        Err((old_state, errors)) if pressed_enter => {
+            writeln!(stdout, "\r")?;
+
+            for error in errors {
+                for line in error.display(input) {
+                    writeln!(stdout, "{}\r", line)?;
+                }
+            }
+
+            should_redraw = true;
+
+            old_state
+        }
+
+        Err((old_state, _)) => old_state,
+    };
+
+    queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
+
+    stdout.flush()?;
+
+    Ok((analysis_state, should_redraw))
+}
+
+#[derive(Clone, Default)]
+struct AnalysisState {
+    hir_in_scope: hir_lower::InScope,
+    tys_in_scope: hir_ty::InScope,
+}
+
+impl AnalysisState {
+    fn analyze_repl_line(self, input: &str) -> Analysis {
+        let mut errors = Vec::new();
+
+        let tokens = lexer::lex(input);
+        let parse = parser::parse_repl_line(&tokens);
+
+        for error in parse.errors() {
+            errors.push(Error::from_parse_error(error.clone()));
+        }
+
+        let root = ast::Root::cast(parse.syntax_node()).unwrap();
+        let validation_errors = ast::validation::validate(&root);
+
+        for error in validation_errors {
+            errors.push(Error::from_validation_error(error));
+        }
+
+        let lower_result = hir_lower::lower_with_in_scope(&root, self.hir_in_scope.clone());
+
+        for error in lower_result.errors {
+            errors.push(Error::from_lower_error(error));
+        }
+
+        let infer_result = hir_ty::infer_in_scope(&lower_result.program, self.tys_in_scope.clone());
+        let (tys_in_scope_new, ty_errors) = infer_result.in_scope();
+
+        for error in ty_errors {
+            errors.push(Error::from_ty_error(error, &lower_result.source_map));
+        }
+
+        let highlighted = highlight(input, &errors, tokens);
+
+        let new_state = if errors.is_empty() {
+            Ok((
+                Self {
+                    hir_in_scope: hir_lower::InScope::new(
+                        lower_result.program.clone(),
+                        lower_result.fnc_names,
+                        lower_result.var_names,
+                    ),
+                    tys_in_scope: tys_in_scope_new,
+                },
+                lower_result.program,
+            ))
+        } else {
+            Err((self, errors))
+        };
+
+        Analysis { highlighted, new_state }
+    }
+}
+
+fn highlight(input: &str, errors: &[Error], tokens: Vec<Token<'_>>) -> String {
+    let mut highlighted = String::new();
+
     for (idx, c) in input.char_indices() {
         let idx = idx.try_into().unwrap();
         let is_in_error = errors.iter().any(|error| error.range().contains(idx));
@@ -156,42 +246,13 @@ fn render(
         };
 
         let c = if is_in_error { c.underlined() } else { c };
-
-        write!(stdout, "{}", c)?;
+        highlighted.push_str(&c.to_string());
     }
 
-    if pressed_enter {
-        writeln!(stdout, "\r")?;
+    highlighted
+}
 
-        if errors.is_empty() {
-            *hir_in_scope = hir_lower::InScope::new(
-                lower_result.program.clone(),
-                lower_result.fnc_names,
-                lower_result.var_names,
-            );
-            *tys_in_scope = tys_in_scope_new;
-            let result = evaluator.eval(lower_result.program);
-
-            writeln!(stdout, "{:?}\r", result)?;
-
-            input.clear();
-            *cursor_pos = 0;
-        } else {
-            for error in errors {
-                for line in error.display(input) {
-                    writeln!(stdout, "{}\r", line)?;
-                }
-            }
-        }
-
-        write!(stdout, "> ")?;
-
-        render(input, stdout, hir_in_scope, tys_in_scope, false, evaluator, cursor_pos)?;
-    }
-
-    queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;
-
-    stdout.flush()?;
-
-    Ok(())
+struct Analysis {
+    highlighted: String,
+    new_state: Result<(AnalysisState, hir::Program), (AnalysisState, Vec<Error>)>,
 }
