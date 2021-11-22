@@ -4,8 +4,6 @@ use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
 use errors::Error;
 use eval::Evaluator;
-use hir_ty::InScope;
-use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io::{self, Write};
 use token::TokenKind;
@@ -17,10 +15,8 @@ fn main() -> anyhow::Result<()> {
     let mut input = String::new();
     let mut cursor_pos: u16 = 0;
     let mut evaluator = Evaluator::default();
-    let mut program = hir::Program::default();
-    let mut fnc_names = HashMap::new();
-    let mut var_names = HashMap::new();
-    let mut in_scope = InScope::default();
+    let mut hir_in_scope = hir_lower::InScope::default();
+    let mut tys_in_scope = hir_ty::InScope::default();
 
     queue!(stdout, cursor::SetCursorShape(cursor::CursorShape::Line))?;
     write!(stdout, "> ")?;
@@ -74,10 +70,8 @@ fn main() -> anyhow::Result<()> {
             render(
                 &mut input,
                 &mut stdout.lock(),
-                &mut program,
-                &mut fnc_names,
-                &mut var_names,
-                &mut in_scope,
+                &mut hir_in_scope,
+                &mut tys_in_scope,
                 pressed_enter,
                 &mut evaluator,
                 &mut cursor_pos,
@@ -96,10 +90,8 @@ fn main() -> anyhow::Result<()> {
 fn render(
     input: &mut String,
     stdout: &mut io::StdoutLock<'_>,
-    program: &mut hir::Program,
-    fnc_names: &mut HashMap<String, hir::FncDefId>,
-    var_names: &mut HashMap<String, hir::VarDefId>,
-    in_scope: &mut InScope,
+    hir_in_scope: &mut hir_lower::InScope,
+    tys_in_scope: &mut hir_ty::InScope,
     pressed_enter: bool,
     evaluator: &mut Evaluator,
     cursor_pos: &mut u16,
@@ -120,19 +112,14 @@ fn render(
         errors.push(Error::from_validation_error(error));
     }
 
-    let lower_result = hir_lower::lower_with_in_scope(
-        &root,
-        program.clone(),
-        fnc_names.clone(),
-        var_names.clone(),
-    );
+    let lower_result = hir_lower::lower_with_in_scope(&root, hir_in_scope.clone());
 
     for error in lower_result.errors {
         errors.push(Error::from_lower_error(error));
     }
 
-    let infer_result = hir_ty::infer_in_scope(&lower_result.program, in_scope.clone());
-    let (in_scope_new, ty_errors) = infer_result.in_scope();
+    let infer_result = hir_ty::infer_in_scope(&lower_result.program, tys_in_scope.clone());
+    let (tys_in_scope_new, ty_errors) = infer_result.in_scope();
 
     for error in ty_errors {
         errors.push(Error::from_ty_error(error, &lower_result.source_map));
@@ -177,11 +164,13 @@ fn render(
         writeln!(stdout, "\r")?;
 
         if errors.is_empty() {
-            *program = lower_result.program;
-            *fnc_names = lower_result.fnc_names;
-            *var_names = lower_result.var_names;
-            *in_scope = in_scope_new;
-            let result = evaluator.eval(program.clone());
+            *hir_in_scope = hir_lower::InScope::new(
+                lower_result.program.clone(),
+                lower_result.fnc_names,
+                lower_result.var_names,
+            );
+            *tys_in_scope = tys_in_scope_new;
+            let result = evaluator.eval(lower_result.program);
 
             writeln!(stdout, "{:?}\r", result)?;
 
@@ -197,9 +186,7 @@ fn render(
 
         write!(stdout, "> ")?;
 
-        render(
-            input, stdout, program, fnc_names, var_names, in_scope, false, evaluator, cursor_pos,
-        )?;
+        render(input, stdout, hir_in_scope, tys_in_scope, false, evaluator, cursor_pos)?;
     }
 
     queue!(stdout, cursor::MoveToColumn(3 + *cursor_pos))?;

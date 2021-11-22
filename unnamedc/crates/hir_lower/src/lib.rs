@@ -4,27 +4,22 @@ use std::collections::HashMap;
 use text_size::TextRange;
 
 pub fn lower(ast: &ast::Root) -> LowerResult {
-    lower_with_in_scope(ast, hir::Program::default(), HashMap::new(), HashMap::new())
+    lower_with_in_scope(ast, InScope::default())
 }
 
-pub fn lower_with_in_scope(
-    ast: &ast::Root,
-    program: hir::Program,
-    mut fnc_names: HashMap<String, hir::FncDefId>,
-    var_names: HashMap<String, hir::VarDefId>,
-) -> LowerResult {
+pub fn lower_with_in_scope(ast: &ast::Root, mut in_scope: InScope) -> LowerResult {
     let mut lower_store = LowerStore {
-        local_defs: program.local_defs,
-        fnc_defs: program.fnc_defs,
-        params: program.params,
-        exprs: program.exprs,
+        local_defs: in_scope.program.local_defs,
+        fnc_defs: in_scope.program.fnc_defs,
+        params: in_scope.program.params,
+        exprs: in_scope.program.exprs,
         source_map: SourceMap::default(),
         errors: Vec::new(),
     };
     let mut lower_ctx = LowerCtx {
         store: &mut lower_store,
-        fnc_names: &mut fnc_names,
-        var_names: VarNames { this: var_names, parent: None },
+        fnc_names: &mut in_scope.fnc_names,
+        var_names: VarNames { this: in_scope.var_names, parent: None },
     };
     let mut defs = Vec::new();
     let mut stmts = Vec::new();
@@ -53,7 +48,7 @@ pub fn lower_with_in_scope(
         },
         source_map: lower_store.source_map,
         errors: lower_store.errors,
-        fnc_names,
+        fnc_names: in_scope.fnc_names,
         var_names,
     }
 }
@@ -64,6 +59,23 @@ pub struct LowerResult {
     pub errors: Vec<LowerError>,
     pub fnc_names: HashMap<String, hir::FncDefId>,
     pub var_names: HashMap<String, hir::VarDefId>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct InScope {
+    program: hir::Program,
+    fnc_names: HashMap<String, hir::FncDefId>,
+    var_names: HashMap<String, hir::VarDefId>,
+}
+
+impl InScope {
+    pub fn new(
+        program: hir::Program,
+        fnc_names: HashMap<String, hir::FncDefId>,
+        var_names: HashMap<String, hir::VarDefId>,
+    ) -> Self {
+        Self { program, fnc_names, var_names }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -623,7 +635,10 @@ mod tests {
 
         let parse = parser::parse_repl_line(&lexer::lex("a"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let result = lower_with_in_scope(&root, result.program, result.fnc_names, result.var_names);
+        let result = lower_with_in_scope(
+            &root,
+            InScope::new(result.program, result.fnc_names, result.var_names),
+        );
 
         assert_eq!(
             result.program,

@@ -224,9 +224,11 @@ mod tests {
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let lower_result = hir_lower::lower_with_in_scope(
             &root,
-            lower_result.program,
-            lower_result.fnc_names,
-            lower_result.var_names,
+            hir_lower::InScope::new(
+                lower_result.program,
+                lower_result.fnc_names,
+                lower_result.var_names,
+            ),
         );
         assert_eq!(evaluator.eval(lower_result.program), Val::Int(100));
     }
@@ -295,9 +297,11 @@ mod tests {
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let lower_result = hir_lower::lower_with_in_scope(
             &root,
-            lower_result.program,
-            lower_result.fnc_names,
-            lower_result.var_names,
+            hir_lower::InScope::new(
+                lower_result.program,
+                lower_result.fnc_names,
+                lower_result.var_names,
+            ),
         );
         assert_eq!(evaluator.eval(lower_result.program), Val::Int(5));
     }
