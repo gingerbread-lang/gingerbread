@@ -21,7 +21,7 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
         let _guard = p.expected_syntax_name("function parameters");
 
         // never eat the token that could not start function parameters
-        p.error_with_recovery_set_no_default(TokenSet::ALL);
+        p.error_with_no_skip();
     }
 
     if p.at(TokenKind::Colon) {

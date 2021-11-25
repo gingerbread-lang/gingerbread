@@ -22,7 +22,7 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     }
 
     let m = cm.precede(p);
-    p.expect_with_recovery_set(TokenKind::Semicolon, TokenSet::ALL);
+    p.expect_with_no_skip(TokenKind::Semicolon);
 
     Some(m.complete(p, SyntaxKind::ExprStmt))
 }
@@ -40,7 +40,7 @@ fn parse_local_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.expect(TokenKind::Eq);
     parse_expr(p, "variable value");
 
-    p.expect_with_recovery_set(TokenKind::Semicolon, TokenSet::ALL);
+    p.expect_with_no_skip(TokenKind::Semicolon);
 
     m.complete(p, SyntaxKind::LocalDef)
 }

@@ -56,11 +56,23 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         }
     }
 
+    pub(crate) fn expect_with_no_skip(&mut self, kind: TokenKind) {
+        if self.at(kind) {
+            self.bump();
+        } else {
+            self.error_with_no_skip();
+        }
+    }
+
     pub(crate) fn error_with_recovery_set(
         &mut self,
         recovery_set: TokenSet,
     ) -> Option<CompletedMarker> {
         self.error_with_recovery_set_no_default(recovery_set.union(DEFAULT_RECOVERY_SET))
+    }
+
+    pub(crate) fn error_with_no_skip(&mut self) -> Option<CompletedMarker> {
+        self.error_with_recovery_set_no_default(TokenSet::ALL)
     }
 
     pub(crate) fn error_with_recovery_set_no_default(
