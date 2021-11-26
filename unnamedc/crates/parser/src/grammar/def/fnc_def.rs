@@ -45,7 +45,12 @@ fn parse_fnc_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
             break;
         }
 
-        parse_fnc_param(p);
+        if p.at(TokenKind::Comma) {
+            let _guard = p.expected_syntax_name("parameter");
+            p.error_with_no_skip();
+        } else {
+            parse_fnc_param(p);
+        }
 
         if should_stop(p) {
             break;
@@ -86,11 +91,14 @@ fn parse_fnc_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
         p.expect_with_recovery_set(TokenKind::Ident, TokenSet::new([TokenKind::Colon]));
     }
 
-    p.expect_with_recovery_set(TokenKind::Colon, TokenSet::new([TokenKind::RParen]));
+    p.expect_with_recovery_set(
+        TokenKind::Colon,
+        TokenSet::new([TokenKind::Comma, TokenKind::RParen]),
+    );
 
     {
         let _guard = p.expected_syntax_name("parameter type");
-        parse_ty(p, TokenSet::new([TokenKind::RParen]));
+        parse_ty(p, TokenSet::new([TokenKind::Comma, TokenKind::RParen]));
     }
 
     m.complete(p, SyntaxKind::Param)

@@ -1,0 +1,26 @@
+fnc f(s: string,,) -> {};
+===
+Root@0..25
+  FncDef@0..25
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..5 "f"
+    ParamList@5..19
+      LParen@5..6 "("
+      Param@6..15
+        Ident@6..7 "s"
+        Colon@7..8 ":"
+        Whitespace@8..9 " "
+        Ty@9..15
+          Ident@9..15 "string"
+      Comma@15..16 ","
+      Comma@16..17 ","
+      RParen@17..18 ")"
+      Whitespace@18..19 " "
+    Arrow@19..21 "->"
+    Whitespace@21..22 " "
+    Block@22..24
+      LBrace@22..23 "{"
+      RBrace@23..24 "}"
+    Semicolon@24..25 ";"
+error at 16: missing parameter

@@ -1,0 +1,30 @@
+fnc f(a, b: s32) -> {};
+===
+Root@0..23
+  FncDef@0..23
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..5 "f"
+    ParamList@5..17
+      LParen@5..6 "("
+      Param@6..7
+        Ident@6..7 "a"
+        Ty@7..7
+      Comma@7..8 ","
+      Whitespace@8..9 " "
+      Param@9..15
+        Ident@9..10 "b"
+        Colon@10..11 ":"
+        Whitespace@11..12 " "
+        Ty@12..15
+          Ident@12..15 "s32"
+      RParen@15..16 ")"
+      Whitespace@16..17 " "
+    Arrow@17..19 "->"
+    Whitespace@19..20 " "
+    Block@20..22
+      LBrace@20..21 "{"
+      RBrace@21..22 "}"
+    Semicolon@22..23 ";"
+error at 7: missing Colon
+error at 7: missing parameter type
