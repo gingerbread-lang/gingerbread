@@ -267,6 +267,10 @@ impl LowerCtx<'_> {
                     kind: LowerErrorKind::UndefinedFnc { name: name.to_string() },
                 });
 
+                for ast in arg_list.args() {
+                    self.lower_expr(ast.value());
+                }
+
                 hir::Expr::Missing
             }
         }
@@ -480,6 +484,24 @@ mod tests {
                 ..Default::default()
             },
             [],
+        );
+    }
+
+    #[test]
+    fn lower_undefined_fnc_call_with_undefined_param() {
+        let mut exprs = Arena::new();
+
+        let _bar = exprs.alloc(hir::Expr::Missing);
+        let _ten = exprs.alloc(hir::Expr::IntLiteral(10));
+        let foo_bar = exprs.alloc(hir::Expr::Missing);
+
+        check(
+            "foo bar, 10",
+            hir::Program { exprs, tail_expr: Some(foo_bar), ..Default::default() },
+            [
+                (0..3, LowerErrorKind::UndefinedFnc { name: "foo".to_string() }),
+                (4..7, LowerErrorKind::UndefinedVarOrFnc { name: "bar".to_string() }),
+            ],
         );
     }
 
