@@ -38,11 +38,7 @@ impl Vm {
     }
 
     fn run(&mut self) {
-        loop {
-            if self.instruction_ptr == self.instructions.len() {
-                return;
-            }
-
+        while self.instruction_ptr < self.instructions.len() {
             let instruction = self.instructions[self.instruction_ptr];
 
             match instruction {

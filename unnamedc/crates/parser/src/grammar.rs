@@ -13,11 +13,7 @@ use token::TokenKind;
 pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
-    loop {
-        if p.at_eof() {
-            break;
-        }
-
+    while !p.at_eof() {
         self::def::parse_def(p);
     }
 
@@ -27,11 +23,7 @@ pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
 pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
     let m = p.start();
 
-    loop {
-        if p.at_eof() {
-            break;
-        }
-
+    while !p.at_eof() {
         if p.at_set(DEF_FIRST) {
             parse_def(p);
         } else if p.at(TokenKind::RBrace) || p.at(TokenKind::Semicolon) {
