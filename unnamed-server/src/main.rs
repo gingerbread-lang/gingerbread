@@ -58,16 +58,10 @@ fn main() -> anyhow::Result<()> {
     };
 
     let mut content = String::new();
-    let mut id = 0;
 
     loop {
         match connection.read_msg()? {
             lsp::model::Msg::Req(req) => {
-                id = match req.id {
-                    lsp::model::ReqId::Integer(n) => n,
-                    lsp::model::ReqId::String(_) => unreachable!(),
-                };
-
                 eprintln!(
                     "\n== REQUEST ==\nid: {:?}\nmethod: {}\n{:#}\n",
                     req.id, req.method, req.params
@@ -75,7 +69,7 @@ fn main() -> anyhow::Result<()> {
 
                 if req.method == Shutdown::METHOD {
                     connection.write_msg(&lsp::model::Msg::Res(lsp::model::Res {
-                        id: lsp::model::ReqId::Integer(id),
+                        id: req.id,
                         result: serde_json::Value::Null,
                         error: None,
                     }))?;
@@ -229,8 +223,8 @@ fn main() -> anyhow::Result<()> {
                             }
 
                             connection.write_msg(&lsp::model::Msg::Req(lsp::model::Req {
-                                id: lsp::model::ReqId::Integer(id + 1),
-                                method: <SemanticTokensRefresh as Request>::METHOD.to_string(),
+                                id: connection.next_id(),
+                                method: SemanticTokensRefresh::METHOD.to_string(),
                                 params: serde_json::Value::Null,
                             }))?;
                         }

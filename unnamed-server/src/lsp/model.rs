@@ -91,7 +91,7 @@ pub(crate) mod error_codes {
     pub(crate) const REQUEST_CANCELLED: i32 = -32800;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(crate) enum ReqId {
     Integer(u32),

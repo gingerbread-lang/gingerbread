@@ -9,6 +9,7 @@ pub(crate) struct Connection<'s> {
     reader: io::StdinLock<'s>,
     writer: io::StdoutLock<'s>,
     buf: proto::ScratchReadBuf,
+    next_id: model::ReqId,
 }
 
 pub(crate) struct ConnectionStorage {
@@ -46,6 +47,7 @@ impl<'s> Connection<'s> {
             reader: storage.stdin.lock(),
             writer: storage.stdout.lock(),
             buf: proto::ScratchReadBuf::default(),
+            next_id: model::ReqId::Integer(0),
         };
 
         connection.initialize(f)?;
@@ -54,11 +56,19 @@ impl<'s> Connection<'s> {
     }
 
     pub(crate) fn write_msg(&mut self, msg: &model::Msg) -> Result<(), proto::WriteMsgError> {
+        self.bump_to_next_id(msg);
         proto::write_msg(&mut self.writer, msg)
     }
 
     pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
-        proto::read_msg(&mut self.reader, &mut self.buf)
+        let msg = proto::read_msg(&mut self.reader, &mut self.buf)?;
+        self.bump_to_next_id(&msg);
+
+        Ok(msg)
+    }
+
+    pub(crate) fn next_id(&self) -> model::ReqId {
+        self.next_id.clone()
     }
 
     fn initialize(
@@ -109,6 +119,16 @@ impl<'s> Connection<'s> {
                     data: None,
                 }),
             }))?
+        }
+    }
+
+    fn bump_to_next_id(&mut self, msg: &model::Msg) {
+        match msg {
+            model::Msg::Req(req) => match req.id {
+                model::ReqId::Integer(n) => self.next_id = model::ReqId::Integer(n + 1),
+                model::ReqId::String(_) => {}
+            },
+            model::Msg::Res(_) | model::Msg::Not(_) => {}
         }
     }
 }
