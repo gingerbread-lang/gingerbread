@@ -14,19 +14,20 @@ pub(crate) fn read_msg(
 ) -> Result<Msg, ReadMsgError> {
     let header = read_header(reader, &mut buf.string)?;
     read_content(reader, &mut buf.bytes, header.content_length)?;
-    let msg = serde_json::from_slice(&buf.bytes).map_err(ReadMsgError::Deserialize)?;
+    let msg = serde_json::from_slice(&buf.bytes)?;
 
     Ok(msg)
 }
 
 pub(crate) fn write_msg(writer: &mut impl Write, msg: &Msg) -> Result<(), WriteMsgError> {
-    let serialized = serde_json::to_string(msg).map_err(WriteMsgError::Serialize)?;
+    // we know Msg can always be serialized
+    let serialized = serde_json::to_string(msg).unwrap();
 
-    writer
-        .write_all(format!("Content-Length: {}\r\n\r\n{}", serialized.len(), serialized).as_bytes())
-        .map_err(WriteMsgError::Io)?;
+    writer.write_all(
+        format!("Content-Length: {}\r\n\r\n{}", serialized.len(), serialized).as_bytes(),
+    )?;
 
-    writer.flush().map_err(WriteMsgError::Io)?;
+    writer.flush()?;
 
     Ok(())
 }
@@ -37,7 +38,7 @@ fn read_content(
     content_length: usize,
 ) -> Result<(), ReadMsgError> {
     buf.resize(content_length, 0);
-    reader.read_exact(buf).map_err(ReadMsgError::Io)?;
+    reader.read_exact(buf)?;
 
     Ok(())
 }
@@ -89,7 +90,7 @@ fn read_header_field<'a>(
     buf: &'a mut String,
 ) -> Result<Option<HeaderField<'a>>, ReadMsgError> {
     buf.clear();
-    reader.read_line(buf).map_err(ReadMsgError::Io)?;
+    reader.read_line(buf)?;
 
     let field_text = match buf.strip_suffix("\r\n") {
         // in this case we saw \r\n when we should have seen another field,
@@ -118,19 +119,16 @@ struct HeaderField<'a> {
 #[derive(Debug, Error)]
 pub(crate) enum WriteMsgError {
     #[error("failed writing data to connection")]
-    Io(#[source] io::Error),
-
-    #[error("failed serializing message content into JSON")]
-    Serialize(#[source] serde_json::Error),
+    Io(#[from] io::Error),
 }
 
 #[derive(Debug, Error)]
 pub(crate) enum ReadMsgError {
     #[error("failed reading data from connection")]
-    Io(#[source] io::Error),
+    Io(#[from] io::Error),
 
     #[error("failed deserializing message content from JSON")]
-    Deserialize(#[source] serde_json::Error),
+    Deserialize(#[from] serde_json::Error),
 
     #[error("a header field other than Content-Length or Content-Type was supplied")]
     UnrecognizedHeaderFieldName,

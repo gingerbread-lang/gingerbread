@@ -33,8 +33,8 @@ pub(crate) enum InitializeError {
     #[error("an error occurred while writing a message during initialization")]
     Write(#[from] proto::WriteMsgError),
 
-    #[error("an error occurred while serializing or deserializing during initialization")]
-    Serde(#[from] serde_json::Error),
+    #[error("malformed JSON was read during initialization")]
+    MalformedJson(#[from] serde_json::Error),
 
     #[error("an `initialized` notification was not sent after initialization")]
     NoInitializedNot,
@@ -90,13 +90,10 @@ impl<'s> Connection<'s> {
             None => return Ok(()),
         };
 
-        let result = f(params);
+        // types from lsp_types can always be serialized as JSON
+        let result = serde_json::to_value(f(params)).unwrap();
 
-        self.write_msg(&model::Msg::Res(model::Res {
-            id,
-            result: serde_json::to_value(result)?,
-            error: None,
-        }))?;
+        self.write_msg(&model::Msg::Res(model::Res { id, result, error: None }))?;
 
         match self.read_msg()? {
             model::Msg::Not(not) if not.method == Initialized::METHOD => Ok(()),
@@ -143,8 +140,17 @@ impl<'s> Connection<'s> {
     }
 }
 
+#[derive(Debug, Error)]
+pub(crate) enum HandleMsgError {
+    #[error("an error occurred while writing the response to a message")]
+    Write(#[from] proto::WriteMsgError),
+
+    #[error("the JSON content of a message was malformed")]
+    MalformedJson(#[from] serde_json::Error),
+}
+
 impl ReqHandler {
-    pub(crate) fn on<R, F>(mut self, f: F) -> Result<Self, proto::WriteMsgError>
+    pub(crate) fn on<R, F>(mut self, f: F) -> Result<Self, HandleMsgError>
     where
         R: Request,
         F: FnOnce(R::Params) -> Result<R::Result, proto::WriteMsgError>,
@@ -155,8 +161,7 @@ impl ReqHandler {
         };
 
         if req.method == R::METHOD {
-            // types from lsp_types can always be deserialized as JSON
-            f(serde_json::from_value(req.params).unwrap())?;
+            f(serde_json::from_value(req.params)?)?;
         }
 
         Ok(self)
@@ -164,7 +169,7 @@ impl ReqHandler {
 }
 
 impl NotHandler {
-    pub(crate) fn on<N, F>(mut self, f: F) -> Result<Self, proto::WriteMsgError>
+    pub(crate) fn on<N, F>(mut self, f: F) -> Result<Self, HandleMsgError>
     where
         N: Notification,
         F: FnOnce(N::Params) -> Result<(), proto::WriteMsgError>,
@@ -175,8 +180,7 @@ impl NotHandler {
         };
 
         if not.method == N::METHOD {
-            // types from lsp_types can always be deserialized as JSON
-            f(serde_json::from_value(not.params).unwrap())?;
+            f(serde_json::from_value(not.params)?)?;
         }
 
         Ok(self)
