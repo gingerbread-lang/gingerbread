@@ -48,25 +48,40 @@ impl<'s> Connection<'s> {
             buf: proto::ScratchReadBuf::default(),
         };
 
-        let (params, id) = match connection.wait_for_initialize_req()? {
+        connection.initialize(f)?;
+
+        Ok(Some(connection))
+    }
+
+    pub(crate) fn write_msg(&mut self, msg: &model::Msg) -> Result<(), proto::WriteMsgError> {
+        proto::write_msg(&mut self.writer, msg)
+    }
+
+    pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
+        proto::read_msg(&mut self.reader, &mut self.buf)
+    }
+
+    fn initialize(
+        &mut self,
+        f: impl FnOnce(InitializeParams) -> InitializeResult,
+    ) -> Result<(), InitializeError> {
+        let (params, id) = match self.wait_for_initialize_req()? {
             Some((params, id)) => (params, id),
-            None => return Ok(None),
+            None => return Ok(()),
         };
 
         let result = f(params);
 
-        connection.write_msg(&model::Msg::Res(model::Res {
+        self.write_msg(&model::Msg::Res(model::Res {
             id,
             result: serde_json::to_value(result)?,
             error: None,
         }))?;
 
-        match connection.read_msg()? {
-            model::Msg::Not(not) if not.method == Initialized::METHOD => {}
-            _ => return Err(InitializeError::NoInitializedNot),
+        match self.read_msg()? {
+            model::Msg::Not(not) if not.method == Initialized::METHOD => Ok(()),
+            _ => Err(InitializeError::NoInitializedNot),
         }
-
-        Ok(Some(connection))
     }
 
     fn wait_for_initialize_req(
@@ -95,15 +110,5 @@ impl<'s> Connection<'s> {
                 }),
             }))?
         }
-    }
-}
-
-impl Connection<'_> {
-    pub(crate) fn write_msg(&mut self, msg: &model::Msg) -> Result<(), proto::WriteMsgError> {
-        proto::write_msg(&mut self.writer, msg)
-    }
-
-    pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
-        proto::read_msg(&mut self.reader, &mut self.buf)
     }
 }
