@@ -2,7 +2,7 @@ use super::{model, proto};
 use lsp_types::notification::{Exit, Initialized, Notification};
 use lsp_types::request::{Initialize, Request};
 use lsp_types::{InitializeParams, InitializeResult};
-use std::io;
+use std::{io, mem};
 use thiserror::Error;
 
 pub(crate) struct Connection<'s> {
@@ -17,10 +17,12 @@ pub(crate) struct ConnectionStorage {
     stdout: io::Stdout,
 }
 
-impl ConnectionStorage {
-    pub(crate) fn new() -> Self {
-        Self { stdin: io::stdin(), stdout: io::stdout() }
-    }
+pub(crate) struct ReqHandler {
+    req: Option<model::Req>,
+}
+
+pub(crate) struct NotHandler {
+    not: Option<model::Not>,
 }
 
 #[derive(Debug, Error)]
@@ -65,6 +67,14 @@ impl<'s> Connection<'s> {
         self.bump_to_next_id(&msg);
 
         Ok(msg)
+    }
+
+    pub(crate) fn req_handler(&mut self, req: model::Req) -> ReqHandler {
+        ReqHandler { req: Some(req) }
+    }
+
+    pub(crate) fn not_handler(&mut self, not: model::Not) -> NotHandler {
+        NotHandler { not: Some(not) }
     }
 
     pub(crate) fn next_id(&self) -> model::ReqId {
@@ -130,5 +140,51 @@ impl<'s> Connection<'s> {
             },
             model::Msg::Res(_) | model::Msg::Not(_) => {}
         }
+    }
+}
+
+impl ReqHandler {
+    pub(crate) fn on<R, F>(mut self, f: F) -> Result<Self, proto::WriteMsgError>
+    where
+        R: Request,
+        F: FnOnce(R::Params) -> Result<R::Result, proto::WriteMsgError>,
+    {
+        let req = match mem::take(&mut self.req) {
+            Some(req) => req,
+            None => return Ok(self),
+        };
+
+        if req.method == R::METHOD {
+            // types from lsp_types can always be deserialized as JSON
+            f(serde_json::from_value(req.params).unwrap())?;
+        }
+
+        Ok(self)
+    }
+}
+
+impl NotHandler {
+    pub(crate) fn on<N, F>(mut self, f: F) -> Result<Self, proto::WriteMsgError>
+    where
+        N: Notification,
+        F: FnOnce(N::Params) -> Result<(), proto::WriteMsgError>,
+    {
+        let not = match mem::take(&mut self.not) {
+            Some(req) => req,
+            None => return Ok(self),
+        };
+
+        if not.method == N::METHOD {
+            // types from lsp_types can always be deserialized as JSON
+            f(serde_json::from_value(not.params).unwrap())?;
+        }
+
+        Ok(self)
+    }
+}
+
+impl ConnectionStorage {
+    pub(crate) fn new() -> Self {
+        Self { stdin: io::stdin(), stdout: io::stdout() }
     }
 }
