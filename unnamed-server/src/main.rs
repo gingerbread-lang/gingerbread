@@ -1,10 +1,10 @@
-use lsp_server::{Connection, Message, Notification, Request, RequestId, Response};
-use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
+use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, Notification};
 use lsp_types::request::{
-    GotoDefinition, SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh,
+    GotoDefinition, Request, SemanticTokensFullRequest,
+    SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
 };
 use lsp_types::{
-    GotoDefinitionResponse, InitializeParams, Location, OneOf, Position, Range, SemanticToken,
+    GotoDefinitionResponse, InitializeResult, Location, OneOf, Position, Range, SemanticToken,
     SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
     SemanticTokensOptions, SemanticTokensServerCapabilities, ServerCapabilities,
     TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
@@ -12,10 +12,12 @@ use lsp_types::{
 };
 use token::TokenKind;
 
-fn main() -> anyhow::Result<()> {
-    let (connection, io_threads) = Connection::stdio();
+mod lsp;
 
-    let server_capabilities = serde_json::to_value(&ServerCapabilities {
+fn main() -> anyhow::Result<()> {
+    let stdio_connection_storage = lsp::connection::ConnectionStorage::new();
+
+    let capabilities = ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
             open_close: Some(true),
             change: Some(TextDocumentSyncKind::INCREMENTAL),
@@ -44,27 +46,37 @@ fn main() -> anyhow::Result<()> {
             },
         )),
         ..Default::default()
-    })
-    .unwrap();
+    };
 
-    let initialization_params = connection.initialize(server_capabilities)?;
-    main_loop(connection, initialization_params)?;
-    io_threads.join()?;
+    let connection = lsp::connection::Connection::new(&stdio_connection_storage, |_| {
+        InitializeResult { capabilities, server_info: None }
+    })?;
 
-    Ok(())
-}
-
-fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Result<()> {
-    let _params: InitializeParams = serde_json::from_value(params).unwrap();
+    let mut connection = match connection {
+        Some(con) => con,
+        None => return Ok(()),
+    };
 
     let mut content = String::new();
     let mut id = 0;
 
-    for msg in &connection.receiver {
+    loop {
+        let msg = connection.read_msg()?;
+
         match msg {
-            Message::Request(req) => {
-                id = req.id.to_string().parse().unwrap();
-                if connection.handle_shutdown(&req)? {
+            lsp::model::Msg::Req(req) => {
+                id = match req.id {
+                    lsp::model::ReqId::Integer(n) => n,
+                    lsp::model::ReqId::String(_) => unreachable!(),
+                };
+
+                if req.method == Shutdown::METHOD {
+                    connection.write_msg(&lsp::model::Msg::Res(lsp::model::Res {
+                        id: lsp::model::ReqId::Integer(id),
+                        result: serde_json::Value::Null,
+                        error: None,
+                    }))?;
+
                     return Ok(());
                 }
 
@@ -80,8 +92,8 @@ fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Resul
                             range: Range { start: Position::new(0, 0), end: Position::new(0, 2) },
                         }]);
                         let result = serde_json::to_value(&result).unwrap();
-                        let resp = Response { id, result: Some(result), error: None };
-                        connection.sender.send(Message::Response(resp))?;
+                        let res = lsp::model::Res { id, result, error: None };
+                        connection.write_msg(&lsp::model::Msg::Res(res))?;
                     }
                     Err(req) => {
                         if let Ok((id, _params)) = cast::<SemanticTokensFullRequest>(req) {
@@ -173,21 +185,19 @@ fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Resul
 
                             let result = SemanticTokens { result_id: None, data };
                             let result = serde_json::to_value(&result).unwrap();
-                            let resp = Response { id, result: Some(result), error: None };
-                            connection.sender.send(Message::Response(resp))?;
+                            let res = lsp::model::Res { id, result, error: None };
+                            connection.write_msg(&lsp::model::Msg::Res(res))?;
                         }
                     }
                 }
             }
 
-            Message::Response(resp) => eprintln!(
+            lsp::model::Msg::Res(res) => eprintln!(
                 "\n== RESPONSE ==\nid: {:?}\nresult: {}\nerror: {:?}\n",
-                resp.id,
-                resp.result.unwrap_or(serde_json::Value::Null),
-                resp.error
+                res.id, res.result, res.error
             ),
 
-            Message::Notification(not) => {
+            lsp::model::Msg::Not(not) => {
                 eprintln!("\n== NOTIFICATION ==\nmethod: {}\n{:#}\n", not.method, not.params);
 
                 match cast_not::<DidOpenTextDocument>(not) {
@@ -220,11 +230,9 @@ fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Resul
                                 content.replace_range(start_idx..end_idx, &change.text);
                             }
 
-                            connection.sender.send(Message::Request(Request {
-                                id: RequestId::from(id + 1),
-                                method:
-                                    <SemanticTokensRefresh as lsp_types::request::Request>::METHOD
-                                        .to_string(),
+                            connection.write_msg(&lsp::model::Msg::Req(lsp::model::Req {
+                                id: lsp::model::ReqId::Integer(id + 1),
+                                method: <SemanticTokensRefresh as Request>::METHOD.to_string(),
                                 params: serde_json::Value::Null,
                             }))?;
                         }
@@ -233,22 +241,35 @@ fn main_loop(connection: Connection, params: serde_json::Value) -> anyhow::Resul
             }
         }
     }
-
-    Ok(())
 }
 
-fn cast<R>(req: Request) -> Result<(RequestId, R::Params), Request>
+fn cast<R>(req: lsp::model::Req) -> Result<(lsp::model::ReqId, R::Params), lsp::model::Req>
 where
-    R: lsp_types::request::Request,
+    R: Request,
     R::Params: serde::de::DeserializeOwned,
 {
-    req.extract(R::METHOD)
+    if req.method != R::METHOD {
+        return Err(req);
+    }
+
+    let params = serde_json::from_value(req.params)
+        .unwrap_or_else(|err| panic!("Invalid request\nMethod: {}\n error: {}", R::METHOD, err));
+
+    Ok((req.id, params))
 }
 
-fn cast_not<N>(not: Notification) -> Result<N::Params, Notification>
+fn cast_not<N>(not: lsp::model::Not) -> Result<N::Params, lsp::model::Not>
 where
-    N: lsp_types::notification::Notification,
+    N: Notification,
     N::Params: serde::de::DeserializeOwned,
 {
-    not.extract(N::METHOD)
+    if not.method != N::METHOD {
+        return Err(not);
+    }
+
+    let params = serde_json::from_value(not.params).unwrap_or_else(|err| {
+        panic!("Invalid notification\nMethod: {}\n error: {}", N::METHOD, err)
+    });
+
+    Ok(params)
 }

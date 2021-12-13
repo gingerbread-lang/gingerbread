@@ -72,26 +72,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "328b822bdcba4d4e402be8d9adb6eebf269f969f8eadef977a553ff3c4fbcb58"
 
 [[package]]
-name = "crossbeam-channel"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06ed27e177f16d65f0f0c22a213e17c696ace5dd64b14258b52f9417ccb52db4"
-dependencies = [
- "cfg-if",
- "crossbeam-utils",
-]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d82cfc11ce7f2c3faef78d8a684447b40d503d9681acebed6cb728d45940c4db"
-dependencies = [
- "cfg-if",
- "lazy_static",
-]
-
-[[package]]
 name = "crossterm"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -259,12 +239,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
-name = "lazy_static"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
-
-[[package]]
 name = "lexer"
 version = "0.0.0"
 dependencies = [
@@ -319,18 +293,6 @@ dependencies = [
  "regex-syntax",
  "syn",
  "utf8-ranges",
-]
-
-[[package]]
-name = "lsp-server"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c351c75989da23b355226dc188dc2b52538a7f4f218d70fd7393c6b62b110444"
-dependencies = [
- "crossbeam-channel",
- "log",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -698,11 +660,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "lexer",
- "lsp-server",
  "lsp-types",
  "serde",
  "serde_json",
  "text-size",
+ "thiserror",
  "token",
 ]
 
