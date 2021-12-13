@@ -61,14 +61,17 @@ fn main() -> anyhow::Result<()> {
     let mut id = 0;
 
     loop {
-        let msg = connection.read_msg()?;
-
-        match msg {
+        match connection.read_msg()? {
             lsp::model::Msg::Req(req) => {
                 id = match req.id {
                     lsp::model::ReqId::Integer(n) => n,
                     lsp::model::ReqId::String(_) => unreachable!(),
                 };
+
+                eprintln!(
+                    "\n== REQUEST ==\nid: {:?}\nmethod: {}\n{:#}\n",
+                    req.id, req.method, req.params
+                );
 
                 if req.method == Shutdown::METHOD {
                     connection.write_msg(&lsp::model::Msg::Res(lsp::model::Res {
@@ -79,11 +82,6 @@ fn main() -> anyhow::Result<()> {
 
                     return Ok(());
                 }
-
-                eprintln!(
-                    "\n== REQUEST ==\nid: {:?}\nmethod: {}\n{:#}\n",
-                    req.id, req.method, req.params
-                );
 
                 match cast::<GotoDefinition>(req) {
                     Ok((id, params)) => {
