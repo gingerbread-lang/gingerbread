@@ -16,9 +16,6 @@ export function activate(context: ExtensionContext) {
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: "file", language: "plaintext" }],
-    synchronize: {
-      fileEvents: workspace.createFileSystemWatcher("**/*.txt"),
-    },
   };
 
   client = new LanguageClient(
