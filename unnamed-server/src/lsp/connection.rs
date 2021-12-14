@@ -60,9 +60,18 @@ impl<'s> Connection<'s> {
         Ok(Some(connection))
     }
 
-    pub(crate) fn write_msg(&mut self, msg: &model::Msg) -> Result<(), proto::WriteMsgError> {
-        self.bump_to_next_id(msg);
-        proto::write_msg(&mut self.writer, msg)
+    pub(crate) fn make_request<R>(&mut self, params: R::Params) -> Result<(), proto::WriteMsgError>
+    where
+        R: Request,
+    {
+        // types from lsp_types can always be serialized as JSON
+        let params = serde_json::to_value(params).unwrap();
+
+        self.write_msg(&model::Msg::Req(model::Req {
+            id: self.next_id.clone(),
+            method: R::METHOD.to_string(),
+            params,
+        }))
     }
 
     pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
@@ -78,10 +87,6 @@ impl<'s> Connection<'s> {
 
     pub(crate) fn not_handler(&mut self, not: model::Not) -> NotHandler {
         NotHandler::Unhandled { not }
-    }
-
-    pub(crate) fn next_id(&self) -> model::ReqId {
-        self.next_id.clone()
     }
 
     fn initialize(
@@ -130,6 +135,11 @@ impl<'s> Connection<'s> {
                 }),
             }))?
         }
+    }
+
+    fn write_msg(&mut self, msg: &model::Msg) -> Result<(), proto::WriteMsgError> {
+        self.bump_to_next_id(msg);
+        proto::write_msg(&mut self.writer, msg)
     }
 
     fn bump_to_next_id(&mut self, msg: &model::Msg) {

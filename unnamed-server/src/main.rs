@@ -1,7 +1,7 @@
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
 use lsp_types::request::{
-    GotoDefinition, Request, SemanticTokensFullRequest,
-    SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
+    GotoDefinition, SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh,
+    Shutdown,
 };
 use lsp_types::{
     GotoDefinitionResponse, InitializeResult, Location, OneOf, Position, Range, SemanticToken,
@@ -219,11 +219,9 @@ fn main() -> anyhow::Result<()> {
                             content.replace_range(start_idx..end_idx, &change.text);
                         }
 
-                        connection.write_msg(&lsp::model::Msg::Req(lsp::model::Req {
-                            id: connection.next_id(),
-                            method: SemanticTokensRefresh::METHOD.to_string(),
-                            params: serde_json::Value::Null,
-                        }))
+                        connection.make_request::<SemanticTokensRefresh>(())?;
+
+                        Ok(())
                     })?;
             }
         }
