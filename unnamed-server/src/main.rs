@@ -172,7 +172,8 @@ fn main() -> anyhow::Result<()> {
                             result_id: None,
                             data,
                         })))
-                    })?;
+                    })?
+                    .finish()?;
 
                 if shutdown {
                     return Ok(());

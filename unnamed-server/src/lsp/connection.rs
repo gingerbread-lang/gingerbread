@@ -2,7 +2,7 @@ use super::{model, proto};
 use lsp_types::notification::{Exit, Initialized, Notification};
 use lsp_types::request::{Initialize, Request};
 use lsp_types::{InitializeParams, InitializeResult};
-use std::{io, mem};
+use std::io;
 use thiserror::Error;
 
 pub(crate) struct Connection<'s> {
@@ -17,12 +17,15 @@ pub(crate) struct ConnectionStorage {
     stdout: io::Stdout,
 }
 
-pub(crate) struct ReqHandler {
-    req: Option<model::Req>,
+#[must_use]
+pub(crate) enum ReqHandler<'c, 's> {
+    Unhandled { req: model::Req, connection: &'c mut Connection<'s> },
+    Handled,
 }
 
-pub(crate) struct NotHandler {
-    not: Option<model::Not>,
+pub(crate) enum NotHandler {
+    Unhandled { not: model::Not },
+    Handled,
 }
 
 #[derive(Debug, Error)]
@@ -69,12 +72,12 @@ impl<'s> Connection<'s> {
         Ok(msg)
     }
 
-    pub(crate) fn req_handler(&mut self, req: model::Req) -> ReqHandler {
-        ReqHandler { req: Some(req) }
+    pub(crate) fn req_handler<'a>(&'a mut self, req: model::Req) -> ReqHandler<'a, 's> {
+        ReqHandler::Unhandled { req, connection: self }
     }
 
     pub(crate) fn not_handler(&mut self, not: model::Not) -> NotHandler {
-        NotHandler { not: Some(not) }
+        NotHandler::Unhandled { not }
     }
 
     pub(crate) fn next_id(&self) -> model::ReqId {
@@ -149,41 +152,65 @@ pub(crate) enum HandleMsgError {
     MalformedJson(#[from] serde_json::Error),
 }
 
-impl ReqHandler {
-    pub(crate) fn on<R, F>(mut self, f: F) -> Result<Self, HandleMsgError>
+impl ReqHandler<'_, '_> {
+    pub(crate) fn on<R, F>(self, f: F) -> Result<Self, HandleMsgError>
     where
         R: Request,
         F: FnOnce(R::Params) -> Result<R::Result, proto::WriteMsgError>,
     {
-        let req = match mem::take(&mut self.req) {
-            Some(req) => req,
-            None => return Ok(self),
-        };
+        match self {
+            Self::Unhandled { req, connection } if req.method == R::METHOD => {
+                let params = serde_json::from_value(req.params)?;
+                let result = f(params)?;
 
-        if req.method == R::METHOD {
-            f(serde_json::from_value(req.params)?)?;
+                // types from lsp_types can always be serialized as JSON
+                let result = serde_json::to_value(result).unwrap();
+
+                connection.write_msg(&model::Msg::Res(model::Res {
+                    id: req.id,
+                    result,
+                    error: None,
+                }))?;
+
+                Ok(Self::Handled)
+            }
+
+            Self::Unhandled { .. } | Self::Handled { .. } => Ok(self),
         }
+    }
 
-        Ok(self)
+    pub(crate) fn finish(self) -> Result<(), proto::WriteMsgError> {
+        match self {
+            Self::Unhandled { req, connection } => {
+                connection.write_msg(&model::Msg::Res(model::Res {
+                    id: req.id,
+                    result: serde_json::Value::Null,
+                    error: Some(model::ResError {
+                        code: model::error_codes::METHOD_NOT_FOUND,
+                        message: "unknown request".to_string(),
+                        data: None,
+                    }),
+                }))
+            }
+
+            Self::Handled => Ok(()),
+        }
     }
 }
 
 impl NotHandler {
-    pub(crate) fn on<N, F>(mut self, f: F) -> Result<Self, HandleMsgError>
+    pub(crate) fn on<N, F>(self, f: F) -> Result<Self, HandleMsgError>
     where
         N: Notification,
         F: FnOnce(N::Params) -> Result<(), proto::WriteMsgError>,
     {
-        let not = match mem::take(&mut self.not) {
-            Some(req) => req,
-            None => return Ok(self),
-        };
-
-        if not.method == N::METHOD {
-            f(serde_json::from_value(not.params)?)?;
+        match self {
+            Self::Unhandled { not } if not.method == N::METHOD => {
+                f(serde_json::from_value(not.params)?)?;
+                Ok(Self::Handled)
+            }
+            Self::Unhandled { .. } | Self::Handled { .. } => Ok(self),
         }
-
-        Ok(self)
     }
 }
 
