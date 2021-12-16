@@ -11,5 +11,6 @@ hir = {path = "../hir"}
 [dev-dependencies]
 ast = {path = "../ast"}
 hir_lower = {path = "../hir_lower"}
+hir_ty = {path = "../hir_ty"}
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}

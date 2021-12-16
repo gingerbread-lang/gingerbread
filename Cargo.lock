@@ -137,6 +137,7 @@ dependencies = [
  "ast",
  "hir",
  "hir_lower",
+ "hir_ty",
  "lexer",
  "parser",
 ]

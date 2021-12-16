@@ -119,11 +119,15 @@ mod tests {
 
     fn check(input: &str, val: Val) {
         let parse = parser::parse_repl_line(&lexer::lex(input));
+        assert_eq!(parse.errors(), []);
+
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let lower_result = hir_lower::lower(&root);
+        assert_eq!(lower_result.errors, []);
+
+        assert_eq!(hir_ty::infer(&lower_result.program).in_scope().1, []);
 
         assert_eq!(Evaluator::default().eval(lower_result.program), val);
-        assert!(lower_result.errors.is_empty());
     }
 
     #[test]
@@ -235,7 +239,7 @@ mod tests {
 
     #[test]
     fn eval_fnc_call_with_zero_args() {
-        check("fnc magic_number -> 3735928559; magic_number", Val::Int(0xdeadbeef));
+        check("fnc magic_number(): s32 -> 3735928559; magic_number", Val::Int(0xdeadbeef));
     }
 
     #[test]
