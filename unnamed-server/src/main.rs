@@ -1,15 +1,16 @@
-use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
+use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::{
     GotoDefinition, SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh,
     Shutdown,
 };
 use lsp_types::{
-    GotoDefinitionResponse, InitializeResult, Location, OneOf, Position, Range, SemanticToken,
-    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    WorkDoneProgressOptions,
+    Diagnostic, DiagnosticSeverity, GotoDefinitionResponse, InitializeResult, Location, OneOf,
+    Position, PublishDiagnosticsParams, Range, SemanticToken, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
 };
+use parser::error::ParseErrorKind;
 use token::TokenKind;
 
 mod lsp;
@@ -57,6 +58,7 @@ fn main() -> anyhow::Result<()> {
         None => return Ok(()),
     };
 
+    let mut uri = None;
     let mut content = String::new();
 
     loop {
@@ -191,6 +193,7 @@ fn main() -> anyhow::Result<()> {
                 connection
                     .not_handler(not)
                     .on::<DidOpenTextDocument, _>(|params| {
+                        uri = Some(params.text_document.uri);
                         content = params.text_document.text;
                         Ok(())
                     })?
@@ -218,6 +221,70 @@ fn main() -> anyhow::Result<()> {
 
                             content.replace_range(start_idx..end_idx, &change.text);
                         }
+
+                        let tokens = lexer::lex(&content);
+                        let parse = parser::parse_source_file(&tokens);
+
+                        let mut diagnostics = Vec::new();
+
+                        let line_starts: Vec<_> = std::iter::once(0)
+                            .chain(content.match_indices('\n').map(|(idx, _)| idx as u32 + 1))
+                            .collect();
+
+                        for error in parse.errors() {
+                            fn offset_to_pos(offset: u32, line_starts: &[u32]) -> Position {
+                                let (line, line_start_idx) = line_starts
+                                    .iter()
+                                    .enumerate()
+                                    .rev()
+                                    .find(|(_, line_start_idx)| **line_start_idx < offset)
+                                    .map(|(idx, line_start_idx)| (idx as u32, *line_start_idx))
+                                    .unwrap_or((0, 0));
+
+                                let character = offset - line_start_idx;
+
+                                Position { line, character }
+                            }
+
+                            let range = match error.kind {
+                                ParseErrorKind::Missing { offset } => {
+                                    let pos = offset_to_pos(u32::from(offset), &line_starts);
+
+                                    Range {
+                                        start: pos,
+                                        end: Position {
+                                            line: pos.line,
+                                            character: pos.character + 1,
+                                        },
+                                    }
+                                }
+
+                                ParseErrorKind::Unexpected { range, .. } => Range {
+                                    start: offset_to_pos(u32::from(range.start()), &line_starts),
+                                    end: offset_to_pos(u32::from(range.end()), &line_starts),
+                                },
+                            };
+
+                            let diagnostic = Diagnostic {
+                                range,
+                                severity: Some(DiagnosticSeverity::ERROR),
+                                code: None,
+                                code_description: None,
+                                source: Some("unnamedc".to_string()),
+                                message: format!("{:?}", error),
+                                related_information: None,
+                                tags: None,
+                                data: None,
+                            };
+
+                            diagnostics.push(diagnostic);
+                        }
+
+                        connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+                            uri: uri.clone().unwrap(),
+                            diagnostics,
+                            version: None,
+                        })?;
 
                         connection.make_request::<SemanticTokensRefresh>(())?;
 

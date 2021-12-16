@@ -661,6 +661,7 @@ dependencies = [
  "anyhow",
  "lexer",
  "lsp-types",
+ "parser",
  "serde",
  "serde_json",
  "text-size",

@@ -8,6 +8,7 @@ version = "0.1.0"
 anyhow = "1.0"
 lexer = {path = "../unnamedc/crates/lexer"}
 lsp-types = "0.91.1"
+parser = {path = "../unnamedc/crates/parser"}
 serde = "1.0"
 serde_json = "1.0"
 text-size = "1.1"

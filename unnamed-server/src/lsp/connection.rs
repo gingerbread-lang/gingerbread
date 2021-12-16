@@ -74,6 +74,15 @@ impl<'s> Connection<'s> {
         }))
     }
 
+    pub(crate) fn notify<N>(&mut self, params: N::Params) -> Result<(), proto::WriteMsgError>
+    where
+        N: Notification,
+    {
+        // types from lsp_types can always be serialized as JSON
+        let params = serde_json::to_value(params).unwrap();
+        self.write_msg(&model::Msg::Not(model::Not { method: N::METHOD.to_string(), params }))
+    }
+
     pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
         let msg = proto::read_msg(&mut self.reader, &mut self.buf)?;
         self.bump_to_next_id(&msg);
