@@ -1,6 +1,5 @@
 use super::event::Event;
-use crate::error::ParseError;
-use crate::Parse;
+use crate::{Parse, SyntaxError};
 use std::mem;
 use syntax::SyntaxBuilder;
 use token::{Token, TokenKind};
@@ -10,7 +9,7 @@ pub(crate) struct Sink<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     builder: SyntaxBuilder,
-    errors: Vec<ParseError>,
+    errors: Vec<SyntaxError>,
 }
 
 impl<'tokens, 'input> Sink<'tokens, 'input> {

@@ -3,23 +3,23 @@ use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
 #[derive(Clone, PartialEq)]
-pub struct ParseError {
+pub struct SyntaxError {
     pub expected_syntax: ExpectedSyntax,
-    pub kind: ParseErrorKind,
+    pub kind: SyntaxErrorKind,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ParseErrorKind {
+pub enum SyntaxErrorKind {
     Missing { offset: TextSize },
     Unexpected { found: TokenKind, range: TextRange },
 }
 
-impl fmt::Debug for ParseError {
+impl fmt::Debug for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "error at ")?;
         match self.kind {
-            ParseErrorKind::Missing { offset } => write!(f, "{}", u32::from(offset))?,
-            ParseErrorKind::Unexpected { range, .. } => {
+            SyntaxErrorKind::Missing { offset } => write!(f, "{}", u32::from(offset))?,
+            SyntaxErrorKind::Unexpected { range, .. } => {
                 write!(f, "{}..{}", u32::from(range.start()), u32::from(range.end()))?
             }
         };
@@ -31,11 +31,11 @@ impl fmt::Debug for ParseError {
         };
 
         match self.kind {
-            ParseErrorKind::Missing { .. } => {
+            SyntaxErrorKind::Missing { .. } => {
                 write!(f, "missing ")?;
                 format_expected_syntax(f)?;
             }
-            ParseErrorKind::Unexpected { found, .. } => {
+            SyntaxErrorKind::Unexpected { found, .. } => {
                 write!(f, "expected ")?;
                 format_expected_syntax(f)?;
                 write!(f, " but found {:?}", found)?;

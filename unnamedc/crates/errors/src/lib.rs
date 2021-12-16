@@ -2,7 +2,7 @@ use ast::validation::{ValidationError, ValidationErrorKind};
 use ast::AstNode;
 use hir_lower::{LowerError, LowerErrorKind, SourceMap};
 use hir_ty::{TyError, TyErrorKind};
-use parser::error::{ExpectedSyntax, ParseError, ParseErrorKind};
+use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use text_size::{TextRange, TextSize};
@@ -11,15 +11,15 @@ use token::TokenKind;
 pub struct Error(ErrorRepr);
 
 enum ErrorRepr {
-    Parse(ParseError),
+    Syntax(SyntaxError),
     Validation(ValidationError),
     Lower(LowerError),
     Ty { kind: TyErrorKind, range: TextRange },
 }
 
 impl Error {
-    pub fn from_parse_error(error: ParseError) -> Self {
-        Self(ErrorRepr::Parse(error))
+    pub fn from_syntax_error(error: SyntaxError) -> Self {
+        Self(ErrorRepr::Syntax(error))
     }
 
     pub fn from_validation_error(error: ValidationError) -> Self {
@@ -52,11 +52,12 @@ impl Error {
 
     pub fn range(&self) -> TextRange {
         match self.0 {
-            ErrorRepr::Parse(ParseError { kind: ParseErrorKind::Missing { offset }, .. }) => {
-                TextRange::new(offset, offset + TextSize::from(1))
-            }
-            ErrorRepr::Parse(ParseError {
-                kind: ParseErrorKind::Unexpected { range, .. }, ..
+            ErrorRepr::Syntax(SyntaxError {
+                kind: SyntaxErrorKind::Missing { offset }, ..
+            }) => TextRange::new(offset, offset + TextSize::from(1)),
+            ErrorRepr::Syntax(SyntaxError {
+                kind: SyntaxErrorKind::Unexpected { range, .. },
+                ..
             }) => range,
             ErrorRepr::Validation(ValidationError { range, .. }) => range,
             ErrorRepr::Lower(LowerError { range, .. }) => range,
@@ -66,7 +67,7 @@ impl Error {
 
     fn header(&self, start_line_column: &LineColumn) -> String {
         match &self.0 {
-            ErrorRepr::Parse(error) => parse_error_header(error, start_line_column),
+            ErrorRepr::Syntax(error) => syntax_error_header(error, start_line_column),
             ErrorRepr::Validation(error) => validation_error_header(error, start_line_column),
             ErrorRepr::Lower(error) => lower_error_header(error, start_line_column),
             ErrorRepr::Ty { kind, .. } => ty_error_header(kind, start_line_column),
@@ -119,20 +120,20 @@ fn input_snippet(
     lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_line_column.column + 1)));
 }
 
-fn parse_error_header(parse_error: &ParseError, start_line_column: &LineColumn) -> String {
+fn syntax_error_header(syntax_error: &SyntaxError, start_line_column: &LineColumn) -> String {
     let mut header = format!("syntax error at {}: ", start_line_column);
 
-    let write_expected_syntaxes = |buf: &mut String| match parse_error.expected_syntax {
+    let write_expected_syntaxes = |buf: &mut String| match syntax_error.expected_syntax {
         ExpectedSyntax::Named(name) => buf.push_str(name),
         ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(kind)),
     };
 
-    match parse_error.kind {
-        ParseErrorKind::Missing { .. } => {
+    match syntax_error.kind {
+        SyntaxErrorKind::Missing { .. } => {
             header.push_str("missing ");
             write_expected_syntaxes(&mut header);
         }
-        ParseErrorKind::Unexpected { found, .. } => {
+        SyntaxErrorKind::Unexpected { found, .. } => {
             header.push_str("expected ");
             write_expected_syntaxes(&mut header);
             header.push_str(&format!(" but found {}", format_kind(found)));
@@ -257,16 +258,16 @@ fn format_ty(ty: hir::Ty) -> &'static str {
 mod tests {
     use super::*;
     use expect_test::{expect, Expect};
-    use parser::error::{ExpectedSyntax, ParseErrorKind};
+    use parser::{ExpectedSyntax, SyntaxErrorKind};
     use std::ops::Range as StdRange;
 
-    fn check_parse_error(
+    fn check_syntax_error(
         input: &str,
         expected_syntax: ExpectedSyntax,
-        kind: ParseErrorKind,
+        kind: SyntaxErrorKind,
         formatted: Expect,
     ) {
-        let error = Error::from_parse_error(ParseError { expected_syntax, kind });
+        let error = Error::from_syntax_error(SyntaxError { expected_syntax, kind });
         formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
     }
 
@@ -308,11 +309,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_unexpected() {
-        check_parse_error(
+    fn syntax_error_unexpected() {
+        check_syntax_error(
             "let *",
             ExpectedSyntax::Unnamed(TokenKind::Ident),
-            ParseErrorKind::Unexpected {
+            SyntaxErrorKind::Unexpected {
                 found: TokenKind::Asterisk,
                 range: TextRange::new(4.into(), 5.into()),
             },
@@ -325,11 +326,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_missing() {
-        check_parse_error(
+    fn syntax_error_missing() {
+        check_syntax_error(
             "let idx",
             ExpectedSyntax::Unnamed(TokenKind::Eq),
-            ParseErrorKind::Missing { offset: 7.into() },
+            SyntaxErrorKind::Missing { offset: 7.into() },
             expect![[r#"
                 syntax error at 1:8: missing `=`
                   let idx
@@ -339,11 +340,11 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_missing_at_end_of_line() {
-        check_parse_error(
+    fn syntax_error_missing_at_end_of_line() {
+        check_syntax_error(
             "let a =\nlet b = a",
             ExpectedSyntax::Named("expression"),
-            ParseErrorKind::Missing { offset: 7.into() },
+            SyntaxErrorKind::Missing { offset: 7.into() },
             expect![[r#"
                 syntax error at 1:8: missing expression
                   let a =

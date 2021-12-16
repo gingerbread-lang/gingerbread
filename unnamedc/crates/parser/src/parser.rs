@@ -1,9 +1,9 @@
 mod marker;
 
 pub(crate) use self::marker::{CompletedMarker, Marker};
-use crate::error::{ExpectedSyntax, ParseError, ParseErrorKind};
 use crate::event::Event;
 use crate::token_set::TokenSet;
+use crate::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::cell::Cell;
 use std::rc::Rc;
 use syntax::SyntaxKind;
@@ -85,9 +85,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
         if self.at_eof() || self.at_set(recovery_set) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(ParseError {
+            self.events.push(Event::Error(SyntaxError {
                 expected_syntax,
-                kind: ParseErrorKind::Missing { offset: range.end() },
+                kind: SyntaxErrorKind::Missing { offset: range.end() },
             }));
 
             return None;
@@ -96,9 +96,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         // we can unwrap because we would have returned if we were at EOF
         let current_token = self.current_token().unwrap();
 
-        self.events.push(Event::Error(ParseError {
+        self.events.push(Event::Error(SyntaxError {
             expected_syntax,
-            kind: ParseErrorKind::Unexpected {
+            kind: SyntaxErrorKind::Unexpected {
                 found: current_token.kind,
                 range: current_token.range,
             },

@@ -10,7 +10,7 @@ use lsp_types::{
     SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
 };
-use parser::error::ParseErrorKind;
+use parser::SyntaxErrorKind;
 use token::TokenKind;
 
 mod lsp;
@@ -247,7 +247,7 @@ fn main() -> anyhow::Result<()> {
                             }
 
                             let range = match error.kind {
-                                ParseErrorKind::Missing { offset } => {
+                                SyntaxErrorKind::Missing { offset } => {
                                     let pos = offset_to_pos(u32::from(offset), &line_starts);
 
                                     Range {
@@ -259,7 +259,7 @@ fn main() -> anyhow::Result<()> {
                                     }
                                 }
 
-                                ParseErrorKind::Unexpected { range, .. } => Range {
+                                SyntaxErrorKind::Unexpected { range, .. } => Range {
                                     start: offset_to_pos(u32::from(range.start()), &line_starts),
                                     end: offset_to_pos(u32::from(range.end()), &line_starts),
                                 },
