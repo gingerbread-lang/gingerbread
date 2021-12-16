@@ -5,31 +5,31 @@ use lsp_types::{InitializeParams, InitializeResult};
 use std::io;
 use thiserror::Error;
 
-pub(crate) struct Connection<'s> {
+pub struct Connection<'s> {
     reader: io::StdinLock<'s>,
     writer: io::StdoutLock<'s>,
     buf: proto::ScratchReadBuf,
     next_id: model::ReqId,
 }
 
-pub(crate) struct ConnectionStorage {
+pub struct ConnectionStorage {
     stdin: io::Stdin,
     stdout: io::Stdout,
 }
 
 #[must_use]
-pub(crate) enum ReqHandler<'c, 's> {
+pub enum ReqHandler<'c, 's> {
     Unhandled { req: model::Req, connection: &'c mut Connection<'s> },
     Handled,
 }
 
-pub(crate) enum NotHandler {
+pub enum NotHandler {
     Unhandled { not: model::Not },
     Handled,
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum InitializeError {
+pub enum InitializeError {
     #[error("an error occurred while reading a message during initialization")]
     Read(#[from] proto::ReadMsgError),
 
@@ -44,7 +44,7 @@ pub(crate) enum InitializeError {
 }
 
 impl<'s> Connection<'s> {
-    pub(crate) fn new(
+    pub fn new(
         storage: &'s ConnectionStorage,
         f: impl FnOnce(InitializeParams) -> InitializeResult,
     ) -> Result<Option<Self>, InitializeError> {
@@ -60,7 +60,7 @@ impl<'s> Connection<'s> {
         Ok(Some(connection))
     }
 
-    pub(crate) fn make_request<R>(&mut self, params: R::Params) -> Result<(), proto::WriteMsgError>
+    pub fn make_request<R>(&mut self, params: R::Params) -> Result<(), proto::WriteMsgError>
     where
         R: Request,
     {
@@ -74,7 +74,7 @@ impl<'s> Connection<'s> {
         }))
     }
 
-    pub(crate) fn notify<N>(&mut self, params: N::Params) -> Result<(), proto::WriteMsgError>
+    pub fn notify<N>(&mut self, params: N::Params) -> Result<(), proto::WriteMsgError>
     where
         N: Notification,
     {
@@ -83,18 +83,18 @@ impl<'s> Connection<'s> {
         self.write_msg(&model::Msg::Not(model::Not { method: N::METHOD.to_string(), params }))
     }
 
-    pub(crate) fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
+    pub fn read_msg(&mut self) -> Result<model::Msg, proto::ReadMsgError> {
         let msg = proto::read_msg(&mut self.reader, &mut self.buf)?;
         self.bump_to_next_id(&msg);
 
         Ok(msg)
     }
 
-    pub(crate) fn req_handler<'a>(&'a mut self, req: model::Req) -> ReqHandler<'a, 's> {
+    pub fn req_handler<'a>(&'a mut self, req: model::Req) -> ReqHandler<'a, 's> {
         ReqHandler::Unhandled { req, connection: self }
     }
 
-    pub(crate) fn not_handler(&mut self, not: model::Not) -> NotHandler {
+    pub fn not_handler(&mut self, not: model::Not) -> NotHandler {
         NotHandler::Unhandled { not }
     }
 
@@ -163,7 +163,7 @@ impl<'s> Connection<'s> {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum HandleMsgError {
+pub enum HandleMsgError {
     #[error("an error occurred while writing the response to a message")]
     Write(#[from] proto::WriteMsgError),
 
@@ -172,7 +172,7 @@ pub(crate) enum HandleMsgError {
 }
 
 impl ReqHandler<'_, '_> {
-    pub(crate) fn on<R, F>(self, f: F) -> Result<Self, HandleMsgError>
+    pub fn on<R, F>(self, f: F) -> Result<Self, HandleMsgError>
     where
         R: Request,
         F: FnOnce(R::Params) -> Result<R::Result, proto::WriteMsgError>,
@@ -198,7 +198,7 @@ impl ReqHandler<'_, '_> {
         }
     }
 
-    pub(crate) fn finish(self) -> Result<(), proto::WriteMsgError> {
+    pub fn finish(self) -> Result<(), proto::WriteMsgError> {
         match self {
             Self::Unhandled { req, connection } => {
                 connection.write_msg(&model::Msg::Res(model::Res {
@@ -218,7 +218,7 @@ impl ReqHandler<'_, '_> {
 }
 
 impl NotHandler {
-    pub(crate) fn on<N, F>(self, f: F) -> Result<Self, HandleMsgError>
+    pub fn on<N, F>(self, f: F) -> Result<Self, HandleMsgError>
     where
         N: Notification,
         F: FnOnce(N::Params) -> Result<(), proto::WriteMsgError>,
@@ -234,7 +234,8 @@ impl NotHandler {
 }
 
 impl ConnectionStorage {
-    pub(crate) fn new() -> Self {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
         Self { stdin: io::stdin(), stdout: io::stdout() }
     }
 }

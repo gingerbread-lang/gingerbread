@@ -13,8 +13,6 @@ use lsp_types::{
 use parser::SyntaxErrorKind;
 use token::TokenKind;
 
-mod lsp;
-
 fn main() -> anyhow::Result<()> {
     let stdio_connection_storage = lsp::connection::ConnectionStorage::new();
 

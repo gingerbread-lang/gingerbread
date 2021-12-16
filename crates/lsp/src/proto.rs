@@ -3,15 +3,12 @@ use std::io::{self, BufRead, Write};
 use thiserror::Error;
 
 #[derive(Default)]
-pub(crate) struct ScratchReadBuf {
+pub struct ScratchReadBuf {
     string: String,
     bytes: Vec<u8>,
 }
 
-pub(crate) fn read_msg(
-    reader: &mut impl BufRead,
-    buf: &mut ScratchReadBuf,
-) -> Result<Msg, ReadMsgError> {
+pub fn read_msg(reader: &mut impl BufRead, buf: &mut ScratchReadBuf) -> Result<Msg, ReadMsgError> {
     let header = read_header(reader, &mut buf.string)?;
     read_content(reader, &mut buf.bytes, header.content_length)?;
     let msg = serde_json::from_slice(&buf.bytes)?;
@@ -19,7 +16,7 @@ pub(crate) fn read_msg(
     Ok(msg)
 }
 
-pub(crate) fn write_msg(writer: &mut impl Write, msg: &Msg) -> Result<(), WriteMsgError> {
+pub fn write_msg(writer: &mut impl Write, msg: &Msg) -> Result<(), WriteMsgError> {
     // we know Msg can always be serialized
     let serialized = serde_json::to_string(msg).unwrap();
 
@@ -117,13 +114,13 @@ struct HeaderField<'a> {
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum WriteMsgError {
+pub enum WriteMsgError {
     #[error("failed writing data to connection")]
     Io(#[from] io::Error),
 }
 
 #[derive(Debug, Error)]
-pub(crate) enum ReadMsgError {
+pub enum ReadMsgError {
     #[error("failed reading data from connection")]
     Io(#[from] io::Error),
 

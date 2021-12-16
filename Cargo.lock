@@ -287,6 +287,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp"
+version = "0.0.0"
+dependencies = [
+ "lsp-types",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "lsp-types"
 version = "0.91.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -651,12 +661,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "lexer",
+ "lsp",
  "lsp-types",
  "parser",
- "serde",
- "serde_json",
  "text-size",
- "thiserror",
  "token",
 ]
 

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum Msg {
+pub enum Msg {
     Req(Req),
     Res(Res),
     Not(Not),
@@ -51,49 +51,49 @@ impl Serialize for Msg {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Req {
-    pub(crate) id: ReqId,
-    pub(crate) method: String,
-    pub(crate) params: serde_json::Value,
+pub struct Req {
+    pub id: ReqId,
+    pub method: String,
+    pub params: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Res {
-    pub(crate) id: ReqId,
-    pub(crate) result: serde_json::Value,
+pub struct Res {
+    pub id: ReqId,
+    pub result: serde_json::Value,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) error: Option<ResError>,
+    pub error: Option<ResError>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct Not {
-    pub(crate) method: String,
-    pub(crate) params: serde_json::Value,
+pub struct Not {
+    pub method: String,
+    pub params: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub(crate) struct ResError {
-    pub(crate) code: i32,
-    pub(crate) message: String,
-    pub(crate) data: Option<serde_json::Value>,
+pub struct ResError {
+    pub code: i32,
+    pub message: String,
+    pub data: Option<serde_json::Value>,
 }
 
 #[allow(dead_code)]
-pub(crate) mod error_codes {
-    pub(crate) const PARSE_ERROR: i32 = -32700;
-    pub(crate) const INVALID_REQUEST: i32 = -32600;
-    pub(crate) const METHOD_NOT_FOUND: i32 = -32601;
-    pub(crate) const INVALID_PARAMS: i32 = -32602;
-    pub(crate) const INTERNAL_ERROR: i32 = -32603;
-    pub(crate) const SERVER_NOT_INITIALIZED: i32 = -32002;
-    pub(crate) const UNKNOWN: i32 = -32001;
-    pub(crate) const CONTENT_MODIFIED: i32 = -32801;
-    pub(crate) const REQUEST_CANCELLED: i32 = -32800;
+pub mod error_codes {
+    pub const PARSE_ERROR: i32 = -32700;
+    pub const INVALID_REQUEST: i32 = -32600;
+    pub const METHOD_NOT_FOUND: i32 = -32601;
+    pub const INVALID_PARAMS: i32 = -32602;
+    pub const INTERNAL_ERROR: i32 = -32603;
+    pub const SERVER_NOT_INITIALIZED: i32 = -32002;
+    pub const UNKNOWN: i32 = -32001;
+    pub const CONTENT_MODIFIED: i32 = -32801;
+    pub const REQUEST_CANCELLED: i32 = -32800;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum ReqId {
+pub enum ReqId {
     Integer(u32),
     String(String),
 }
