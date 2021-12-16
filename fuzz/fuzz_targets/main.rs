@@ -10,6 +10,4 @@ fuzz_target!(|s: &str| {
     let _validation_errors = ast::validation::validate(&root);
     let lower_result = hir_lower::lower(&root);
     let _infer_result = hir_ty::infer(&lower_result.program);
-    let mut evaluator = eval::Evaluator::default();
-    let _result = evaluator.eval(lower_result.program);
 });
