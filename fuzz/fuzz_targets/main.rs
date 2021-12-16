@@ -8,8 +8,8 @@ fuzz_target!(|s: &str| {
     let parse = parser::parse_repl_line(&tokens);
     let root = ast::Root::cast(parse.syntax_node()).unwrap();
     let _validation_errors = ast::validation::validate(&root);
-    let (program, ..) = hir_lower::lower(&root);
-    let _infer_result = hir_ty::infer(&program);
+    let lower_result = hir_lower::lower(&root);
+    let _infer_result = hir_ty::infer(&lower_result.program);
     let mut evaluator = eval::Evaluator::default();
-    let _result = evaluator.eval(program);
+    let _result = evaluator.eval(lower_result.program);
 });
