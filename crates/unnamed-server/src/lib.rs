@@ -70,12 +70,11 @@ impl Analysis {
             self.update_line_index();
         }
 
-        self.update_parse();
+        self.reparse();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
-        let mut data = Vec::new();
-
+        let mut tokens = Vec::new();
         let mut prev_token_position = None;
 
         for token in lexer::lex(&self.content) {
@@ -108,7 +107,7 @@ impl Analysis {
 
             prev_token_position = Some((line, column));
 
-            data.push(SemanticToken {
+            tokens.push(SemanticToken {
                 delta_line: delta_line.0,
                 delta_start: delta_column.0,
                 length: u32::from(token.range.len()),
@@ -138,52 +137,48 @@ impl Analysis {
             });
         }
 
-        data
+        tokens
     }
 
     fn diagnostics(&self) -> Vec<Diagnostic> {
-        let mut diagnostics = Vec::new();
-
-        for error in self.parse.errors() {
-            let range = match error.kind {
-                SyntaxErrorKind::Missing { offset } => {
-                    let pos = convert_text_size(offset, &self.line_index);
-
-                    Range {
-                        start: pos,
-                        end: Position { line: pos.line, character: pos.character + 1 },
+        self.parse
+            .errors()
+            .iter()
+            .map(|error| {
+                let range = match error.kind {
+                    SyntaxErrorKind::Missing { offset } => {
+                        let pos = convert_text_size(offset, &self.line_index);
+                        Range {
+                            start: pos,
+                            end: Position { line: pos.line, character: pos.character + 1 },
+                        }
                     }
+                    SyntaxErrorKind::Unexpected { range, .. } => Range {
+                        start: convert_text_size(range.start(), &self.line_index),
+                        end: convert_text_size(range.end(), &self.line_index),
+                    },
+                };
+
+                Diagnostic {
+                    range,
+                    severity: Some(DiagnosticSeverity::ERROR),
+                    code: None,
+                    code_description: None,
+                    source: Some("unnamedc".to_string()),
+                    message: format!("{:?}", error),
+                    related_information: None,
+                    tags: None,
+                    data: None,
                 }
-
-                SyntaxErrorKind::Unexpected { range, .. } => Range {
-                    start: convert_text_size(range.start(), &self.line_index),
-                    end: convert_text_size(range.end(), &self.line_index),
-                },
-            };
-
-            let diagnostic = Diagnostic {
-                range,
-                severity: Some(DiagnosticSeverity::ERROR),
-                code: None,
-                code_description: None,
-                source: Some("unnamedc".to_string()),
-                message: format!("{:?}", error),
-                related_information: None,
-                tags: None,
-                data: None,
-            };
-
-            diagnostics.push(diagnostic);
-        }
-
-        diagnostics
+            })
+            .collect()
     }
 
     fn update_line_index(&mut self) {
         self.line_index = LineIndex::new(&self.content);
     }
 
-    fn update_parse(&mut self) {
+    fn reparse(&mut self) {
         let tokens = lexer::lex(&self.content);
         self.parse = parser::parse_source_file(&tokens);
     }
