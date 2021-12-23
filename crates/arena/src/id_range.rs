@@ -1,5 +1,5 @@
 pub(crate) mod builder;
-use self::builder::{IdRangeBuilder, IdRangeBuilderRepr};
+use self::builder::{IdRangeBuilder, Repr};
 
 use crate::Id;
 use std::fmt;
@@ -17,7 +17,7 @@ impl<T> IdRange<T> {
     }
 
     pub fn builder() -> IdRangeBuilder<T> {
-        IdRangeBuilder(IdRangeBuilderRepr::Empty)
+        IdRangeBuilder(Repr::Empty)
     }
 
     pub fn len(&self) -> usize {
