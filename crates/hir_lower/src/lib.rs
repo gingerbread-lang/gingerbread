@@ -84,13 +84,13 @@ pub struct SourceMap {
     pub expr_map_back: HashMap<ast::Expr, hir::ExprId>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LowerError {
     pub range: TextRange,
     pub kind: LowerErrorKind,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LowerErrorKind {
     UndefinedVarOrFnc { name: String },
     UndefinedFnc { name: String },

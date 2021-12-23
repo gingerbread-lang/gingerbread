@@ -8,6 +8,7 @@ version = "0.1.0"
 anyhow = "1.0"
 ast = {path = "../ast"}
 errors = {path = "../errors"}
+hir_lower = {path = "../hir_lower"}
 lexer = {path = "../lexer"}
 line_index = {path = "../line_index"}
 lsp = {path = "../lsp"}

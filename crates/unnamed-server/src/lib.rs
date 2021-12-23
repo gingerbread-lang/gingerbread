@@ -1,6 +1,7 @@
 use ast::validation::ValidationError;
 use ast::AstNode;
 use errors::Error;
+use hir_lower::LowerResult;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
@@ -20,7 +21,9 @@ struct Analysis {
     content: String,
     line_index: LineIndex,
     parse: Parse,
+    ast: ast::Root,
     validation_errors: Vec<ValidationError>,
+    lower_result: LowerResult,
 }
 
 impl GlobalState {
@@ -47,12 +50,16 @@ impl Analysis {
             let tokens = lexer::lex(&content);
             parser::parse_source_file(&tokens)
         };
+        let ast = ast::Root::cast(parse.syntax_node()).unwrap();
+        let lower_result = hir_lower::lower(&ast);
 
         let mut analysis = Self {
             content,
             line_index: LineIndex::default(),
             parse,
+            ast,
             validation_errors: Vec::new(),
+            lower_result,
         };
 
         analysis.update_line_index();
@@ -82,6 +89,7 @@ impl Analysis {
 
         self.reparse();
         self.validate();
+        self.lower();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -155,8 +163,9 @@ impl Analysis {
         let syntax_errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
         let validation_errors =
             self.validation_errors.iter().copied().map(Error::from_validation_error);
+        let lower_errors = self.lower_result.errors.iter().cloned().map(Error::from_lower_error);
 
-        let errors = syntax_errors.chain(validation_errors);
+        let errors = syntax_errors.chain(validation_errors).chain(lower_errors);
 
         errors
             .map(|error| Diagnostic {
@@ -180,11 +189,15 @@ impl Analysis {
     fn reparse(&mut self) {
         let tokens = lexer::lex(&self.content);
         self.parse = parser::parse_source_file(&tokens);
+        self.ast = ast::Root::cast(self.parse.syntax_node()).unwrap();
     }
 
     fn validate(&mut self) {
-        let root = ast::Root::cast(self.parse.syntax_node()).unwrap();
-        self.validation_errors = ast::validation::validate(&root);
+        self.validation_errors = ast::validation::validate(&self.ast);
+    }
+
+    fn lower(&mut self) {
+        self.lower_result = hir_lower::lower(&self.ast);
     }
 }
 
