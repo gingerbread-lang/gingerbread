@@ -22,13 +22,13 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
     errors
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ValidationError {
     pub kind: ValidationErrorKind,
     pub range: TextRange,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValidationErrorKind {
     IntLiteralTooBig,
 }

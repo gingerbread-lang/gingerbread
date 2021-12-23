@@ -669,6 +669,7 @@ name = "unnamed-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "ast",
  "errors",
  "lexer",
  "line_index",

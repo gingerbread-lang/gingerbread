@@ -1,3 +1,5 @@
+use ast::validation::ValidationError;
+use ast::AstNode;
 use errors::Error;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
@@ -18,6 +20,7 @@ struct Analysis {
     content: String,
     line_index: LineIndex,
     parse: Parse,
+    validation_errors: Vec<ValidationError>,
 }
 
 impl GlobalState {
@@ -40,14 +43,22 @@ impl GlobalState {
 
 impl Analysis {
     fn new(content: String) -> Self {
-        let line_index = LineIndex::new(&content);
-
         let parse = {
             let tokens = lexer::lex(&content);
             parser::parse_source_file(&tokens)
         };
 
-        Self { content, line_index, parse }
+        let mut analysis = Self {
+            content,
+            line_index: LineIndex::default(),
+            parse,
+            validation_errors: Vec::new(),
+        };
+
+        analysis.update_line_index();
+        analysis.validate();
+
+        analysis
     }
 
     fn apply_changes(&mut self, changes: Vec<TextDocumentContentChangeEvent>) {
@@ -70,6 +81,7 @@ impl Analysis {
         }
 
         self.reparse();
+        self.validate();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -140,7 +152,11 @@ impl Analysis {
     }
 
     fn diagnostics(&self) -> Vec<Diagnostic> {
-        let errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
+        let syntax_errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
+        let validation_errors =
+            self.validation_errors.iter().copied().map(Error::from_validation_error);
+
+        let errors = syntax_errors.chain(validation_errors);
 
         errors
             .map(|error| Diagnostic {
@@ -164,6 +180,11 @@ impl Analysis {
     fn reparse(&mut self) {
         let tokens = lexer::lex(&self.content);
         self.parse = parser::parse_source_file(&tokens);
+    }
+
+    fn validate(&mut self) {
+        let root = ast::Root::cast(self.parse.syntax_node()).unwrap();
+        self.validation_errors = ast::validation::validate(&root);
     }
 }
 
