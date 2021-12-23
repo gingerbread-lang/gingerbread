@@ -76,10 +76,6 @@ impl Analysis {
     fn highlight(&self) -> Vec<SemanticToken> {
         let mut data = Vec::new();
 
-        let line_starts: Vec<_> = std::iter::once(0)
-            .chain(self.content.match_indices('\n').map(|(idx, _)| idx as u32 + 1))
-            .collect();
-
         let mut prev_token_position = None;
 
         for token in lexer::lex(&self.content) {
@@ -100,35 +96,21 @@ impl Analysis {
                 continue;
             }
 
-            let (line_number, line_start) = line_starts
-                .iter()
-                .enumerate()
-                .rev()
-                .find(|(_, line_start)| **line_start <= u32::from(token.range.start()))
-                .unwrap();
+            let (line, column) = self.line_index.line_col(token.range.start());
 
-            let line_number = line_number as u32;
-
-            let column_number = u32::from(token.range.start()) - line_start;
-
-            let pos = match prev_token_position {
-                Some((prev_line_number, prev_column_number)) => {
-                    let on_same_line_as_prev_token = prev_line_number == line_number;
-
-                    if on_same_line_as_prev_token {
-                        (0, column_number - prev_column_number)
-                    } else {
-                        (line_number - prev_line_number, column_number)
-                    }
+            let (delta_line, delta_column) = match prev_token_position {
+                Some((prev_line, prev_column)) if prev_line == line => {
+                    (LineNr(0), column - prev_column)
                 }
-                None => (line_number, column_number),
+                Some((prev_line, _)) => (line - prev_line, column),
+                None => (line, column),
             };
 
-            prev_token_position = Some((line_number, column_number));
+            prev_token_position = Some((line, column));
 
             data.push(SemanticToken {
-                delta_line: pos.0,
-                delta_start: pos.1,
+                delta_line: delta_line.0,
+                delta_start: delta_column.0,
                 length: u32::from(token.range.len()),
                 token_type: match token.kind {
                     TokenKind::LetKw | TokenKind::FncKw => 0,

@@ -1,5 +1,5 @@
 use std::iter;
-use std::ops::Index;
+use std::ops::{Index, Sub};
 use text_size::TextSize;
 
 #[derive(Debug, PartialEq, Default)]
@@ -7,10 +7,10 @@ pub(crate) struct LineIndex {
     line_starts: Vec<TextSize>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct LineNr(pub(crate) u32);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct ColNr(pub(crate) u32);
 
 impl LineIndex {
@@ -38,6 +38,22 @@ impl Index<LineNr> for LineIndex {
 
     fn index(&self, index: LineNr) -> &Self::Output {
         &self.line_starts[index.0 as usize]
+    }
+}
+
+impl Sub for LineNr {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
+    }
+}
+
+impl Sub for ColNr {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0 - rhs.0)
     }
 }
 
