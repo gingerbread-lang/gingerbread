@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "line_index"
+version = "0.0.0"
+
+[dependencies]
+text-size = "1.1"

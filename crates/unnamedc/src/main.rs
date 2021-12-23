@@ -4,6 +4,7 @@ use crossterm::style::{ContentStyle, StyledContent, Stylize};
 use crossterm::{cursor, queue, terminal};
 use errors::Error;
 use eval::Evaluator;
+use line_index::LineIndex;
 use std::convert::TryInto;
 use std::io::{self, Write};
 use std::mem;
@@ -195,8 +196,10 @@ fn render(
         Err((old_state, errors)) if pressed_enter => {
             writeln!(stdout, "\r")?;
 
+            let line_index = LineIndex::new(input);
+
             for error in errors {
-                for line in error.display(input) {
+                for line in error.display(input, &line_index) {
                     writeln!(stdout, "{}\r", line)?;
                 }
             }

@@ -2,9 +2,9 @@ use ast::validation::{ValidationError, ValidationErrorKind};
 use ast::AstNode;
 use hir_lower::{LowerError, LowerErrorKind, SourceMap};
 use hir_ty::{TyError, TyErrorKind};
+use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
-use std::convert::{TryFrom, TryInto};
-use std::fmt;
+use std::convert::TryInto;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
@@ -34,19 +34,24 @@ impl Error {
         Self(ErrorRepr::Ty { kind: error.kind, range: source_map.expr_map[error.expr].range() })
     }
 
-    pub fn display(&self, input: &str) -> Vec<String> {
+    pub fn display(&self, input: &str, line_index: &LineIndex) -> Vec<String> {
         let range = self.range();
 
-        let start_line_column = text_size_to_line_column(range.start(), input);
+        let (start_line, start_col) = line_index.line_col(range.start());
 
         // we subtract 1 since end_line_column is inclusive,
         // unlike TextRange which is always exclusive
-        let end_line_column = text_size_to_line_column(range.end() - TextSize::from(1), input);
+        let (end_line, end_col) = line_index.line_col(range.end() - TextSize::from(1));
 
-        let mut lines =
-            vec![format!("{} at {}: {}", self.kind(), start_line_column, self.message())];
+        let mut lines = vec![format!(
+            "{} at {}:{}: {}",
+            self.kind(),
+            start_line.0 + 1,
+            start_col.0 + 1,
+            self.message()
+        )];
 
-        input_snippet(input, start_line_column, end_line_column, range, &mut lines);
+        input_snippet(input, start_line, start_col, end_line, end_col, range, &mut lines);
 
         lines
     }
@@ -97,8 +102,10 @@ impl Error {
 
 fn input_snippet(
     input: &str,
-    start_line_column: LineColumn,
-    end_line_column: LineColumn,
+    start_line: LineNr,
+    start_col: ColNr,
+    end_line: LineNr,
+    end_col: ColNr,
     range: TextRange,
     lines: &mut Vec<String>,
 ) {
@@ -108,36 +115,36 @@ fn input_snippet(
 
     let file_lines: Vec<_> = input.lines().collect();
 
-    let is_single_line = start_line_column.line == end_line_column.line;
+    let is_single_line = start_line == end_line;
     if is_single_line {
-        lines.push(format!("{}{}", PADDING, file_lines[start_line_column.line]));
+        lines.push(format!("{}{}", PADDING, file_lines[start_line.0 as usize]));
 
         lines.push(format!(
             "{}{}{}",
             PADDING,
-            " ".repeat(start_line_column.column),
+            " ".repeat(start_col.0 as usize),
             POINTER_UP.repeat(range.len().try_into().unwrap())
         ));
 
         return;
     }
 
-    let first_line = file_lines[start_line_column.line];
+    let first_line = file_lines[start_line.0 as usize];
     lines.push(format!(
         "{}{}{}",
         PADDING,
-        " ".repeat(start_line_column.column),
-        POINTER_DOWN.repeat(first_line.len() - start_line_column.column)
+        " ".repeat(start_col.0 as usize),
+        POINTER_DOWN.repeat(first_line.len() - start_col.0 as usize)
     ));
     lines.push(format!("{}{}", PADDING, first_line));
 
-    for line in &file_lines[start_line_column.line + 1..end_line_column.line] {
+    for line in &file_lines[start_line.0 as usize + 1..end_line.0 as usize] {
         lines.push(format!("{}{}", PADDING, line));
     }
 
-    let last_line = file_lines[end_line_column.line];
+    let last_line = file_lines[end_line.0 as usize];
     lines.push(format!("{}{}", PADDING, last_line));
-    lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_line_column.column + 1)));
+    lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_col.0 as usize + 1)));
 }
 
 fn syntax_error_message(syntax_error: &SyntaxError) -> String {
@@ -194,37 +201,6 @@ fn ty_error_message(ty_error_kind: &TyErrorKind) -> String {
     }
 }
 
-fn text_size_to_line_column(text_size: TextSize, input: &str) -> LineColumn {
-    // the collect into a Vec followed by an immediate .into_iter() call
-    // is needed so we have an ExactSizeIterator to call .rev() on
-    #[allow(clippy::needless_collect)]
-    let line_idxs: Vec<_> = input.match_indices('\n').map(|(idx, _)| idx).collect();
-
-    let (line, line_start_idx) = line_idxs
-        .into_iter()
-        .enumerate()
-        .rev()
-        .find(|(_, line_start_idx)| *line_start_idx < text_size.try_into().unwrap())
-        .map(|(idx, line_start_idx)| (idx + 1, line_start_idx + 1))
-        .unwrap_or((0, 0));
-
-    let column = usize::try_from(text_size).unwrap() - line_start_idx;
-
-    LineColumn { line, column }
-}
-
-#[derive(Debug)]
-struct LineColumn {
-    line: usize,
-    column: usize,
-}
-
-impl fmt::Display for LineColumn {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.line + 1, self.column + 1)
-    }
-}
-
 fn format_kind(kind: TokenKind) -> &'static str {
     match kind {
         TokenKind::LetKw => "`let`",
@@ -274,7 +250,8 @@ mod tests {
         formatted: Expect,
     ) {
         let error = Error::from_syntax_error(SyntaxError { expected_syntax, kind });
-        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
+        formatted
+            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
     }
 
     fn check_validation_error(
@@ -288,7 +265,8 @@ mod tests {
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
-        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
+        formatted
+            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
     }
 
     fn check_lower_error(
@@ -302,7 +280,8 @@ mod tests {
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
-        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
+        formatted
+            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
     }
 
     fn check_ty_error(input: &str, kind: TyErrorKind, range: StdRange<u32>, formatted: Expect) {
@@ -311,7 +290,8 @@ mod tests {
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
-        formatted.assert_eq(&format!("{}\n", error.display(input).join("\n")));
+        formatted
+            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
     }
 
     #[test]

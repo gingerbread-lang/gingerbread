@@ -3,18 +3,18 @@ use std::ops::{Index, Sub};
 use text_size::TextSize;
 
 #[derive(Debug, PartialEq, Default)]
-pub(crate) struct LineIndex {
+pub struct LineIndex {
     line_starts: Vec<TextSize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct LineNr(pub(crate) u32);
+pub struct LineNr(pub u32);
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct ColNr(pub(crate) u32);
+pub struct ColNr(pub u32);
 
 impl LineIndex {
-    pub(crate) fn new(text: &str) -> Self {
+    pub fn new(text: &str) -> Self {
         Self {
             line_starts: iter::once(TextSize::from(0))
                 .chain(text.match_indices('\n').map(|(idx, _)| TextSize::from(idx as u32 + 1)))
@@ -22,7 +22,7 @@ impl LineIndex {
         }
     }
 
-    pub(crate) fn line_col(&self, offset: TextSize) -> (LineNr, ColNr) {
+    pub fn line_col(&self, offset: TextSize) -> (LineNr, ColNr) {
         let line = self.line_starts.partition_point(|&it| it <= offset) - 1;
         let line = LineNr(line as u32);
 

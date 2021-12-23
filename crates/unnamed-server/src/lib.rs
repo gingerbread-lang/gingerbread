@@ -1,5 +1,3 @@
-mod line_index;
-
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,

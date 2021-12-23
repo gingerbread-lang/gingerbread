@@ -9,6 +9,7 @@ ast = {path = "../ast"}
 hir = {path = "../hir"}
 hir_lower = {path = "../hir_lower"}
 hir_ty = {path = "../hir_ty"}
+line_index = {path = "../line_index"}
 parser = {path = "../parser"}
 text-size = "1.1"
 token = {path = "../token"}
