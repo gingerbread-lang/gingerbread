@@ -148,10 +148,7 @@ impl Analysis {
                 let range = match error.kind {
                     SyntaxErrorKind::Missing { offset } => {
                         let pos = convert_text_size(offset, &self.line_index);
-                        Range {
-                            start: pos,
-                            end: Position { line: pos.line, character: pos.character + 1 },
-                        }
+                        Range { start: pos, end: pos }
                     }
                     SyntaxErrorKind::Unexpected { range, .. } => Range {
                         start: convert_text_size(range.start(), &self.line_index),
