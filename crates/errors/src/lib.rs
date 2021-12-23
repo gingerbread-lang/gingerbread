@@ -123,7 +123,7 @@ fn input_snippet(
 fn syntax_error_header(syntax_error: &SyntaxError, start_line_column: &LineColumn) -> String {
     let mut header = format!("syntax error at {}: ", start_line_column);
 
-    let write_expected_syntaxes = |buf: &mut String| match syntax_error.expected_syntax {
+    let write_expected_syntax = |buf: &mut String| match syntax_error.expected_syntax {
         ExpectedSyntax::Named(name) => buf.push_str(name),
         ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(kind)),
     };
@@ -131,11 +131,11 @@ fn syntax_error_header(syntax_error: &SyntaxError, start_line_column: &LineColum
     match syntax_error.kind {
         SyntaxErrorKind::Missing { .. } => {
             header.push_str("missing ");
-            write_expected_syntaxes(&mut header);
+            write_expected_syntax(&mut header);
         }
         SyntaxErrorKind::Unexpected { found, .. } => {
             header.push_str("expected ");
-            write_expected_syntaxes(&mut header);
+            write_expected_syntax(&mut header);
             header.push_str(&format!(" but found {}", format_kind(found)));
         }
     }
