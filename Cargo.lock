@@ -672,6 +672,7 @@ dependencies = [
  "ast",
  "errors",
  "hir_lower",
+ "hir_ty",
  "lexer",
  "line_index",
  "lsp",

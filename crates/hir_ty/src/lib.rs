@@ -53,6 +53,10 @@ impl InferResult {
 
         (in_scope, self.errors)
     }
+
+    pub fn errors(&self) -> &[TyError] {
+        &self.errors
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -68,13 +72,13 @@ pub struct Sig {
     ret_ty: hir::Ty,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TyError {
     pub expr: hir::ExprId,
     pub kind: TyErrorKind,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TyErrorKind {
     Mismatch { expected: hir::Ty, found: hir::Ty },
     MismatchedArgCount { expected: u32, found: u32 },

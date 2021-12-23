@@ -125,7 +125,7 @@ mod tests {
         let lower_result = hir_lower::lower(&root);
         assert_eq!(lower_result.errors, []);
 
-        assert_eq!(hir_ty::infer(&lower_result.program).in_scope().1, []);
+        assert_eq!(hir_ty::infer(&lower_result.program).errors(), []);
 
         assert_eq!(Evaluator::default().eval(lower_result.program), val);
     }

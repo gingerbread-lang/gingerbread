@@ -2,6 +2,7 @@ use ast::validation::ValidationError;
 use ast::AstNode;
 use errors::Error;
 use hir_lower::LowerResult;
+use hir_ty::InferResult;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
@@ -24,6 +25,7 @@ struct Analysis {
     ast: ast::Root,
     validation_errors: Vec<ValidationError>,
     lower_result: LowerResult,
+    infer_result: InferResult,
 }
 
 impl GlobalState {
@@ -52,6 +54,7 @@ impl Analysis {
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
         let lower_result = hir_lower::lower(&ast);
+        let infer_result = hir_ty::infer(&lower_result.program);
 
         let mut analysis = Self {
             content,
@@ -60,6 +63,7 @@ impl Analysis {
             ast,
             validation_errors: Vec::new(),
             lower_result,
+            infer_result,
         };
 
         analysis.update_line_index();
@@ -90,6 +94,7 @@ impl Analysis {
         self.reparse();
         self.validate();
         self.lower();
+        self.infer();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -161,11 +166,20 @@ impl Analysis {
 
     fn diagnostics(&self) -> Vec<Diagnostic> {
         let syntax_errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
+
         let validation_errors =
             self.validation_errors.iter().copied().map(Error::from_validation_error);
+
         let lower_errors = self.lower_result.errors.iter().cloned().map(Error::from_lower_error);
 
-        let errors = syntax_errors.chain(validation_errors).chain(lower_errors);
+        let ty_errors = self
+            .infer_result
+            .errors()
+            .iter()
+            .copied()
+            .map(|e| Error::from_ty_error(e, &self.lower_result.source_map));
+
+        let errors = syntax_errors.chain(validation_errors).chain(lower_errors).chain(ty_errors);
 
         errors
             .map(|error| Diagnostic {
@@ -198,6 +212,10 @@ impl Analysis {
 
     fn lower(&mut self) {
         self.lower_result = hir_lower::lower(&self.ast);
+    }
+
+    fn infer(&mut self) {
+        self.infer_result = hir_ty::infer(&self.lower_result.program);
     }
 }
 
