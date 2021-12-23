@@ -174,7 +174,7 @@ impl Analysis {
                 code: None,
                 code_description: None,
                 source: Some("unnamedc".to_string()),
-                message: format!("{}: {}", error.kind(), error.message()),
+                message: format!("{}:\n{}", error.kind(), error.message()),
                 related_information: None,
                 tags: None,
                 data: None,
