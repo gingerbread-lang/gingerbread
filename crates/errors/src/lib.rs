@@ -43,7 +43,8 @@ impl Error {
         // unlike TextRange which is always exclusive
         let end_line_column = text_size_to_line_column(range.end() - TextSize::from(1), input);
 
-        let mut lines = vec![self.header(&start_line_column)];
+        let mut lines =
+            vec![format!("{} at {}: {}", self.kind(), start_line_column, self.message())];
 
         input_snippet(input, start_line_column, end_line_column, range, &mut lines);
 
@@ -65,12 +66,31 @@ impl Error {
         }
     }
 
-    fn header(&self, start_line_column: &LineColumn) -> String {
+    pub fn kind(&self) -> &'static str {
         match &self.0 {
-            ErrorRepr::Syntax(error) => syntax_error_header(error, start_line_column),
-            ErrorRepr::Validation(error) => validation_error_header(error, start_line_column),
-            ErrorRepr::Lower(error) => lower_error_header(error, start_line_column),
-            ErrorRepr::Ty { kind, .. } => ty_error_header(kind, start_line_column),
+            ErrorRepr::Syntax(_) | ErrorRepr::Validation(_) => "syntax error",
+
+            ErrorRepr::Lower(error) => match error.kind {
+                LowerErrorKind::UndefinedVarOrFnc { .. } => {
+                    "undefined variable or zero-parameter function"
+                }
+                LowerErrorKind::UndefinedFnc { .. } => "undefined function",
+                LowerErrorKind::UndefinedTy { .. } => "undefined type",
+            },
+
+            ErrorRepr::Ty { kind, .. } => match kind {
+                TyErrorKind::Mismatch { .. } => "type mismatch",
+                TyErrorKind::MismatchedArgCount { .. } => "mismatched argument count",
+            },
+        }
+    }
+
+    pub fn message(&self) -> String {
+        match &self.0 {
+            ErrorRepr::Syntax(error) => syntax_error_message(error),
+            ErrorRepr::Validation(error) => validation_error_message(error),
+            ErrorRepr::Lower(error) => lower_error_message(error),
+            ErrorRepr::Ty { kind, .. } => ty_error_message(kind),
         }
     }
 }
@@ -120,71 +140,57 @@ fn input_snippet(
     lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_line_column.column + 1)));
 }
 
-fn syntax_error_header(syntax_error: &SyntaxError, start_line_column: &LineColumn) -> String {
-    let mut header = format!("syntax error at {}: ", start_line_column);
-
+fn syntax_error_message(syntax_error: &SyntaxError) -> String {
     let write_expected_syntax = |buf: &mut String| match syntax_error.expected_syntax {
         ExpectedSyntax::Named(name) => buf.push_str(name),
         ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(kind)),
     };
 
+    let mut message = String::new();
+
     match syntax_error.kind {
         SyntaxErrorKind::Missing { .. } => {
-            header.push_str("missing ");
-            write_expected_syntax(&mut header);
+            message.push_str("missing ");
+            write_expected_syntax(&mut message);
         }
         SyntaxErrorKind::Unexpected { found, .. } => {
-            header.push_str("expected ");
-            write_expected_syntax(&mut header);
-            header.push_str(&format!(" but found {}", format_kind(found)));
+            message.push_str("expected ");
+            write_expected_syntax(&mut message);
+            message.push_str(&format!(" but found {}", format_kind(found)));
         }
     }
 
-    header
+    message
 }
 
-fn validation_error_header(
-    validation_error: &ValidationError,
-    start_line_column: &LineColumn,
-) -> String {
-    let mut header = format!("syntax error at {}: ", start_line_column);
-
+fn validation_error_message(validation_error: &ValidationError) -> String {
     match validation_error.kind {
-        ValidationErrorKind::IntLiteralTooBig => header.push_str("integer literal too large"),
+        ValidationErrorKind::IntLiteralTooBig => "integer literal too large".to_string(),
     }
-
-    header
 }
 
-fn lower_error_header(lower_error: &LowerError, start_line_column: &LineColumn) -> String {
+fn lower_error_message(lower_error: &LowerError) -> String {
     match lower_error.kind {
         LowerErrorKind::UndefinedVarOrFnc { ref name } => {
-            format!(
-                "undefined variable or zero-parameter function at {}: `{}` has not been defined",
-                start_line_column, name
-            )
+            format!("`{}` has not been defined", name)
         }
         LowerErrorKind::UndefinedFnc { ref name } => {
-            format!("undefined function at {}: `{}` has not been defined", start_line_column, name)
+            format!("`{}` has not been defined", name)
         }
         LowerErrorKind::UndefinedTy { ref name } => {
-            format!("undefined type at {}: `{}` has not been defined", start_line_column, name)
+            format!("`{}` has not been defined", name)
         }
     }
 }
 
-fn ty_error_header(ty_error_kind: &TyErrorKind, start_line_column: &LineColumn) -> String {
+fn ty_error_message(ty_error_kind: &TyErrorKind) -> String {
     match ty_error_kind {
-        TyErrorKind::Mismatch { expected, found } => format!(
-            "type mismatch at {}: expected {} but found {}",
-            start_line_column,
-            format_ty(*expected),
-            format_ty(*found)
-        ),
-        TyErrorKind::MismatchedArgCount { expected, found } => format!(
-            "mismatched argument count at {}: expected {} but found {}",
-            start_line_column, expected, found
-        ),
+        TyErrorKind::Mismatch { expected, found } => {
+            format!("expected {} but found {}", format_ty(*expected), format_ty(*found))
+        }
+        TyErrorKind::MismatchedArgCount { expected, found } => {
+            format!("expected {} but found {}", expected, found)
+        }
     }
 }
 
