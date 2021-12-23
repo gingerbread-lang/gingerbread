@@ -79,10 +79,10 @@ fn main() -> anyhow::Result<()> {
                             range: Range { start: Position::new(0, 0), end: Position::new(0, 2) },
                         }])))
                     })?
-                    .on::<SemanticTokensFullRequest, _>(|_params| {
+                    .on::<SemanticTokensFullRequest, _>(|params| {
                         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
                             result_id: None,
-                            data: global_state.highlight(),
+                            data: global_state.highlight(&params.text_document.uri),
                         })))
                     })?
                     .finish()?;
@@ -104,15 +104,18 @@ fn main() -> anyhow::Result<()> {
                 connection
                     .not_handler(not)
                     .on::<DidOpenTextDocument, _>(|params| {
-                        global_state.open_file(params.text_document.text, params.text_document.uri);
+                        global_state.open_file(params.text_document.uri, params.text_document.text);
                         Ok(())
                     })?
                     .on::<DidChangeTextDocument, _>(|params| {
-                        global_state.apply_changes(params.content_changes);
+                        global_state
+                            .apply_changes(&params.text_document.uri, params.content_changes);
+
+                        let diagnostics = global_state.diagnostics(&params.text_document.uri);
 
                         connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-                            uri: global_state.uri().unwrap(),
-                            diagnostics: global_state.diagnostics(),
+                            uri: params.text_document.uri,
+                            diagnostics,
                             version: None,
                         })?;
 
