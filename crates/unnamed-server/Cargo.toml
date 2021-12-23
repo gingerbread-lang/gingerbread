@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 anyhow = "1.0"
+errors = {path = "../errors"}
 lexer = {path = "../lexer"}
 line_index = {path = "../line_index"}
 lsp = {path = "../lsp"}

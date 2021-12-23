@@ -2,13 +2,13 @@ use std::fmt;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct SyntaxError {
     pub expected_syntax: ExpectedSyntax,
     pub kind: SyntaxErrorKind,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SyntaxErrorKind {
     Missing { offset: TextSize },
     Unexpected { found: TokenKind, range: TextRange },
@@ -46,7 +46,7 @@ impl fmt::Debug for SyntaxError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ExpectedSyntax {
     Named(&'static str),
     Unnamed(TokenKind),

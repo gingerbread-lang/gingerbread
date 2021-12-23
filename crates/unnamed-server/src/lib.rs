@@ -1,9 +1,10 @@
+use errors::Error;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
     Url,
 };
-use parser::{Parse, SyntaxErrorKind};
+use parser::Parse;
 use std::collections::HashMap;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
@@ -139,32 +140,19 @@ impl Analysis {
     }
 
     fn diagnostics(&self) -> Vec<Diagnostic> {
-        self.parse
-            .errors()
-            .iter()
-            .map(|error| {
-                let range = match error.kind {
-                    SyntaxErrorKind::Missing { offset } => {
-                        let pos = convert_text_size(offset, &self.line_index);
-                        Range { start: pos, end: pos }
-                    }
-                    SyntaxErrorKind::Unexpected { range, .. } => Range {
-                        start: convert_text_size(range.start(), &self.line_index),
-                        end: convert_text_size(range.end(), &self.line_index),
-                    },
-                };
+        let errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
 
-                Diagnostic {
-                    range,
-                    severity: Some(DiagnosticSeverity::ERROR),
-                    code: None,
-                    code_description: None,
-                    source: Some("unnamedc".to_string()),
-                    message: format!("{:?}", error),
-                    related_information: None,
-                    tags: None,
-                    data: None,
-                }
+        errors
+            .map(|error| Diagnostic {
+                range: convert_text_range(error.range(), &self.line_index),
+                severity: Some(DiagnosticSeverity::ERROR),
+                code: None,
+                code_description: None,
+                source: Some("unnamedc".to_string()),
+                message: format!("{}: {}", error.kind(), error.message()),
+                related_information: None,
+                tags: None,
+                data: None,
             })
             .collect()
     }
@@ -188,6 +176,13 @@ fn convert_lsp_range(range: Range, line_index: &LineIndex) -> TextRange {
 
 fn convert_lsp_position(position: Position, line_index: &LineIndex) -> TextSize {
     line_index[LineNr(position.line)] + TextSize::from(position.character)
+}
+
+fn convert_text_range(range: TextRange, line_index: &LineIndex) -> Range {
+    Range {
+        start: convert_text_size(range.start(), line_index),
+        end: convert_text_size(range.end(), line_index),
+    }
 }
 
 fn convert_text_size(offset: TextSize, line_index: &LineIndex) -> Position {

@@ -233,7 +233,7 @@ impl AnalysisState {
         let parse = parser::parse_repl_line(&tokens);
 
         for error in parse.errors() {
-            errors.push(Error::from_syntax_error(error.clone()));
+            errors.push(Error::from_syntax_error(*error));
         }
 
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
