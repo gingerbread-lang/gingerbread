@@ -1,3 +1,5 @@
+pub mod summary;
+
 use arena::{Arena, Id, IdRange};
 
 pub type ExprId = Id<Expr>;
@@ -76,6 +78,3 @@ pub enum BinOp {
     Mul,
     Div,
 }
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Name(pub Option<String>);

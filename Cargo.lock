@@ -180,6 +180,7 @@ name = "hir"
 version = "0.0.0"
 dependencies = [
  "arena",
+ "indexmap",
 ]
 
 [[package]]
@@ -188,6 +189,7 @@ version = "0.0.0"
 dependencies = [
  "arena",
  "ast",
+ "expect-test",
  "hir",
  "lexer",
  "parser",
@@ -214,6 +216,16 @@ dependencies = [
  "matches",
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "indexmap"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc633605454125dec4b66843673f01c7df2b89479b32e0ed634e43a91cff62a5"
+dependencies = [
+ "autocfg",
+ "hashbrown",
 ]
 
 [[package]]

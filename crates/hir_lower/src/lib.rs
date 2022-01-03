@@ -1,3 +1,5 @@
+pub mod summary;
+
 use arena::{Arena, ArenaMap, IdRange};
 use ast::AstToken;
 use std::collections::HashMap;
