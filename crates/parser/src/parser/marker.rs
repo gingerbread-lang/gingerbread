@@ -17,7 +17,7 @@ impl Marker {
     pub(crate) fn complete(mut self, p: &mut Parser<'_, '_>, kind: SyntaxKind) -> CompletedMarker {
         self.bomb.defuse();
         let old_event = mem::replace(&mut p.events[self.pos], Event::StartNode { kind });
-        assert_eq!(old_event, Event::Placeholder);
+        assert!(matches!(old_event, Event::Placeholder));
         p.events.push(Event::FinishNode);
 
         CompletedMarker { pos: self.pos }
