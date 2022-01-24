@@ -7,3 +7,5 @@ pub(crate) enum Event {
     AddToken,
     Placeholder,
 }
+
+static_assertions::assert_eq_size!(Event, Option<Event>, u8);
