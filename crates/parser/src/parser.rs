@@ -22,6 +22,7 @@ pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     events: Vec<Event>,
+    errors: Vec<SyntaxError>,
     expected_syntax: Option<ExpectedSyntax>,
     expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
 }
@@ -32,6 +33,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
             tokens,
             token_idx: 0,
             events: Vec::new(),
+            errors: Vec::new(),
             expected_syntax: None,
             expected_syntax_tracking_state: Rc::new(Cell::new(
                 ExpectedSyntaxTrackingState::Unnamed,
@@ -39,9 +41,9 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         }
     }
 
-    pub(crate) fn parse(mut self, grammar: impl Fn(&mut Self)) -> Vec<Event> {
+    pub(crate) fn parse(mut self, grammar: impl Fn(&mut Self)) -> (Vec<Event>, Vec<SyntaxError>) {
         grammar(&mut self);
-        self.events
+        (self.events, self.errors)
     }
 
     pub(crate) fn expect(&mut self, kind: TokenKind) {
@@ -85,10 +87,10 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
         if self.at_eof() || self.at_set(recovery_set) {
             let range = self.previous_token().range;
-            self.events.push(Event::Error(SyntaxError {
+            self.errors.push(SyntaxError {
                 expected_syntax,
                 kind: SyntaxErrorKind::Missing { offset: range.end() },
-            }));
+            });
 
             return None;
         }
@@ -96,13 +98,13 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         // we can unwrap because we would have returned if we were at EOF
         let current_token = self.current_token().unwrap();
 
-        self.events.push(Event::Error(SyntaxError {
+        self.errors.push(SyntaxError {
             expected_syntax,
             kind: SyntaxErrorKind::Unexpected {
                 found: current_token.kind,
                 range: current_token.range,
             },
-        }));
+        });
 
         let m = self.start();
         self.bump();

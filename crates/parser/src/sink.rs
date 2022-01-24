@@ -9,15 +9,14 @@ pub(crate) struct Sink<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
     builder: SyntaxBuilder,
-    errors: Vec<SyntaxError>,
 }
 
 impl<'tokens, 'input> Sink<'tokens, 'input> {
     pub(crate) fn new(events: Vec<Event>, tokens: &'tokens [Token<'input>]) -> Self {
-        Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::default(), errors: Vec::new() }
+        Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::default() }
     }
 
-    pub(crate) fn finish(mut self) -> Parse {
+    pub(crate) fn finish(mut self, errors: Vec<SyntaxError>) -> Parse {
         // the first event always starts the root node,
         // and the last event always finishes that node
         debug_assert!(matches!(self.events[0], Event::StartNode { .. }));
@@ -45,7 +44,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
             let next_event = &self.events[event_idx + 1];
             match next_event {
                 Event::StartNode { .. } | Event::AddToken => self.skip_trivia(),
-                Event::FinishNode | Event::Error(_) => {}
+                Event::FinishNode => {}
                 Event::Placeholder => unreachable!(),
             }
         }
@@ -54,7 +53,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
         self.skip_trivia();
         self.process_event(self.events.len() - 1);
 
-        Parse { syntax_node: self.builder.finish(), errors: self.errors }
+        Parse { syntax_node: self.builder.finish(), errors }
     }
 
     fn process_event(&mut self, idx: usize) {
@@ -62,7 +61,6 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
             Event::StartNode { kind } => self.builder.start_node(kind),
             Event::FinishNode => self.builder.finish_node(),
             Event::AddToken => self.add_token(),
-            Event::Error(error) => self.errors.push(error),
             Event::Placeholder => unreachable!(),
         }
     }
