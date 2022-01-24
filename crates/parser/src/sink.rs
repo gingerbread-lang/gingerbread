@@ -1,6 +1,5 @@
 use super::event::Event;
 use crate::{Parse, SyntaxError};
-use std::mem;
 use syntax::SyntaxBuilder;
 use token::{Token, TokenKind};
 
@@ -57,7 +56,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
     }
 
     fn process_event(&mut self, idx: usize) {
-        match mem::replace(&mut self.events[idx], Event::Placeholder) {
+        match self.events[idx] {
             Event::StartNode { kind } => self.builder.start_node(kind),
             Event::FinishNode => self.builder.finish_node(),
             Event::AddToken => self.add_token(),

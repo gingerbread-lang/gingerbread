@@ -1,6 +1,6 @@
 use syntax::SyntaxKind;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum Event {
     StartNode { kind: SyntaxKind },
     FinishNode,

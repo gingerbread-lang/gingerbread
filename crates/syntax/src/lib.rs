@@ -42,7 +42,7 @@ impl SyntaxBuilder {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u16)]
 pub enum SyntaxKind {
     LetKw,
