@@ -1,0 +1,10 @@
+[package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "parser_bench"
+version = "0.0.0"
+
+[dependencies]
+gen = {path = "../gen"}
+lexer = {path = "../lexer"}
+parser = {path = "../parser"}

@@ -442,6 +442,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "parser_bench"
+version = "0.0.0"
+dependencies = [
+ "gen",
+ "lexer",
+ "parser",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
