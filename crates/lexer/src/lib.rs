@@ -31,7 +31,6 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Logos)]
-#[repr(u16)]
 enum LexerTokenKind {
     #[token("let")]
     LetKw,

@@ -9,7 +9,7 @@ impl Language for UnnamedLang {
     type Kind = SyntaxKind;
 
     fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
-        unsafe { mem::transmute(raw) }
+        unsafe { mem::transmute(raw.0 as u8) }
     }
 
     fn kind_to_raw(kind: Self::Kind) -> rowan::SyntaxKind {
@@ -43,7 +43,6 @@ impl SyntaxBuilder {
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-#[repr(u16)]
 pub enum SyntaxKind {
     LetKw,
     FncKw,

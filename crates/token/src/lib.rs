@@ -22,7 +22,6 @@ impl fmt::Debug for Token<'_> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(u16)]
 pub enum TokenKind {
     LetKw,
     FncKw,
