@@ -51,6 +51,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
+name = "cc"
+version = "1.0.72"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22a9137b95ea06864e018375b72adfb7db6e6f68cfc8df5a04d00288050485ee"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -266,6 +272,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cb00336871be5ed2c8ed44b60ae9959dc5b9f08539422ed43f09e34ecaeba21"
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9636c194f9db483f4d0adf2f99a65011a99f904bd222bbd67fb4df4f37863c30"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "line_index"
 version = "0.0.0"
 dependencies = [
@@ -350,6 +365,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59accc507f1338036a0477ef61afdae33cde60840f4dfe481319ce3ad116ddf9"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "mimalloc"
+version = "0.1.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf5f78c1d9892fb5677a8b2f543f967ab891ac0f71feecd961435b74f877283a"
+dependencies = [
+ "libmimalloc-sys",
 ]
 
 [[package]]
@@ -448,6 +472,7 @@ version = "0.0.0"
 dependencies = [
  "gen",
  "lexer",
+ "mimalloc",
  "parser",
 ]
 
@@ -718,6 +743,7 @@ dependencies = [
  "line_index",
  "lsp",
  "lsp-types",
+ "mimalloc",
  "parser",
  "text-size",
  "token",
@@ -737,6 +763,7 @@ dependencies = [
  "hir_ty",
  "lexer",
  "line_index",
+ "mimalloc",
  "parser",
  "token",
 ]

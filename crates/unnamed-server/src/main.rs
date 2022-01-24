@@ -12,6 +12,9 @@ use lsp_types::{
 };
 use unnamed_server::GlobalState;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() -> anyhow::Result<()> {
     let stdio_connection_storage = lsp::connection::ConnectionStorage::new();
 

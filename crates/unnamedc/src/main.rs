@@ -10,6 +10,9 @@ use std::io::{self, Write};
 use std::mem;
 use token::{Token, TokenKind};
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() -> anyhow::Result<()> {
     terminal::enable_raw_mode()?;
 

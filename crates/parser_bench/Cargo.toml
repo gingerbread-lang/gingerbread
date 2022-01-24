@@ -7,4 +7,5 @@ version = "0.0.0"
 [dependencies]
 gen = {path = "../gen"}
 lexer = {path = "../lexer"}
+mimalloc = {version = "0.1.27", default-features = false}
 parser = {path = "../parser"}
