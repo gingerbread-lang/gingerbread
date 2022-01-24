@@ -25,7 +25,7 @@ Root@0..107
   Whitespace@43..44 "\n"
   Comment@44..45 "#"
   Whitespace@45..47 "\n\n"
-  LocalDef@47..96
+  LocalDef@47..57
     LetKw@47..50 "let"
     Whitespace@50..51 " "
     Ident@51..52 "i"
@@ -35,20 +35,20 @@ Root@0..107
     IntLiteral@55..56
       Int@55..56 "0"
     Semicolon@56..57 ";"
-    Whitespace@57..58 " "
-    Comment@58..94 "# TODO: make value of ..."
-    Whitespace@94..96 "\n\n"
-  BinExpr@96..107
-    FncCall@96..100
+  Whitespace@57..58 " "
+  Comment@58..94 "# TODO: make value of ..."
+  Whitespace@94..96 "\n\n"
+  BinExpr@96..105
+    FncCall@96..97
       Ident@96..97 "i"
-      Whitespace@97..98 " "
-      Comment@98..99 "#"
-      Whitespace@99..100 "\n"
+    Whitespace@97..98 " "
+    Comment@98..99 "#"
+    Whitespace@99..100 "\n"
     Plus@100..101 "+"
     Whitespace@101..102 " "
     Comment@102..103 "#"
     Whitespace@103..104 "\n"
-    IntLiteral@104..107
+    IntLiteral@104..105
       Int@104..105 "5"
-      Whitespace@105..106 " "
-      Comment@106..107 "#"
+  Whitespace@105..106 " "
+  Comment@106..107 "#"

@@ -2,15 +2,15 @@
 ===
 Root@0..9
   BinExpr@0..9
-    IntLiteral@0..2
+    IntLiteral@0..1
       Int@0..1 "1"
-      Whitespace@1..2 " "
+    Whitespace@1..2 " "
     Plus@2..3 "+"
     Whitespace@3..4 " "
     BinExpr@4..9
-      IntLiteral@4..6
+      IntLiteral@4..5
         Int@4..5 "2"
-        Whitespace@5..6 " "
+      Whitespace@5..6 " "
       Asterisk@6..7 "*"
       Whitespace@7..8 " "
       IntLiteral@8..9

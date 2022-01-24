@@ -2,9 +2,9 @@
 ===
 Root@0..6
   BinExpr@0..6
-    IntLiteral@0..3
+    IntLiteral@0..2
       Int@0..2 "10"
-      Whitespace@2..3 " "
+    Whitespace@2..3 " "
     Hyphen@3..4 "-"
     Whitespace@4..5 " "
     Error@5..6

@@ -2,21 +2,21 @@ x1 * x2 * x3 * x4
 ===
 Root@0..17
   BinExpr@0..17
-    BinExpr@0..13
-      BinExpr@0..8
-        FncCall@0..3
+    BinExpr@0..12
+      BinExpr@0..7
+        FncCall@0..2
           Ident@0..2 "x1"
-          Whitespace@2..3 " "
+        Whitespace@2..3 " "
         Asterisk@3..4 "*"
         Whitespace@4..5 " "
-        FncCall@5..8
+        FncCall@5..7
           Ident@5..7 "x2"
-          Whitespace@7..8 " "
+      Whitespace@7..8 " "
       Asterisk@8..9 "*"
       Whitespace@9..10 " "
-      FncCall@10..13
+      FncCall@10..12
         Ident@10..12 "x3"
-        Whitespace@12..13 " "
+    Whitespace@12..13 " "
     Asterisk@13..14 "*"
     Whitespace@14..15 " "
     FncCall@15..17

@@ -5,14 +5,14 @@ Root@0..16
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..5 "f"
-    ParamList@5..10
+    ParamList@5..9
       LParen@5..6 "("
       Param@6..8
         Ident@6..7 "a"
         Colon@7..8 ":"
         Ty@8..8
       RParen@8..9 ")"
-      Whitespace@9..10 " "
+    Whitespace@9..10 " "
     Arrow@10..12 "->"
     Whitespace@12..13 " "
     Block@13..15

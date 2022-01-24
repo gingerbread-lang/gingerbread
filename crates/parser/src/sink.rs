@@ -18,19 +18,53 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
     }
 
     pub(crate) fn finish(mut self) -> Parse {
-        for event_idx in 0..self.events.len() {
-            match mem::replace(&mut self.events[event_idx], Event::Placeholder) {
-                Event::StartNode { kind } => self.builder.start_node(kind),
-                Event::FinishNode => self.builder.finish_node(),
-                Event::AddToken => self.add_token(),
-                Event::Error(error) => self.errors.push(error),
+        // the first event always starts the root node,
+        // and the last event always finishes that node
+        debug_assert!(matches!(self.events[0], Event::StartNode { .. }));
+        debug_assert!(matches!(self.events[self.events.len() - 1], Event::FinishNode));
+
+        // We want to avoid nodes having trailing trivia:
+        //
+        // BinExpr
+        //   BinExpr
+        //     [1] [ ] [*] [ ] [2] [ ]
+        //   [+] [ ] [3]
+        //
+        // An error attached to the nested BinExpr would include
+        // the trailing whitespace in its range:
+        //
+        // 1 * 2 + 3
+        // ^^^^^^
+
+        // we go through all event indices apart from the last one,
+        // since we can’t peek what the next event is when we’re at the last
+        // and thus need to handle it specially
+        for event_idx in 0..self.events.len() - 1 {
+            self.process_event(event_idx);
+
+            let next_event = &self.events[event_idx + 1];
+            match next_event {
+                Event::StartNode { .. } | Event::AddToken => self.skip_trivia(),
+                Event::FinishNode | Event::Error(_) => {}
                 Event::Placeholder => unreachable!(),
             }
-
-            self.skip_trivia();
         }
+        // unconditionally skip any trivia before processing the last event
+        // to ensure we don’t miss trailing trivia at the end of the input
+        self.skip_trivia();
+        self.process_event(self.events.len() - 1);
 
         Parse { syntax_node: self.builder.finish(), errors: self.errors }
+    }
+
+    fn process_event(&mut self, idx: usize) {
+        match mem::replace(&mut self.events[idx], Event::Placeholder) {
+            Event::StartNode { kind } => self.builder.start_node(kind),
+            Event::FinishNode => self.builder.finish_node(),
+            Event::AddToken => self.add_token(),
+            Event::Error(error) => self.errors.push(error),
+            Event::Placeholder => unreachable!(),
+        }
     }
 
     fn skip_trivia(&mut self) {

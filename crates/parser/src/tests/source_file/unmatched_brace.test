@@ -2,21 +2,21 @@ fnc foo() -> {};
 }
 ===
 Root@0..18
-  FncDef@0..17
+  FncDef@0..16
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
-    ParamList@7..10
+    ParamList@7..9
       LParen@7..8 "("
       RParen@8..9 ")"
-      Whitespace@9..10 " "
+    Whitespace@9..10 " "
     Arrow@10..12 "->"
     Whitespace@12..13 " "
     Block@13..15
       LBrace@13..14 "{"
       RBrace@14..15 "}"
     Semicolon@15..16 ";"
-    Whitespace@16..17 "\n"
+  Whitespace@16..17 "\n"
   Error@17..18
     RBrace@17..18 "}"
 error at 17..18: expected definition but found RBrace

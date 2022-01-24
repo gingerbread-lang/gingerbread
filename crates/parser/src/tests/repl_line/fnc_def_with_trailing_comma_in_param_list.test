@@ -5,7 +5,7 @@ Root@0..24
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "drop"
-    ParamList@8..18
+    ParamList@8..17
       LParen@8..9 "("
       Param@9..15
         Ident@9..10 "n"
@@ -15,7 +15,7 @@ Root@0..24
           Ident@12..15 "s32"
       Comma@15..16 ","
       RParen@16..17 ")"
-      Whitespace@17..18 " "
+    Whitespace@17..18 " "
     Arrow@18..20 "->"
     Whitespace@20..21 " "
     Block@21..23

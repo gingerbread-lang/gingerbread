@@ -2,7 +2,7 @@ let b = c;
 let a = b;
 ===
 Root@0..21
-  LocalDef@0..11
+  LocalDef@0..10
     LetKw@0..3 "let"
     Whitespace@3..4 " "
     Ident@4..5 "b"
@@ -12,7 +12,7 @@ Root@0..21
     FncCall@8..9
       Ident@8..9 "c"
     Semicolon@9..10 ";"
-    Whitespace@10..11 "\n"
+  Whitespace@10..11 "\n"
   LocalDef@11..21
     LetKw@11..14 "let"
     Whitespace@14..15 " "

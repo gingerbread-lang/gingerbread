@@ -4,7 +4,7 @@ Root@0..17
   Block@0..17
     LBrace@0..1 "{"
     Whitespace@1..2 " "
-    LocalDef@2..16
+    LocalDef@2..15
       LetKw@2..5 "let"
       Whitespace@5..6 " "
       Ident@6..10 "zero"
@@ -14,5 +14,5 @@ Root@0..17
       IntLiteral@13..14
         Int@13..14 "0"
       Semicolon@14..15 ";"
-      Whitespace@15..16 " "
+    Whitespace@15..16 " "
     RBrace@16..17 "}"

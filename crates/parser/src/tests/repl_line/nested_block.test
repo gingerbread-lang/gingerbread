@@ -10,7 +10,7 @@ Root@0..62
   Block@0..62
     LBrace@0..1 "{"
     Whitespace@1..4 "\n  "
-    LocalDef@4..53
+    LocalDef@4..50
       LetKw@4..7 "let"
       Whitespace@7..8 " "
       Ident@8..11 "foo"
@@ -20,7 +20,7 @@ Root@0..62
       Block@14..49
         LBrace@14..15 "{"
         Whitespace@15..20 "\n    "
-        LocalDef@20..38
+        LocalDef@20..33
           LetKw@20..23 "let"
           Whitespace@23..24 " "
           Ident@24..27 "bar"
@@ -30,26 +30,26 @@ Root@0..62
           IntLiteral@30..32
             Int@30..32 "23"
           Semicolon@32..33 ";"
-          Whitespace@33..38 "\n    "
-        BinExpr@38..48
-          FncCall@38..42
+        Whitespace@33..38 "\n    "
+        BinExpr@38..45
+          FncCall@38..41
             Ident@38..41 "bar"
-            Whitespace@41..42 " "
+          Whitespace@41..42 " "
           Asterisk@42..43 "*"
           Whitespace@43..44 " "
-          IntLiteral@44..48
+          IntLiteral@44..45
             Int@44..45 "2"
-            Whitespace@45..48 "\n  "
+        Whitespace@45..48 "\n  "
         RBrace@48..49 "}"
       Semicolon@49..50 ";"
-      Whitespace@50..53 "\n  "
-    BinExpr@53..61
-      FncCall@53..57
+    Whitespace@50..53 "\n  "
+    BinExpr@53..60
+      FncCall@53..56
         Ident@53..56 "foo"
-        Whitespace@56..57 " "
+      Whitespace@56..57 " "
       Asterisk@57..58 "*"
       Whitespace@58..59 " "
-      IntLiteral@59..61
+      IntLiteral@59..60
         Int@59..60 "2"
-        Whitespace@60..61 "\n"
+    Whitespace@60..61 "\n"
     RBrace@61..62 "}"

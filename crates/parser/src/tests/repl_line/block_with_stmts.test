@@ -8,7 +8,7 @@ Root@0..44
   Block@0..44
     LBrace@0..1 "{"
     Whitespace@1..4 "\n  "
-    LocalDef@4..19
+    LocalDef@4..16
       LetKw@4..7 "let"
       Whitespace@7..8 " "
       Ident@8..9 "a"
@@ -18,8 +18,8 @@ Root@0..44
       IntLiteral@12..15
         Int@12..15 "100"
       Semicolon@15..16 ";"
-      Whitespace@16..19 "\n  "
-    LocalDef@19..37
+    Whitespace@16..19 "\n  "
+    LocalDef@19..34
       LetKw@19..22 "let"
       Whitespace@22..23 " "
       Ident@23..24 "b"
@@ -27,22 +27,22 @@ Root@0..44
       Eq@25..26 "="
       Whitespace@26..27 " "
       BinExpr@27..33
-        FncCall@27..29
+        FncCall@27..28
           Ident@27..28 "a"
-          Whitespace@28..29 " "
+        Whitespace@28..29 " "
         Asterisk@29..30 "*"
         Whitespace@30..31 " "
         IntLiteral@31..33
           Int@31..33 "10"
       Semicolon@33..34 ";"
-      Whitespace@34..37 "\n  "
-    BinExpr@37..43
-      FncCall@37..39
+    Whitespace@34..37 "\n  "
+    BinExpr@37..42
+      FncCall@37..38
         Ident@37..38 "b"
-        Whitespace@38..39 " "
+      Whitespace@38..39 " "
       Hyphen@39..40 "-"
       Whitespace@40..41 " "
-      IntLiteral@41..43
+      IntLiteral@41..42
         Int@41..42 "1"
-        Whitespace@42..43 "\n"
+    Whitespace@42..43 "\n"
     RBrace@43..44 "}"

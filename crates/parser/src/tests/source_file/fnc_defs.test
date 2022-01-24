@@ -2,7 +2,7 @@ fnc average_two(x: s32, y: s32): s32 -> {x + y} / 2;
 fnc average_three(x: s32, y: s32, z: s32): s32 -> {x + y + z} / 3;
 ===
 Root@0..119
-  FncDef@0..53
+  FncDef@0..52
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..15 "average_two"
@@ -23,33 +23,33 @@ Root@0..119
         Ty@27..30
           Ident@27..30 "s32"
       RParen@30..31 ")"
-    RetTy@31..37
+    RetTy@31..36
       Colon@31..32 ":"
       Whitespace@32..33 " "
-      Ty@33..37
+      Ty@33..36
         Ident@33..36 "s32"
-        Whitespace@36..37 " "
+    Whitespace@36..37 " "
     Arrow@37..39 "->"
     Whitespace@39..40 " "
     BinExpr@40..51
-      Block@40..48
+      Block@40..47
         LBrace@40..41 "{"
         BinExpr@41..46
-          FncCall@41..43
+          FncCall@41..42
             Ident@41..42 "x"
-            Whitespace@42..43 " "
+          Whitespace@42..43 " "
           Plus@43..44 "+"
           Whitespace@44..45 " "
           FncCall@45..46
             Ident@45..46 "y"
         RBrace@46..47 "}"
-        Whitespace@47..48 " "
+      Whitespace@47..48 " "
       Slash@48..49 "/"
       Whitespace@49..50 " "
       IntLiteral@50..51
         Int@50..51 "2"
     Semicolon@51..52 ";"
-    Whitespace@52..53 "\n"
+  Whitespace@52..53 "\n"
   FncDef@53..119
     FncKw@53..56 "fnc"
     Whitespace@56..57 " "
@@ -79,33 +79,33 @@ Root@0..119
         Ty@90..93
           Ident@90..93 "s32"
       RParen@93..94 ")"
-    RetTy@94..100
+    RetTy@94..99
       Colon@94..95 ":"
       Whitespace@95..96 " "
-      Ty@96..100
+      Ty@96..99
         Ident@96..99 "s32"
-        Whitespace@99..100 " "
+    Whitespace@99..100 " "
     Arrow@100..102 "->"
     Whitespace@102..103 " "
     BinExpr@103..118
-      Block@103..115
+      Block@103..114
         LBrace@103..104 "{"
         BinExpr@104..113
-          BinExpr@104..110
-            FncCall@104..106
+          BinExpr@104..109
+            FncCall@104..105
               Ident@104..105 "x"
-              Whitespace@105..106 " "
+            Whitespace@105..106 " "
             Plus@106..107 "+"
             Whitespace@107..108 " "
-            FncCall@108..110
+            FncCall@108..109
               Ident@108..109 "y"
-              Whitespace@109..110 " "
+          Whitespace@109..110 " "
           Plus@110..111 "+"
           Whitespace@111..112 " "
           FncCall@112..113
             Ident@112..113 "z"
         RBrace@113..114 "}"
-        Whitespace@114..115 " "
+      Whitespace@114..115 " "
       Slash@115..116 "/"
       Whitespace@116..117 " "
       IntLiteral@117..118

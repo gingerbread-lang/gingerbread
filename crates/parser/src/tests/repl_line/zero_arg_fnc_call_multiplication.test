@@ -2,9 +2,9 @@ foo * bar
 ===
 Root@0..9
   BinExpr@0..9
-    FncCall@0..4
+    FncCall@0..3
       Ident@0..3 "foo"
-      Whitespace@3..4 " "
+    Whitespace@3..4 " "
     Asterisk@4..5 "*"
     Whitespace@5..6 " "
     FncCall@6..9

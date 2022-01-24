@@ -2,14 +2,14 @@ let foo =;
 let bar = 92;
 ===
 Root@0..24
-  LocalDef@0..11
+  LocalDef@0..10
     LetKw@0..3 "let"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
     Whitespace@7..8 " "
     Eq@8..9 "="
     Semicolon@9..10 ";"
-    Whitespace@10..11 "\n"
+  Whitespace@10..11 "\n"
   LocalDef@11..24
     LetKw@11..14 "let"
     Whitespace@14..15 " "

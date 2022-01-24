@@ -18,7 +18,7 @@ Root@0..36
     Block@11..35
       LBrace@11..12 "{"
       Whitespace@12..15 "\n  "
-      LocalDef@15..30
+      LocalDef@15..27
         LetKw@15..18 "let"
         Whitespace@18..19 " "
         Ident@19..22 "foo"
@@ -28,10 +28,10 @@ Root@0..36
         IntLiteral@25..26
           Int@25..26 "5"
         Semicolon@26..27 ";"
-        Whitespace@27..30 "\n  "
-      FncCall@30..34
+      Whitespace@27..30 "\n  "
+      FncCall@30..33
         Ident@30..33 "foo"
-        Whitespace@33..34 "\n"
+      Whitespace@33..34 "\n"
       RBrace@34..35 "}"
     Semicolon@35..36 ";"
 error at 10: missing return type

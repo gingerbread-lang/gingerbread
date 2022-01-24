@@ -2,11 +2,11 @@ fnc foo
 let bar = 5;
 ===
 Root@0..20
-  FncDef@0..8
+  FncDef@0..7
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"
-    Whitespace@7..8 "\n"
+  Whitespace@7..8 "\n"
   LocalDef@8..20
     LetKw@8..11 "let"
     Whitespace@11..12 " "

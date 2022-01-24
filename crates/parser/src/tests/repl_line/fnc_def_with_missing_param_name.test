@@ -5,7 +5,7 @@ Root@0..20
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..6 "id"
-    ParamList@6..14
+    ParamList@6..13
       LParen@6..7 "("
       Param@7..12
         Colon@7..8 ":"
@@ -13,7 +13,7 @@ Root@0..20
         Ty@9..12
           Ident@9..12 "foo"
       RParen@12..13 ")"
-      Whitespace@13..14 " "
+    Whitespace@13..14 " "
     Arrow@14..16 "->"
     Whitespace@16..17 " "
     Block@17..19

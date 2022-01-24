@@ -1,10 +1,10 @@
 { fnc
 ===
 Root@0..5
-  ExprStmt@0..2
-    Block@0..2
+  ExprStmt@0..1
+    Block@0..1
       LBrace@0..1 "{"
-      Whitespace@1..2 " "
+  Whitespace@1..2 " "
   FncDef@2..5
     FncKw@2..5 "fnc"
 error at 1: missing RBrace

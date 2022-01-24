@@ -22,18 +22,18 @@ Root@0..38
         Ty@19..22
           Ident@19..22 "s32"
       RParen@22..23 ")"
-    RetTy@23..29
+    RetTy@23..28
       Colon@23..24 ":"
       Whitespace@24..25 " "
-      Ty@25..29
+      Ty@25..28
         Ident@25..28 "s32"
-        Whitespace@28..29 " "
+    Whitespace@28..29 " "
     Arrow@29..31 "->"
     Whitespace@31..32 " "
     BinExpr@32..37
-      FncCall@32..34
+      FncCall@32..33
         Ident@32..33 "x"
-        Whitespace@33..34 " "
+      Whitespace@33..34 " "
       Plus@34..35 "+"
       Whitespace@35..36 " "
       FncCall@36..37

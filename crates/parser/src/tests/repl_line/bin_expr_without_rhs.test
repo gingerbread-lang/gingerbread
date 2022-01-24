@@ -2,8 +2,8 @@
 ===
 Root@0..3
   BinExpr@0..3
-    IntLiteral@0..2
+    IntLiteral@0..1
       Int@0..1 "1"
-      Whitespace@1..2 " "
+    Whitespace@1..2 " "
     Plus@2..3 "+"
 error at 3: missing operand

@@ -2,6 +2,6 @@
 ===
 Root@0..7
   Whitespace@0..1 " "
-  FncCall@1..7
+  FncCall@1..4
     Ident@1..4 "foo"
-    Whitespace@4..7 "   "
+  Whitespace@4..7 "   "
