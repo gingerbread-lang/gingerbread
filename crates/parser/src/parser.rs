@@ -5,6 +5,7 @@ use crate::event::Event;
 use crate::token_set::TokenSet;
 use crate::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::cell::Cell;
+use std::mem;
 use std::rc::Rc;
 use syntax::SyntaxKind;
 use token::{Token, TokenKind};
@@ -21,7 +22,7 @@ const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
 pub(crate) struct Parser<'tokens, 'input> {
     tokens: &'tokens [Token<'input>],
     token_idx: usize,
-    events: Vec<Event>,
+    events: Vec<Option<Event>>,
     errors: Vec<SyntaxError>,
     expected_syntax: Option<ExpectedSyntax>,
     expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
@@ -43,7 +44,13 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     pub(crate) fn parse(mut self, grammar: impl Fn(&mut Self)) -> (Vec<Event>, Vec<SyntaxError>) {
         grammar(&mut self);
-        (self.events, self.errors)
+
+        for event in &self.events {
+            debug_assert!(event.is_some());
+        }
+
+        #[allow(clippy::unsound_collection_transmute)]
+        (unsafe { mem::transmute::<Vec<Option<Event>>, Vec<Event>>(self.events) }, self.errors)
     }
 
     pub(crate) fn expect(&mut self, kind: TokenKind) {
@@ -121,7 +128,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     pub(crate) fn start(&mut self) -> Marker {
         let pos = self.events.len();
-        self.events.push(Event::Placeholder);
+        self.events.push(None);
 
         Marker::new(pos)
     }
@@ -151,7 +158,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
 
     pub(crate) fn bump(&mut self) {
         self.clear_expected_syntaxes();
-        self.events.push(Event::AddToken);
+        self.events.push(Some(Event::AddToken));
         self.token_idx += 1;
     }
 

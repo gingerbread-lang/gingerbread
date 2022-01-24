@@ -44,7 +44,6 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
             match next_event {
                 Event::StartNode { .. } | Event::AddToken => self.skip_trivia(),
                 Event::FinishNode => {}
-                Event::Placeholder => unreachable!(),
             }
         }
         // unconditionally skip any trivia before processing the last event
@@ -60,7 +59,6 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
             Event::StartNode { kind } => self.builder.start_node(kind),
             Event::FinishNode => self.builder.finish_node(),
             Event::AddToken => self.add_token(),
-            Event::Placeholder => unreachable!(),
         }
     }
 

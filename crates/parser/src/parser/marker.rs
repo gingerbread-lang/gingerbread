@@ -16,9 +16,9 @@ impl Marker {
 
     pub(crate) fn complete(mut self, p: &mut Parser<'_, '_>, kind: SyntaxKind) -> CompletedMarker {
         self.bomb.defuse();
-        let old_event = mem::replace(&mut p.events[self.pos], Event::StartNode { kind });
-        assert!(matches!(old_event, Event::Placeholder));
-        p.events.push(Event::FinishNode);
+        let old_event = mem::replace(&mut p.events[self.pos], Some(Event::StartNode { kind }));
+        debug_assert!(old_event.is_none());
+        p.events.push(Some(Event::FinishNode));
 
         CompletedMarker { pos: self.pos }
     }
@@ -30,7 +30,7 @@ pub(crate) struct CompletedMarker {
 
 impl CompletedMarker {
     pub(crate) fn precede(self, p: &mut Parser<'_, '_>) -> Marker {
-        p.events.insert(self.pos, Event::Placeholder);
+        p.events.insert(self.pos, None);
         Marker::new(self.pos)
     }
 }
