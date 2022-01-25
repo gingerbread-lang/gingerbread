@@ -46,7 +46,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         grammar(&mut self);
 
         for event in &self.events {
-            debug_assert!(event.is_some());
+            assert!(event.is_some());
         }
 
         #[allow(clippy::unsound_collection_transmute)]
