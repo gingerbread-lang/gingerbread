@@ -53,7 +53,6 @@ impl Gen {
 
         self.buf.push(';');
         self.newline();
-        self.newline();
     }
 
     fn gen_stmt(&mut self, level: u8) {
