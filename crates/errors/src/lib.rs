@@ -76,7 +76,7 @@ impl Error {
             ErrorRepr::Syntax(_) | ErrorRepr::Validation(_) => "syntax error",
 
             ErrorRepr::Lower(error) => match error.kind {
-                LowerErrorKind::UndefinedVarOrFunction { .. } => {
+                LowerErrorKind::UndefinedVariableOrFunction { .. } => {
                     "undefined variable or zero-parameter function"
                 }
                 LowerErrorKind::UndefinedFunction { .. } => "undefined function",
@@ -179,7 +179,7 @@ fn validation_error_message(validation_error: &ValidationError) -> String {
 
 fn lower_error_message(lower_error: &LowerError) -> String {
     match lower_error.kind {
-        LowerErrorKind::UndefinedVarOrFunction { ref name } => {
+        LowerErrorKind::UndefinedVariableOrFunction { ref name } => {
             format!("`{}` has not been defined", name)
         }
         LowerErrorKind::UndefinedFunction { ref name } => {
@@ -369,10 +369,10 @@ mod tests {
     }
 
     #[test]
-    fn lower_error_undefined_var_or_function() {
+    fn lower_error_undefined_variable_or_function() {
         check_lower_error(
             "let the_value = 10\nteh_value",
-            LowerErrorKind::UndefinedVarOrFunction { name: "teh_value".to_string() },
+            LowerErrorKind::UndefinedVariableOrFunction { name: "teh_value".to_string() },
             19..28,
             expect![[r#"
                 undefined variable or zero-parameter function at 2:1: `teh_value` has not been defined

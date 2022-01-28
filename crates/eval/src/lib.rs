@@ -77,8 +77,10 @@ impl EvalCtx<'_> {
                     None => Val::Nil,
                 }
             }
-            hir::Expr::VarRef(hir::VarDefId::Local(local_def)) => self.locals[*local_def].clone(),
-            hir::Expr::VarRef(hir::VarDefId::Param(param)) => self.params[*param].clone(),
+            hir::Expr::VariableRef(hir::VariableDefId::Local(local_def)) => {
+                self.locals[*local_def].clone()
+            }
+            hir::Expr::VariableRef(hir::VariableDefId::Param(param)) => self.params[*param].clone(),
             hir::Expr::IntLiteral(value) => Val::Int(*value),
             hir::Expr::StringLiteral(value) => Val::String(value.clone()),
         }
@@ -231,7 +233,7 @@ mod tests {
             hir_lower::InScope::new(
                 lower_result.program,
                 lower_result.function_names,
-                lower_result.var_names,
+                lower_result.variable_names,
             ),
         );
         assert_eq!(evaluator.eval(lower_result.program), Val::Int(100));
@@ -304,7 +306,7 @@ mod tests {
             hir_lower::InScope::new(
                 lower_result.program,
                 lower_result.function_names,
-                lower_result.var_names,
+                lower_result.variable_names,
             ),
         );
         assert_eq!(evaluator.eval(lower_result.program), Val::Int(5));

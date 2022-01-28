@@ -267,7 +267,7 @@ impl AnalysisState {
                     hir_in_scope: hir_lower::InScope::new(
                         lower_result.program.clone(),
                         lower_result.function_names,
-                        lower_result.var_names,
+                        lower_result.variable_names,
                     ),
                     tys_in_scope: tys_in_scope_new,
                 },
