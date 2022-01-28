@@ -1,7 +1,7 @@
 prompt "Hello",
 ===
 Root@0..15
-  FncCall@0..15
+  Call@0..15
     Ident@0..6 "prompt"
     Whitespace@6..7 " "
     ArgList@7..15

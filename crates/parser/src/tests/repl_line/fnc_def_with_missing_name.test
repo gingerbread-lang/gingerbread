@@ -16,7 +16,7 @@ Root@0..18
     Whitespace@12..13 " "
     Arrow@13..15 "->"
     Whitespace@15..16 " "
-    FncCall@16..17
+    Call@16..17
       Ident@16..17 "x"
     Semicolon@17..18 ";"
 error at 3: missing function name

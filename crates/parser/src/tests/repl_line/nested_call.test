@@ -1,15 +1,15 @@
 foo bar baz
 ===
 Root@0..11
-  FncCall@0..11
+  Call@0..11
     Ident@0..3 "foo"
     Whitespace@3..4 " "
     ArgList@4..11
       Arg@4..11
-        FncCall@4..11
+        Call@4..11
           Ident@4..7 "bar"
           Whitespace@7..8 " "
           ArgList@8..11
             Arg@8..11
-              FncCall@8..11
+              Call@8..11
                 Ident@8..11 "baz"

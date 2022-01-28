@@ -12,7 +12,7 @@ Root@0..14
     Whitespace@9..10 " "
     Eq@10..11 "="
     Whitespace@11..12 " "
-    FncCall@12..13
+    Call@12..13
       Ident@12..13 "b"
     Semicolon@13..14 ";"
 error at 3: missing variable name

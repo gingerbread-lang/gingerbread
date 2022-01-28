@@ -16,7 +16,7 @@ Root@0..29
   Whitespace@9..10 "\n"
   ExprStmt@10..15
     BinExpr@10..15
-      FncCall@10..11
+      Call@10..11
         Ident@10..11 "a"
       Whitespace@11..12 " "
       Plus@12..13 "+"
@@ -26,7 +26,7 @@ Root@0..29
   Whitespace@15..16 "\n"
   ExprStmt@16..21
     BinExpr@16..21
-      FncCall@16..17
+      Call@16..17
         Ident@16..17 "a"
       Whitespace@17..18 " "
       Plus@18..19 "+"
@@ -34,12 +34,12 @@ Root@0..29
       IntLiteral@20..21
         Int@20..21 "2"
   Whitespace@21..22 "\n"
-  FncCall@22..29
+  Call@22..29
     Ident@22..25 "foo"
     Whitespace@25..26 " "
     ArgList@26..29
       Arg@26..29
-        FncCall@26..29
+        Call@26..29
           Ident@26..29 "bar"
 error at 9: missing Semicolon
 error at 15: missing Semicolon

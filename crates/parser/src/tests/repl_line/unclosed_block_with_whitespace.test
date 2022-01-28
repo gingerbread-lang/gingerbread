@@ -3,7 +3,7 @@
 Root@0..3
   Block@0..2
     LBrace@0..1 "{"
-    FncCall@1..2
+    Call@1..2
       Ident@1..2 "a"
   Whitespace@2..3 " "
 error at 2: missing RBrace

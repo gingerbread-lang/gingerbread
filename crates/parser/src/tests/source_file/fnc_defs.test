@@ -35,12 +35,12 @@ Root@0..119
       Block@40..47
         LBrace@40..41 "{"
         BinExpr@41..46
-          FncCall@41..42
+          Call@41..42
             Ident@41..42 "x"
           Whitespace@42..43 " "
           Plus@43..44 "+"
           Whitespace@44..45 " "
-          FncCall@45..46
+          Call@45..46
             Ident@45..46 "y"
         RBrace@46..47 "}"
       Whitespace@47..48 " "
@@ -92,17 +92,17 @@ Root@0..119
         LBrace@103..104 "{"
         BinExpr@104..113
           BinExpr@104..109
-            FncCall@104..105
+            Call@104..105
               Ident@104..105 "x"
             Whitespace@105..106 " "
             Plus@106..107 "+"
             Whitespace@107..108 " "
-            FncCall@108..109
+            Call@108..109
               Ident@108..109 "y"
           Whitespace@109..110 " "
           Plus@110..111 "+"
           Whitespace@111..112 " "
-          FncCall@112..113
+          Call@112..113
             Ident@112..113 "z"
         RBrace@113..114 "}"
       Whitespace@114..115 " "

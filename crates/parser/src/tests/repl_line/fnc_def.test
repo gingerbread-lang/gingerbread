@@ -31,11 +31,11 @@ Root@0..38
     Arrow@29..31 "->"
     Whitespace@31..32 " "
     BinExpr@32..37
-      FncCall@32..33
+      Call@32..33
         Ident@32..33 "x"
       Whitespace@33..34 " "
       Plus@34..35 "+"
       Whitespace@35..36 " "
-      FncCall@36..37
+      Call@36..37
         Ident@36..37 "y"
     Semicolon@37..38 ";"

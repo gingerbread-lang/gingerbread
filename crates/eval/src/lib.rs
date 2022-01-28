@@ -57,7 +57,7 @@ impl EvalCtx<'_> {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
-            hir::Expr::FncCall { def, args } => {
+            hir::Expr::Call { def, args } => {
                 let fnc_def = &self.fnc_defs[*def];
 
                 for (param, &arg) in fnc_def.params.clone().zip(args) {
@@ -238,12 +238,12 @@ mod tests {
     }
 
     #[test]
-    fn eval_fnc_call_with_zero_args() {
+    fn eval_call_with_zero_args() {
         check("fnc magic_number: s32 -> 3735928559; magic_number", Val::Int(0xdeadbeef));
     }
 
     #[test]
-    fn eval_fnc_call_with_one_arg() {
+    fn eval_call_with_one_arg() {
         check(
             r#"
                 fnc id(x: s32): s32 -> x;
@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_fnc_call_with_multiple_args() {
+    fn eval_call_with_multiple_args() {
         check(
             r#"
                 fnc add(x: s32, y: s32, z: s32): s32 -> x + y + z;
@@ -265,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_nested_fnc_call() {
+    fn eval_nested_call() {
         check(
             r#"
                 fnc mul(n: s32, m: s32): s32 -> n * m;
@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_fnc_call_with_multiple_contained_exprs_in_last_arg() {
+    fn eval_call_with_multiple_contained_exprs_in_last_arg() {
         check(
             r#"
                 fnc second(elem1: s32, elem2: s32): s32 -> elem2;

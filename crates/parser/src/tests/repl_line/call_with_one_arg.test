@@ -1,10 +1,10 @@
 handle_event ctx
 ===
 Root@0..16
-  FncCall@0..16
+  Call@0..16
     Ident@0..12 "handle_event"
     Whitespace@12..13 " "
     ArgList@13..16
       Arg@13..16
-        FncCall@13..16
+        Call@13..16
           Ident@13..16 "ctx"

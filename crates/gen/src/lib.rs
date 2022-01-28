@@ -91,7 +91,7 @@ impl Gen {
             1 => self.gen_string_literal(),
             2 => self.gen_bin_expr(level + 1),
             3 => self.gen_block_expr(level + 1),
-            4 => self.gen_fnc_call(level + 1),
+            4 => self.gen_call(level + 1),
             _ => unreachable!(),
         }
     }
@@ -159,7 +159,7 @@ impl Gen {
         self.indentation_level -= 1;
     }
 
-    fn gen_fnc_call(&mut self, level: u8) {
+    fn gen_call(&mut self, level: u8) {
         self.gen_ident();
 
         let num_params = self.rng.generate_range(0..=3);

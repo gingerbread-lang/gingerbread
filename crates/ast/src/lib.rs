@@ -200,7 +200,7 @@ impl ExprStmt {
 pub enum Expr {
     Bin(BinExpr),
     Block(Block),
-    FncCall(FncCall),
+    Call(Call),
     IntLiteral(IntLiteral),
     StringLiteral(StringLiteral),
 }
@@ -210,7 +210,7 @@ impl AstNode for Expr {
         match node.kind() {
             SyntaxKind::BinExpr => Some(Self::Bin(BinExpr(node))),
             SyntaxKind::Block => Some(Self::Block(Block(node))),
-            SyntaxKind::FncCall => Some(Self::FncCall(FncCall(node))),
+            SyntaxKind::Call => Some(Self::Call(Call(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
             SyntaxKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
             _ => None,
@@ -221,7 +221,7 @@ impl AstNode for Expr {
         match self {
             Self::Bin(bin_expr) => bin_expr.syntax(),
             Self::Block(block) => block.syntax(),
-            Self::FncCall(fnc_call) => fnc_call.syntax(),
+            Self::Call(call) => call.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
             Self::StringLiteral(string_literal) => string_literal.syntax(),
         }
@@ -256,9 +256,9 @@ impl Block {
     }
 }
 
-def_ast_node!(FncCall);
+def_ast_node!(Call);
 
-impl FncCall {
+impl Call {
     pub fn name(&self) -> Option<Ident> {
         token(self)
     }
@@ -415,7 +415,7 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert!(matches!(bin_expr.lhs(), Some(Expr::FncCall(_))));
+        assert!(matches!(bin_expr.lhs(), Some(Expr::Call(_))));
         assert!(matches!(bin_expr.rhs(), Some(Expr::IntLiteral(_))));
     }
 
@@ -432,27 +432,27 @@ mod tests {
     }
 
     #[test]
-    fn get_name_of_fnc_call() {
+    fn get_name_of_call() {
         let root = parse("idx");
 
-        let fnc_call = match root.tail_expr() {
-            Some(Expr::FncCall(fnc_call)) => fnc_call,
+        let call = match root.tail_expr() {
+            Some(Expr::Call(call)) => call,
             _ => unreachable!(),
         };
 
-        assert_eq!(fnc_call.name().unwrap().text(), "idx");
+        assert_eq!(call.name().unwrap().text(), "idx");
     }
 
     #[test]
-    fn get_args_of_fnc_call() {
+    fn get_args_of_call() {
         let root = parse("mul 10, 20");
 
-        let fnc_call = match root.tail_expr() {
-            Some(Expr::FncCall(fnc_call)) => fnc_call,
+        let call = match root.tail_expr() {
+            Some(Expr::Call(call)) => call,
             _ => unreachable!(),
         };
 
-        let mut args = fnc_call.arg_list().unwrap().args();
+        let mut args = call.arg_list().unwrap().args();
 
         assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "10");
         assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "20");

@@ -62,7 +62,7 @@ fn parse_lhs(
     let _guard = p.expected_syntax_name(expected_syntax_name);
 
     let completed_marker = if p.at(TokenKind::Ident) {
-        parse_fnc_call(p)
+        parse_call(p)
     } else if p.at(TokenKind::LBrace) {
         parse_block(p)
     } else if p.at(TokenKind::Int) {
@@ -76,7 +76,7 @@ fn parse_lhs(
     Some(completed_marker)
 }
 
-fn parse_fnc_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
     p.bump();
@@ -85,7 +85,7 @@ fn parse_fnc_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
         parse_arg_list(p);
     }
 
-    m.complete(p, SyntaxKind::FncCall)
+    m.complete(p, SyntaxKind::Call)
 }
 
 fn parse_arg_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
