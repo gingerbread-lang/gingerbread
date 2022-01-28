@@ -8,7 +8,7 @@ Root@0..34
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "gen"
-    RetTy@7..9
+    ReturnTy@7..9
       Colon@7..8 ":"
       Whitespace@8..9 " "
       Ty@9..9

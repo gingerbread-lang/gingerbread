@@ -5,7 +5,7 @@ Root@0..15
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "five"
-    RetTy@8..10
+    ReturnTy@8..10
       Colon@8..9 ":"
       Whitespace@9..10 " "
       Ty@10..10

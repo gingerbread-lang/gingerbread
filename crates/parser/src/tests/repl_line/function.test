@@ -22,7 +22,7 @@ Root@0..38
         Ty@19..22
           Ident@19..22 "s32"
       RParen@22..23 ")"
-    RetTy@23..28
+    ReturnTy@23..28
       Colon@23..24 ":"
       Whitespace@24..25 " "
       Ty@25..28

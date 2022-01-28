@@ -23,7 +23,7 @@ Root@0..119
         Ty@27..30
           Ident@27..30 "s32"
       RParen@30..31 ")"
-    RetTy@31..36
+    ReturnTy@31..36
       Colon@31..32 ":"
       Whitespace@32..33 " "
       Ty@33..36
@@ -79,7 +79,7 @@ Root@0..119
         Ty@90..93
           Ident@90..93 "s32"
       RParen@93..94 ")"
-    RetTy@94..99
+    ReturnTy@94..99
       Colon@94..95 ":"
       Whitespace@95..96 " "
       Ty@96..99

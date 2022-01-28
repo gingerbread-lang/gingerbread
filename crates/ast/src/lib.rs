@@ -108,7 +108,7 @@ impl Function {
         node(self)
     }
 
-    pub fn ret_ty(&self) -> Option<RetTy> {
+    pub fn return_ty(&self) -> Option<ReturnTy> {
         node(self)
     }
 
@@ -160,9 +160,9 @@ impl ParamList {
     }
 }
 
-def_ast_node!(RetTy);
+def_ast_node!(ReturnTy);
 
-impl RetTy {
+impl ReturnTy {
     pub fn ty(&self) -> Option<Ty> {
         node(self)
     }
@@ -532,13 +532,13 @@ mod tests {
     }
 
     #[test]
-    fn get_function_ret_ty() {
+    fn get_function_return_ty() {
         let root = parse("fnc four: s32 -> 4;");
         let def = root.defs().next().unwrap();
 
         let Def::Function(function) = def;
 
-        assert_eq!(function.ret_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
+        assert_eq!(function.return_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
     }
 
     #[test]

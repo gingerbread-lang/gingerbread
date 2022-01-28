@@ -20,7 +20,7 @@ pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
     }
 
     if p.at(TokenKind::Colon) {
-        parse_ret_ty(p);
+        parse_return_ty(p);
     }
 
     p.expect_with_recovery_set(TokenKind::Arrow, EXPR_FIRST);
@@ -65,7 +65,7 @@ fn parse_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
     }
 }
 
-fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_return_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Colon));
     let m = p.start();
     p.bump();
@@ -75,7 +75,7 @@ fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
         parse_ty(p, TokenSet::new([TokenKind::Arrow]).union(EXPR_FIRST));
     }
 
-    m.complete(p, SyntaxKind::RetTy)
+    m.complete(p, SyntaxKind::ReturnTy)
 }
 
 fn parse_param(p: &mut Parser<'_, '_>) -> CompletedMarker {

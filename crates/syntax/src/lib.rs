@@ -79,7 +79,7 @@ pub enum SyntaxKind {
     Function,
     ParamList,
     Param,
-    RetTy,
+    ReturnTy,
     Ty,
 }
 

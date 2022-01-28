@@ -7,7 +7,7 @@ Root@0..72
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..9 "hello"
-    RetTy@9..17
+    ReturnTy@9..17
       Colon@9..10 ":"
       Whitespace@10..11 " "
       Ty@11..17
@@ -37,7 +37,7 @@ Root@0..72
     FncKw@43..46 "fnc"
     Whitespace@46..47 " "
     Ident@47..52 "world"
-    RetTy@52..60
+    ReturnTy@52..60
       Colon@52..53 ":"
       Whitespace@53..54 " "
       Ty@54..60
