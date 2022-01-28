@@ -1,7 +1,7 @@
 foo * bar
 ===
 Root@0..9
-  BinExpr@0..9
+  BinaryExpr@0..9
     Call@0..3
       Ident@0..3 "foo"
     Whitespace@3..4 " "

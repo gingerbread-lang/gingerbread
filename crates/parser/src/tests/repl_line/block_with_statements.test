@@ -26,7 +26,7 @@ Root@0..44
       Whitespace@24..25 " "
       Eq@25..26 "="
       Whitespace@26..27 " "
-      BinExpr@27..33
+      BinaryExpr@27..33
         Call@27..28
           Ident@27..28 "a"
         Whitespace@28..29 " "
@@ -36,7 +36,7 @@ Root@0..44
           Int@31..33 "10"
       Semicolon@33..34 ";"
     Whitespace@34..37 "\n  "
-    BinExpr@37..42
+    BinaryExpr@37..42
       Call@37..38
         Ident@37..38 "b"
       Whitespace@38..39 " "

@@ -38,7 +38,7 @@ Root@0..107
   Whitespace@57..58 " "
   Comment@58..94 "# TODO: make value of ..."
   Whitespace@94..96 "\n\n"
-  BinExpr@96..105
+  BinaryExpr@96..105
     Call@96..97
       Ident@96..97 "i"
     Whitespace@97..98 " "

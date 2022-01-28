@@ -73,7 +73,7 @@ pub enum SyntaxKind {
     Block,
     IntLiteral,
     StringLiteral,
-    BinExpr,
+    BinaryExpr,
     LocalDef,
     ExprStatement,
     Function,

@@ -31,7 +31,7 @@ Root@0..62
             Int@30..32 "23"
           Semicolon@32..33 ";"
         Whitespace@33..38 "\n    "
-        BinExpr@38..45
+        BinaryExpr@38..45
           Call@38..41
             Ident@38..41 "bar"
           Whitespace@41..42 " "
@@ -43,7 +43,7 @@ Root@0..62
         RBrace@48..49 "}"
       Semicolon@49..50 ";"
     Whitespace@50..53 "\n  "
-    BinExpr@53..60
+    BinaryExpr@53..60
       Call@53..56
         Ident@53..56 "foo"
       Whitespace@56..57 " "

@@ -1,8 +1,8 @@
 1 + 2 + 3
 ===
 Root@0..9
-  BinExpr@0..9
-    BinExpr@0..5
+  BinaryExpr@0..9
+    BinaryExpr@0..5
       IntLiteral@0..1
         Int@0..1 "1"
       Whitespace@1..2 " "

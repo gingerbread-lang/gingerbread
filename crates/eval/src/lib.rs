@@ -56,7 +56,9 @@ impl EvalCtx<'_> {
     fn eval_expr(&mut self, expr: hir::ExprId) -> Val {
         match &self.exprs[expr] {
             hir::Expr::Missing => Val::Nil,
-            hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
+            hir::Expr::Binary { lhs, rhs, operator } => {
+                self.eval_binary_expr(*operator, *lhs, *rhs)
+            }
             hir::Expr::Call { def, args } => {
                 let function = &self.functions[*def];
 
@@ -86,9 +88,14 @@ impl EvalCtx<'_> {
         }
     }
 
-    fn eval_bin_expr(&mut self, op: Option<hir::BinOp>, lhs: hir::ExprId, rhs: hir::ExprId) -> Val {
-        let op = match op {
-            Some(op) => op,
+    fn eval_binary_expr(
+        &mut self,
+        operator: Option<hir::BinaryOperator>,
+        lhs: hir::ExprId,
+        rhs: hir::ExprId,
+    ) -> Val {
+        let operator = match operator {
+            Some(operator) => operator,
             None => return Val::Nil,
         };
 
@@ -97,11 +104,11 @@ impl EvalCtx<'_> {
             _ => return Val::Nil,
         };
 
-        match op {
-            hir::BinOp::Add => lhs.checked_add(rhs),
-            hir::BinOp::Sub => lhs.checked_sub(rhs),
-            hir::BinOp::Mul => lhs.checked_mul(rhs),
-            hir::BinOp::Div => lhs.checked_div(rhs),
+        match operator {
+            hir::BinaryOperator::Add => lhs.checked_add(rhs),
+            hir::BinaryOperator::Sub => lhs.checked_sub(rhs),
+            hir::BinaryOperator::Mul => lhs.checked_mul(rhs),
+            hir::BinaryOperator::Div => lhs.checked_div(rhs),
         }
         .map_or(Val::Nil, Val::Int)
     }
@@ -143,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_bin_expr() {
+    fn eval_binary_expr() {
         check("10 * 5", Val::Int(50));
     }
 

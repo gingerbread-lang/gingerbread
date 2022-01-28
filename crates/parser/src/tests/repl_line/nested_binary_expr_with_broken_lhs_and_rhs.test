@@ -1,8 +1,8 @@
 5 * {$ - foo} / ?
 ===
 Root@0..17
-  BinExpr@0..17
-    BinExpr@0..13
+  BinaryExpr@0..17
+    BinaryExpr@0..13
       IntLiteral@0..1
         Int@0..1 "5"
       Whitespace@1..2 " "
@@ -10,7 +10,7 @@ Root@0..17
       Whitespace@3..4 " "
       Block@4..13
         LBrace@4..5 "{"
-        BinExpr@5..12
+        BinaryExpr@5..12
           Error@5..6
             Error@5..6 "$"
           Whitespace@6..7 " "

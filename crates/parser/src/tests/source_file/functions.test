@@ -31,10 +31,10 @@ Root@0..119
     Whitespace@36..37 " "
     Arrow@37..39 "->"
     Whitespace@39..40 " "
-    BinExpr@40..51
+    BinaryExpr@40..51
       Block@40..47
         LBrace@40..41 "{"
-        BinExpr@41..46
+        BinaryExpr@41..46
           Call@41..42
             Ident@41..42 "x"
           Whitespace@42..43 " "
@@ -87,11 +87,11 @@ Root@0..119
     Whitespace@99..100 " "
     Arrow@100..102 "->"
     Whitespace@102..103 " "
-    BinExpr@103..118
+    BinaryExpr@103..118
       Block@103..114
         LBrace@103..104 "{"
-        BinExpr@104..113
-          BinExpr@104..109
+        BinaryExpr@104..113
+          BinaryExpr@104..109
             Call@104..105
               Ident@104..105 "x"
             Whitespace@105..106 " "

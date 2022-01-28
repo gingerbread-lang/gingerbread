@@ -89,7 +89,7 @@ impl Gen {
         match self.rng.generate_range(0..5) {
             0 => self.gen_int_literal(),
             1 => self.gen_string_literal(),
-            2 => self.gen_bin_expr(level + 1),
+            2 => self.gen_binary_expr(level + 1),
             3 => self.gen_block_expr(level + 1),
             4 => self.gen_call(level + 1),
             _ => unreachable!(),
@@ -112,10 +112,10 @@ impl Gen {
         self.buf.push('"');
     }
 
-    fn gen_bin_expr(&mut self, level: u8) {
+    fn gen_binary_expr(&mut self, level: u8) {
         self.gen_expr(level + 1);
 
-        let op = match self.rng.generate_range(0..4) {
+        let operator = match self.rng.generate_range(0..4) {
             0 => '+',
             1 => '-',
             2 => '*',
@@ -124,7 +124,7 @@ impl Gen {
         };
 
         self.buf.push(' ');
-        self.buf.push(op);
+        self.buf.push(operator);
         self.buf.push(' ');
 
         self.gen_expr(level + 1);

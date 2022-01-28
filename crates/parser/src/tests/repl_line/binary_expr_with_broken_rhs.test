@@ -1,7 +1,7 @@
 10 - %
 ===
 Root@0..6
-  BinExpr@0..6
+  BinaryExpr@0..6
     IntLiteral@0..2
       Int@0..2 "10"
     Whitespace@2..3 " "

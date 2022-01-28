@@ -23,12 +23,12 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
 
         // We want to avoid nodes having trailing trivia:
         //
-        // BinExpr
-        //   BinExpr
+        // BinaryExpr
+        //   BinaryExpr
         //     [1] [ ] [*] [ ] [2] [ ]
         //   [+] [ ] [3]
         //
-        // An error attached to the nested BinExpr would include
+        // An error attached to the nested BinaryExpr would include
         // the trailing whitespace in its range:
         //
         // 1 * 2 + 3

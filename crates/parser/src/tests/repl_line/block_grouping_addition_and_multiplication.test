@@ -1,10 +1,10 @@
 {42 + 4} * 2
 ===
 Root@0..12
-  BinExpr@0..12
+  BinaryExpr@0..12
     Block@0..8
       LBrace@0..1 "{"
-      BinExpr@1..7
+      BinaryExpr@1..7
         IntLiteral@1..3
           Int@1..3 "42"
         Whitespace@3..4 " "

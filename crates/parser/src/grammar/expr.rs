@@ -48,7 +48,7 @@ fn parse_expr_bp(
 
         let m = lhs.precede(p);
         parse_expr_bp(p, right_bp, recovery_set, "operand");
-        lhs = m.complete(p, SyntaxKind::BinExpr);
+        lhs = m.complete(p, SyntaxKind::BinaryExpr);
     }
 
     Some(lhs)

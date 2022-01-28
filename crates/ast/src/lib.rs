@@ -198,7 +198,7 @@ impl ExprStatement {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
-    Bin(BinExpr),
+    Binary(BinaryExpr),
     Block(Block),
     Call(Call),
     IntLiteral(IntLiteral),
@@ -208,7 +208,7 @@ pub enum Expr {
 impl AstNode for Expr {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
-            SyntaxKind::BinExpr => Some(Self::Bin(BinExpr(node))),
+            SyntaxKind::BinaryExpr => Some(Self::Binary(BinaryExpr(node))),
             SyntaxKind::Block => Some(Self::Block(Block(node))),
             SyntaxKind::Call => Some(Self::Call(Call(node))),
             SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
@@ -219,7 +219,7 @@ impl AstNode for Expr {
 
     fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::Bin(bin_expr) => bin_expr.syntax(),
+            Self::Binary(binary_expr) => binary_expr.syntax(),
             Self::Block(block) => block.syntax(),
             Self::Call(call) => call.syntax(),
             Self::IntLiteral(int_literal) => int_literal.syntax(),
@@ -228,9 +228,9 @@ impl AstNode for Expr {
     }
 }
 
-def_ast_node!(BinExpr);
+def_ast_node!(BinaryExpr);
 
-impl BinExpr {
+impl BinaryExpr {
     pub fn lhs(&self) -> Option<Expr> {
         node(self)
     }
@@ -239,7 +239,7 @@ impl BinExpr {
         nodes(self).nth(1)
     }
 
-    pub fn op(&self) -> Option<Op> {
+    pub fn operator(&self) -> Option<BinaryOperator> {
         token(self)
     }
 }
@@ -301,14 +301,14 @@ impl StringLiteral {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Op {
+pub enum BinaryOperator {
     Add(Plus),
     Sub(Hyphen),
     Mul(Asterisk),
     Div(Slash),
 }
 
-impl AstToken for Op {
+impl AstToken for BinaryOperator {
     fn cast(token: SyntaxToken) -> Option<Self> {
         match token.kind() {
             SyntaxKind::Plus => Some(Self::Add(Plus(token))),
@@ -406,29 +406,29 @@ mod tests {
     }
 
     #[test]
-    fn get_lhs_and_rhs_of_bin_expr() {
+    fn get_lhs_and_rhs_of_binary_expr() {
         let root = parse("foo * 2");
         assert!(root.statements().next().is_none());
 
-        let bin_expr = match root.tail_expr() {
-            Some(Expr::Bin(bin_expr)) => bin_expr,
+        let binary_expr = match root.tail_expr() {
+            Some(Expr::Binary(binary_expr)) => binary_expr,
             _ => unreachable!(),
         };
 
-        assert!(matches!(bin_expr.lhs(), Some(Expr::Call(_))));
-        assert!(matches!(bin_expr.rhs(), Some(Expr::IntLiteral(_))));
+        assert!(matches!(binary_expr.lhs(), Some(Expr::Call(_))));
+        assert!(matches!(binary_expr.rhs(), Some(Expr::IntLiteral(_))));
     }
 
     #[test]
-    fn get_operator_of_bin_expr() {
+    fn get_operator_of_binary_expr() {
         let root = parse("a + b");
 
-        let bin_expr = match root.tail_expr() {
-            Some(Expr::Bin(bin_expr)) => bin_expr,
+        let binary_expr = match root.tail_expr() {
+            Some(Expr::Binary(binary_expr)) => binary_expr,
             _ => unreachable!(),
         };
 
-        assert!(matches!(bin_expr.op(), Some(Op::Add(_))));
+        assert!(matches!(binary_expr.operator(), Some(BinaryOperator::Add(_))));
     }
 
     #[test]
@@ -498,7 +498,7 @@ mod tests {
         assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
         assert!(statements.next().is_none());
 
-        assert!(matches!(block.tail_expr(), Some(Expr::Bin(_))));
+        assert!(matches!(block.tail_expr(), Some(Expr::Binary(_))));
     }
 
     #[test]

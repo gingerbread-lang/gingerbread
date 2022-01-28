@@ -30,7 +30,7 @@ Root@0..38
     Whitespace@28..29 " "
     Arrow@29..31 "->"
     Whitespace@31..32 " "
-    BinExpr@32..37
+    BinaryExpr@32..37
       Call@32..33
         Ident@32..33 "x"
       Whitespace@33..34 " "

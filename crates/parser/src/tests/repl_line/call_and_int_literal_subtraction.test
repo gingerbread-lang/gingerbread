@@ -1,7 +1,7 @@
 len - 1
 ===
 Root@0..7
-  BinExpr@0..7
+  BinaryExpr@0..7
     Call@0..3
       Ident@0..3 "len"
     Whitespace@3..4 " "
