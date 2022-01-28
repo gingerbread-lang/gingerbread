@@ -1,11 +1,11 @@
-use crate::{AstNode, AstToken, IntLiteral};
+use crate::{AstNode, AstToken, FncDef, IntLiteral};
 use text_size::TextRange;
 
 pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
     let mut errors = Vec::new();
 
     for node in ast.syntax().descendants() {
-        if let Some(int_literal) = IntLiteral::cast(node) {
+        if let Some(int_literal) = IntLiteral::cast(node.clone()) {
             if let Some(value) = int_literal.value() {
                 let text = value.text();
 
@@ -13,6 +13,15 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
                     errors.push(ValidationError {
                         kind: ValidationErrorKind::IntLiteralTooBig,
                         range: value.range(),
+                    });
+                }
+            }
+        } else if let Some(fnc_def) = FncDef::cast(node) {
+            if let Some(param_list) = fnc_def.param_list() {
+                if param_list.params().next().is_none() {
+                    errors.push(ValidationError {
+                        kind: ValidationErrorKind::UnneededParens,
+                        range: param_list.range(),
                     });
                 }
             }
@@ -31,6 +40,7 @@ pub struct ValidationError {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValidationErrorKind {
     IntLiteralTooBig,
+    UnneededParens,
 }
 
 #[cfg(test)]
@@ -104,5 +114,10 @@ mod validation_tests {
                 (ValidationErrorKind::IntLiteralTooBig, 95..114),
             ],
         );
+    }
+
+    #[test]
+    fn validate_unneeded_parens_on_fnc_def() {
+        check_source_file("fnc foo ( ) -> {};", [(ValidationErrorKind::UnneededParens, 8..11)]);
     }
 }

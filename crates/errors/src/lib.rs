@@ -173,6 +173,7 @@ fn syntax_error_message(syntax_error: &SyntaxError) -> String {
 fn validation_error_message(validation_error: &ValidationError) -> String {
     match validation_error.kind {
         ValidationErrorKind::IntLiteralTooBig => "integer literal too large".to_string(),
+        ValidationErrorKind::UnneededParens => "unneeded parentheses".to_string(),
     }
 }
 
@@ -349,6 +350,20 @@ mod tests {
                 syntax error at 1:9: integer literal too large
                   let a = 9999999999999999999
                           ^^^^^^^^^^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn validation_error_unneeded_parens() {
+        check_validation_error(
+            "fnc five(): s32 -> 5;",
+            ValidationErrorKind::UnneededParens,
+            8..10,
+            expect![[r#"
+                syntax error at 1:9: unneeded parentheses
+                  fnc five(): s32 -> 5;
+                          ^^
             "#]],
         );
     }
