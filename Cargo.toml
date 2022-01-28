@@ -1,5 +1,16 @@
 [workspace]
-members = ["crates/*"]
+members = [
+  "crates/arena",
+  "crates/ast", #   "crates/errors",  #   "crates/eval",
+  "crates/gen",
+  "crates/lexer",
+  "crates/line_index",
+  "crates/lsp",
+  "crates/parser",
+  "crates/parser_bench",
+  "crates/syntax",
+  "crates/token", #   "crates/unnamed-server",  #   "crates/unnamedc",
+]
 
 [profile.release]
 lto = "thin"
