@@ -175,29 +175,16 @@ impl Analysis {
         let diagnostics = syntax_errors.chain(validation_diagnostics).chain(indexing_diagnostics);
 
         diagnostics
-            .map(|diagnostics| {
-                let range = convert_text_range(diagnostics.range(), &self.line_index);
-
-                let (kind, severity) = diagnostics.kind();
-
-                let severity = match severity {
-                    diagnostics::Severity::Warning => DiagnosticSeverity::WARNING,
-                    diagnostics::Severity::Error => DiagnosticSeverity::ERROR,
-                };
-
-                let message = format!("{}:\n{}", kind, diagnostics.message());
-
-                Diagnostic {
-                    range,
-                    severity: Some(severity),
-                    code: None,
-                    code_description: None,
-                    source: Some("unnamedc".to_string()),
-                    message,
-                    related_information: None,
-                    tags: None,
-                    data: None,
-                }
+            .map(|diagnostic| Diagnostic {
+                range: convert_text_range(diagnostic.range(), &self.line_index),
+                severity: Some(convert_diagnostic_severity(diagnostic.severity())),
+                code: None,
+                code_description: None,
+                source: Some("unnamedc".to_string()),
+                message: diagnostic.message(),
+                related_information: None,
+                tags: None,
+                data: None,
             })
             .collect()
     }
@@ -244,4 +231,11 @@ fn convert_text_range(range: TextRange, line_index: &LineIndex) -> Range {
 fn convert_text_size(offset: TextSize, line_index: &LineIndex) -> Position {
     let (LineNr(line), ColNr(character)) = line_index.line_col(offset);
     Position { line, character }
+}
+
+fn convert_diagnostic_severity(severity: diagnostics::Severity) -> DiagnosticSeverity {
+    match severity {
+        diagnostics::Severity::Warning => DiagnosticSeverity::WARNING,
+        diagnostics::Severity::Error => DiagnosticSeverity::ERROR,
+    }
 }

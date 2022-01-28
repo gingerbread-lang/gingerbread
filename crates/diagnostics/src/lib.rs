@@ -41,9 +41,14 @@ impl Diagnostic {
         // unlike TextRange which is always exclusive
         let (end_line, end_col) = line_index.line_col(range.end() - TextSize::from(1));
 
+        let severity = match self.severity() {
+            Severity::Warning => "warning",
+            Severity::Error => "error",
+        };
+
         let mut lines = vec![format!(
             "{} at {}:{}: {}",
-            self.kind().0,
+            severity,
             start_line.0 + 1,
             start_col.0 + 1,
             self.message()
@@ -67,20 +72,16 @@ impl Diagnostic {
         }
     }
 
-    pub fn kind(&self) -> (&'static str, Severity) {
+    pub fn severity(&self) -> Severity {
         match &self.0 {
-            Repr::Syntax(_)
-            | Repr::Validation(ValidationDiagnostic {
-                kind: ValidationDiagnosticKind::IntLiteralTooBig,
-                ..
-            }) => ("syntax error", Severity::Error),
+            Repr::Syntax(_) => Severity::Error,
 
-            Repr::Validation(ValidationDiagnostic {
-                kind: ValidationDiagnosticKind::UnneededParens,
-                ..
-            }) => ("warning", Severity::Warning),
+            Repr::Validation(ValidationDiagnostic { kind, .. }) => match kind {
+                ValidationDiagnosticKind::IntLiteralTooBig => Severity::Error,
+                ValidationDiagnosticKind::UnneededParens => Severity::Warning,
+            },
 
-            Repr::Indexing(_) => ("error", Severity::Error),
+            Repr::Indexing(_) => Severity::Error,
         }
     }
 
@@ -269,7 +270,7 @@ mod tests {
                 range: TextRange::new(4.into(), 5.into()),
             },
             expect![[r#"
-                syntax error at 1:5: expected identifier but found `*`
+                error at 1:5: expected identifier but found `*`
                   let *
                       ^
             "#]],
@@ -283,7 +284,7 @@ mod tests {
             ExpectedSyntax::Named("variable name"),
             SyntaxErrorKind::Missing { offset: 3.into() },
             expect![[r#"
-                syntax error at 1:4: missing variable name
+                error at 1:4: missing variable name
                   let = 10;
                      ^
             "#]],
@@ -297,7 +298,7 @@ mod tests {
             ExpectedSyntax::Named("expression"),
             SyntaxErrorKind::Missing { offset: 7.into() },
             expect![[r#"
-                syntax error at 1:8: missing expression
+                error at 1:8: missing expression
                   let a =
                          ^
             "#]],
@@ -311,7 +312,7 @@ mod tests {
             ValidationDiagnosticKind::IntLiteralTooBig,
             8..27,
             expect![[r#"
-                syntax error at 1:9: integer literal too large
+                error at 1:9: integer literal too large
                   let a = 9999999999999999999
                           ^^^^^^^^^^^^^^^^^^^
             "#]],
