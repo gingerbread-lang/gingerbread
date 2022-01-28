@@ -2,7 +2,7 @@
 members = [
   "crates/arena",
   "crates/ast",
-  "crates/errors", #   "crates/eval",
+  "crates/diagnostics", #   "crates/eval",
   "crates/gen",
   "crates/hir",
   "crates/lexer",

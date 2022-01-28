@@ -8,7 +8,7 @@ version = "0.1.0"
 anyhow = "1.0"
 ast = {path = "../ast"}
 crossterm = "0.21.0"
-errors = {path = "../errors"}
+diagnostics = {path = "../diagnostics"}
 eval = {path = "../eval"}
 hir = {path = "../hir"}
 hir_lower = {path = "../hir_lower"}

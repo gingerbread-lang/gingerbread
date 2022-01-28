@@ -1,6 +1,5 @@
-use ast::validation::ValidationError;
+use ast::validation::ValidationDiagnostic;
 use ast::AstNode;
-use errors::Error;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
@@ -21,9 +20,9 @@ struct Analysis {
     line_index: LineIndex,
     parse: Parse,
     ast: ast::Root,
-    validation_errors: Vec<ValidationError>,
+    validation_diagnostics: Vec<ValidationDiagnostic>,
     index: hir::Index,
-    indexing_errors: Vec<hir::IndexingError>,
+    indexing_diagnostics: Vec<hir::IndexingDiagnostic>,
 }
 
 impl GlobalState {
@@ -51,16 +50,16 @@ impl Analysis {
             parser::parse_source_file(&tokens)
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, indexing_errors) = hir::index(&ast);
+        let (index, indexing_diagnostics) = hir::index(&ast);
 
         let mut analysis = Self {
             content,
             line_index: LineIndex::default(),
             parse,
             ast,
-            validation_errors: Vec::new(),
+            validation_diagnostics: Vec::new(),
             index,
-            indexing_errors,
+            indexing_diagnostics,
         };
 
         analysis.update_line_index();
@@ -161,23 +160,28 @@ impl Analysis {
     }
 
     fn diagnostics(&self) -> Vec<Diagnostic> {
-        let syntax_errors = self.parse.errors().iter().copied().map(Error::from_syntax_error);
+        let syntax_errors =
+            self.parse.errors().iter().copied().map(diagnostics::Diagnostic::from_syntax);
 
-        let validation_errors =
-            self.validation_errors.iter().copied().map(Error::from_validation_error);
+        let validation_diagnostics = self
+            .validation_diagnostics
+            .iter()
+            .copied()
+            .map(diagnostics::Diagnostic::from_validation);
 
-        let indexing_errors = self.indexing_errors.iter().cloned().map(Error::from_indexing_error);
+        let indexing_diagnostics =
+            self.indexing_diagnostics.iter().cloned().map(diagnostics::Diagnostic::from_indexing);
 
-        let errors = syntax_errors.chain(validation_errors).chain(indexing_errors);
+        let diagnostics = syntax_errors.chain(validation_diagnostics).chain(indexing_diagnostics);
 
-        errors
-            .map(|error| Diagnostic {
-                range: convert_text_range(error.range(), &self.line_index),
+        diagnostics
+            .map(|diagnostics| Diagnostic {
+                range: convert_text_range(diagnostics.range(), &self.line_index),
                 severity: Some(DiagnosticSeverity::ERROR),
                 code: None,
                 code_description: None,
                 source: Some("unnamedc".to_string()),
-                message: format!("{}:\n{}", error.kind(), error.message()),
+                message: format!("{}:\n{}", diagnostics.kind(), diagnostics.message()),
                 related_information: None,
                 tags: None,
                 data: None,
@@ -196,13 +200,13 @@ impl Analysis {
     }
 
     fn validate(&mut self) {
-        self.validation_errors = ast::validation::validate(&self.ast);
+        self.validation_diagnostics = ast::validation::validate(&self.ast);
     }
 
     fn index(&mut self) {
-        let (index, errors) = hir::index(&self.ast);
+        let (index, diagnostics) = hir::index(&self.ast);
         self.index = index;
-        self.indexing_errors = errors;
+        self.indexing_diagnostics = diagnostics;
     }
 }
 

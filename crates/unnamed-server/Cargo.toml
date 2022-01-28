@@ -7,7 +7,7 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0"
 ast = {path = "../ast"}
-errors = {path = "../errors"}
+diagnostics = {path = "../diagnostics"}
 hir = {path = "../hir"}
 lexer = {path = "../lexer"}
 line_index = {path = "../line_index"}

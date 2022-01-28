@@ -1,8 +1,8 @@
 use crate::{AstNode, AstToken, Function, IntLiteral};
 use text_size::TextRange;
 
-pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
-    let mut errors = Vec::new();
+pub fn validate(ast: &impl AstNode) -> Vec<ValidationDiagnostic> {
+    let mut diagnostics = Vec::new();
 
     for node in ast.syntax().descendants() {
         if let Some(int_literal) = IntLiteral::cast(node.clone()) {
@@ -10,8 +10,8 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
                 let text = value.text();
 
                 if text.parse::<u32>().is_err() {
-                    errors.push(ValidationError {
-                        kind: ValidationErrorKind::IntLiteralTooBig,
+                    diagnostics.push(ValidationDiagnostic {
+                        kind: ValidationDiagnosticKind::IntLiteralTooBig,
                         range: value.range(),
                     });
                 }
@@ -19,8 +19,8 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
         } else if let Some(function) = Function::cast(node) {
             if let Some(param_list) = function.param_list() {
                 if param_list.params().next().is_none() {
-                    errors.push(ValidationError {
-                        kind: ValidationErrorKind::UnneededParens,
+                    diagnostics.push(ValidationDiagnostic {
+                        kind: ValidationDiagnosticKind::UnneededParens,
                         range: param_list.range(),
                     });
                 }
@@ -28,17 +28,17 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
         }
     }
 
-    errors
+    diagnostics
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ValidationError {
-    pub kind: ValidationErrorKind,
+pub struct ValidationDiagnostic {
+    pub kind: ValidationDiagnosticKind,
     pub range: TextRange,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ValidationErrorKind {
+pub enum ValidationDiagnosticKind {
     IntLiteralTooBig,
     UnneededParens,
 }
@@ -51,11 +51,11 @@ mod validation_tests {
 
     fn check_source_file<const LEN: usize>(
         input: &str,
-        expected_errors: [(ValidationErrorKind, StdRange<u32>); LEN],
+        diagnostics: [(ValidationDiagnosticKind, StdRange<u32>); LEN],
     ) {
-        let errors: Vec<_> = expected_errors
+        let diagnostics: Vec<_> = diagnostics
             .into_iter()
-            .map(|(kind, range)| ValidationError {
+            .map(|(kind, range)| ValidationDiagnostic {
                 kind,
                 range: TextRange::new(range.start.into(), range.end.into()),
             })
@@ -64,16 +64,16 @@ mod validation_tests {
         let syntax = parser::parse_source_file(&lexer::lex(input)).syntax_node();
         let root = Root::cast(syntax).unwrap();
 
-        assert_eq!(validate(&root), errors);
+        assert_eq!(validate(&root), diagnostics);
     }
 
     fn check_repl_line<const LEN: usize>(
         input: &str,
-        expected_errors: [(ValidationErrorKind, StdRange<u32>); LEN],
+        diagnostics: [(ValidationDiagnosticKind, StdRange<u32>); LEN],
     ) {
-        let errors: Vec<_> = expected_errors
+        let diagnostics: Vec<_> = diagnostics
             .into_iter()
-            .map(|(kind, range)| ValidationError {
+            .map(|(kind, range)| ValidationDiagnostic {
                 kind,
                 range: TextRange::new(range.start.into(), range.end.into()),
             })
@@ -82,7 +82,7 @@ mod validation_tests {
         let syntax = parser::parse_repl_line(&lexer::lex(input)).syntax_node();
         let root = Root::cast(syntax).unwrap();
 
-        assert_eq!(validate(&root), errors);
+        assert_eq!(validate(&root), diagnostics);
     }
 
     #[test]
@@ -97,7 +97,7 @@ mod validation_tests {
 
     #[test]
     fn validate_too_big_int_literal() {
-        check_repl_line("4294967296", [(ValidationErrorKind::IntLiteralTooBig, 0..10)]);
+        check_repl_line("4294967296", [(ValidationDiagnosticKind::IntLiteralTooBig, 0..10)]);
     }
 
     #[test]
@@ -110,14 +110,17 @@ mod validation_tests {
                 };
             ",
             [
-                (ValidationErrorKind::IntLiteralTooBig, 57..67),
-                (ValidationErrorKind::IntLiteralTooBig, 95..114),
+                (ValidationDiagnosticKind::IntLiteralTooBig, 57..67),
+                (ValidationDiagnosticKind::IntLiteralTooBig, 95..114),
             ],
         );
     }
 
     #[test]
     fn validate_unneeded_parens_on_function() {
-        check_source_file("fnc foo ( ) -> {};", [(ValidationErrorKind::UnneededParens, 8..11)]);
+        check_source_file(
+            "fnc foo ( ) -> {};",
+            [(ValidationDiagnosticKind::UnneededParens, 8..11)],
+        );
     }
 }

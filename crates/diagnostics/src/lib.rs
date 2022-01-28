@@ -1,30 +1,30 @@
-use ast::validation::{ValidationError, ValidationErrorKind};
-use hir::{IndexingError, IndexingErrorKind};
+use ast::validation::{ValidationDiagnostic, ValidationDiagnosticKind};
+use hir::{IndexingDiagnostic, IndexingDiagnosticKind};
 use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::TryInto;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
-pub struct Error(ErrorRepr);
+pub struct Diagnostic(Repr);
 
-enum ErrorRepr {
+enum Repr {
     Syntax(SyntaxError),
-    Validation(ValidationError),
-    Indexing(IndexingError),
+    Validation(ValidationDiagnostic),
+    Indexing(IndexingDiagnostic),
 }
 
-impl Error {
-    pub fn from_syntax_error(error: SyntaxError) -> Self {
-        Self(ErrorRepr::Syntax(error))
+impl Diagnostic {
+    pub fn from_syntax(error: SyntaxError) -> Self {
+        Self(Repr::Syntax(error))
     }
 
-    pub fn from_validation_error(error: ValidationError) -> Self {
-        Self(ErrorRepr::Validation(error))
+    pub fn from_validation(diagnostic: ValidationDiagnostic) -> Self {
+        Self(Repr::Validation(diagnostic))
     }
 
-    pub fn from_indexing_error(error: IndexingError) -> Self {
-        Self(ErrorRepr::Indexing(error))
+    pub fn from_indexing(diagnostic: IndexingDiagnostic) -> Self {
+        Self(Repr::Indexing(diagnostic))
     }
 
     pub fn display(&self, input: &str, line_index: &LineIndex) -> Vec<String> {
@@ -51,30 +51,29 @@ impl Error {
 
     pub fn range(&self) -> TextRange {
         match self.0 {
-            ErrorRepr::Syntax(SyntaxError {
-                kind: SyntaxErrorKind::Missing { offset }, ..
-            }) => TextRange::new(offset, offset + TextSize::from(1)),
-            ErrorRepr::Syntax(SyntaxError {
-                kind: SyntaxErrorKind::Unexpected { range, .. },
-                ..
+            Repr::Syntax(SyntaxError { kind: SyntaxErrorKind::Missing { offset }, .. }) => {
+                TextRange::new(offset, offset + TextSize::from(1))
+            }
+            Repr::Syntax(SyntaxError {
+                kind: SyntaxErrorKind::Unexpected { range, .. }, ..
             }) => range,
-            ErrorRepr::Validation(ValidationError { range, .. }) => range,
-            ErrorRepr::Indexing(IndexingError { range, .. }) => range,
+            Repr::Validation(ValidationDiagnostic { range, .. }) => range,
+            Repr::Indexing(IndexingDiagnostic { range, .. }) => range,
         }
     }
 
     pub fn kind(&self) -> &'static str {
         match &self.0 {
-            ErrorRepr::Syntax(_) | ErrorRepr::Validation(_) => "syntax error",
-            ErrorRepr::Indexing(_) => "error",
+            Repr::Syntax(_) | Repr::Validation(_) => "syntax error",
+            Repr::Indexing(_) => "error",
         }
     }
 
     pub fn message(&self) -> String {
         match &self.0 {
-            ErrorRepr::Syntax(error) => syntax_error_message(error),
-            ErrorRepr::Validation(error) => validation_error_message(error),
-            ErrorRepr::Indexing(error) => indexing_error_message(error),
+            Repr::Syntax(e) => syntax_error_message(e),
+            Repr::Validation(d) => validation_diagnostic_message(d),
+            Repr::Indexing(d) => indexing_diagnostic_message(d),
         }
     }
 }
@@ -126,15 +125,15 @@ fn input_snippet(
     lines.push(format!("{}{}", PADDING, POINTER_UP.repeat(end_col.0 as usize + 1)));
 }
 
-fn syntax_error_message(syntax_error: &SyntaxError) -> String {
-    let write_expected_syntax = |buf: &mut String| match syntax_error.expected_syntax {
+fn syntax_error_message(e: &SyntaxError) -> String {
+    let write_expected_syntax = |buf: &mut String| match e.expected_syntax {
         ExpectedSyntax::Named(name) => buf.push_str(name),
         ExpectedSyntax::Unnamed(kind) => buf.push_str(format_kind(kind)),
     };
 
     let mut message = String::new();
 
-    match syntax_error.kind {
+    match e.kind {
         SyntaxErrorKind::Missing { .. } => {
             message.push_str("missing ");
             write_expected_syntax(&mut message);
@@ -149,16 +148,16 @@ fn syntax_error_message(syntax_error: &SyntaxError) -> String {
     message
 }
 
-fn validation_error_message(validation_error: &ValidationError) -> String {
-    match validation_error.kind {
-        ValidationErrorKind::IntLiteralTooBig => "integer literal too large".to_string(),
-        ValidationErrorKind::UnneededParens => "unneeded parentheses".to_string(),
+fn validation_diagnostic_message(d: &ValidationDiagnostic) -> String {
+    match d.kind {
+        ValidationDiagnosticKind::IntLiteralTooBig => "integer literal too large".to_string(),
+        ValidationDiagnosticKind::UnneededParens => "unneeded parentheses".to_string(),
     }
 }
 
-fn indexing_error_message(indexing_error: &IndexingError) -> String {
-    match &indexing_error.kind {
-        IndexingErrorKind::FunctionAlreadyDefined { name } => {
+fn indexing_diagnostic_message(d: &IndexingDiagnostic) -> String {
+    match &d.kind {
+        IndexingDiagnosticKind::FunctionAlreadyDefined { name } => {
             format!("function `{}` already defined", name)
         }
     }
@@ -197,50 +196,57 @@ mod tests {
     use parser::{ExpectedSyntax, SyntaxErrorKind};
     use std::ops::Range as StdRange;
 
-    fn check_syntax_error(
+    fn check_syntax(
         input: &str,
         expected_syntax: ExpectedSyntax,
         kind: SyntaxErrorKind,
         formatted: Expect,
     ) {
-        let error = Error::from_syntax_error(SyntaxError { expected_syntax, kind });
-        formatted
-            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
+        let diagnostic = Diagnostic::from_syntax(SyntaxError { expected_syntax, kind });
+
+        formatted.assert_eq(&format!(
+            "{}\n",
+            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+        ));
     }
 
-    fn check_validation_error(
+    fn check_validation(
         input: &str,
-        kind: ValidationErrorKind,
+        kind: ValidationDiagnosticKind,
         range: StdRange<u32>,
         formatted: Expect,
     ) {
-        let error = Error::from_validation_error(ValidationError {
+        let diagnostic = Diagnostic::from_validation(ValidationDiagnostic {
             kind,
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
-        formatted
-            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
+        formatted.assert_eq(&format!(
+            "{}\n",
+            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+        ));
     }
 
-    fn check_indexing_error(
+    fn check_indexing(
         input: &str,
-        kind: IndexingErrorKind,
+        kind: IndexingDiagnosticKind,
         range: StdRange<u32>,
         formatted: Expect,
     ) {
-        let error = Error::from_indexing_error(IndexingError {
+        let diagnostic = Diagnostic::from_indexing(IndexingDiagnostic {
             kind,
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
-        formatted
-            .assert_eq(&format!("{}\n", error.display(input, &LineIndex::new(input)).join("\n")));
+        formatted.assert_eq(&format!(
+            "{}\n",
+            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+        ));
     }
 
     #[test]
-    fn syntax_error_unexpected() {
-        check_syntax_error(
+    fn syntax_unexpected() {
+        check_syntax(
             "let *",
             ExpectedSyntax::Unnamed(TokenKind::Ident),
             SyntaxErrorKind::Unexpected {
@@ -256,8 +262,8 @@ mod tests {
     }
 
     #[test]
-    fn syntax_error_missing() {
-        check_syntax_error(
+    fn syntax_missing() {
+        check_syntax(
             "let = 10;",
             ExpectedSyntax::Named("variable name"),
             SyntaxErrorKind::Missing { offset: 3.into() },
@@ -270,8 +276,8 @@ mod tests {
     }
 
     #[test]
-    fn syntax_error_missing_at_end_of_line() {
-        check_syntax_error(
+    fn syntax_missing_at_end_of_line() {
+        check_syntax(
             "let a =\nlet b = a;",
             ExpectedSyntax::Named("expression"),
             SyntaxErrorKind::Missing { offset: 7.into() },
@@ -284,10 +290,10 @@ mod tests {
     }
 
     #[test]
-    fn validation_error_int_literal_too_big() {
-        check_validation_error(
+    fn validation_int_literal_too_big() {
+        check_validation(
             "let a = 9999999999999999999",
-            ValidationErrorKind::IntLiteralTooBig,
+            ValidationDiagnosticKind::IntLiteralTooBig,
             8..27,
             expect![[r#"
                 syntax error at 1:9: integer literal too large
@@ -298,10 +304,10 @@ mod tests {
     }
 
     #[test]
-    fn validation_error_unneeded_parens() {
-        check_validation_error(
+    fn validation_unneeded_parens() {
+        check_validation(
             "fnc five(): s32 -> 5;",
-            ValidationErrorKind::UnneededParens,
+            ValidationDiagnosticKind::UnneededParens,
             8..10,
             expect![[r#"
                 syntax error at 1:9: unneeded parentheses
@@ -312,10 +318,10 @@ mod tests {
     }
 
     #[test]
-    fn indexing_error_function_already_defined() {
-        check_indexing_error(
+    fn indexing_function_already_defined() {
+        check_indexing(
             "fnc do_thing -> {};",
-            IndexingErrorKind::FunctionAlreadyDefined { name: "do_thing".to_string() },
+            IndexingDiagnosticKind::FunctionAlreadyDefined { name: "do_thing".to_string() },
             0..19,
             expect![[r#"
                 error at 1:1: function `do_thing` already defined

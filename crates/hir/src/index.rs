@@ -36,9 +36,9 @@ pub enum Ty {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Name(String);
 
-pub fn index(root: &ast::Root) -> (Index, Vec<IndexingError>) {
+pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
-    let mut errors = Vec::new();
+    let mut diagnostics = Vec::new();
 
     let lower_ty = |ty: Option<ast::Ty>| match ty.and_then(|ty| ty.name()) {
         Some(ident) => Ty::Named(Name(ident.text().to_string())),
@@ -71,8 +71,10 @@ pub fn index(root: &ast::Root) -> (Index, Vec<IndexingError>) {
 
                 let name_string_clone = name.0.clone();
                 match functions.entry(name) {
-                    Entry::Occupied(_) => errors.push(IndexingError {
-                        kind: IndexingErrorKind::FunctionAlreadyDefined { name: name_string_clone },
+                    Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
+                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined {
+                            name: name_string_clone,
+                        },
                         range: function.range(),
                     }),
                     Entry::Vacant(vacant_entry) => {
@@ -83,17 +85,17 @@ pub fn index(root: &ast::Root) -> (Index, Vec<IndexingError>) {
         }
     }
 
-    (Index { functions }, errors)
+    (Index { functions }, diagnostics)
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct IndexingError {
-    pub kind: IndexingErrorKind,
+pub struct IndexingDiagnostic {
+    pub kind: IndexingDiagnosticKind,
     pub range: TextRange,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum IndexingErrorKind {
+pub enum IndexingDiagnosticKind {
     FunctionAlreadyDefined { name: String },
 }
 
@@ -154,24 +156,24 @@ mod tests {
     fn check<const N: usize>(
         input: &str,
         expect: Expect,
-        expected_errors: [(IndexingErrorKind, std::ops::Range<u32>); N],
+        expected_diagnostics: [(IndexingDiagnosticKind, std::ops::Range<u32>); N],
     ) {
         let tokens = lexer::lex(input);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, actual_errors) = index(&root);
+        let (index, actual_diagnostics) = index(&root);
 
         expect.assert_eq(&format!("{:?}", index));
 
-        let expected_errors: Vec<_> = expected_errors
+        let expected_diagnostics: Vec<_> = expected_diagnostics
             .into_iter()
-            .map(|(kind, range)| IndexingError {
+            .map(|(kind, range)| IndexingDiagnostic {
                 kind,
                 range: TextRange::new(range.start.into(), range.end.into()),
             })
             .collect();
 
-        assert_eq!(expected_errors, actual_errors);
+        assert_eq!(expected_diagnostics, actual_diagnostics);
     }
 
     #[test]
@@ -301,8 +303,8 @@ mod tests {
                 fnc a;
             "#]],
             [
-                (IndexingErrorKind::FunctionAlreadyDefined { name: "a".to_string() }, 46..71),
-                (IndexingErrorKind::FunctionAlreadyDefined { name: "a".to_string() }, 88..112),
+                (IndexingDiagnosticKind::FunctionAlreadyDefined { name: "a".to_string() }, 46..71),
+                (IndexingDiagnosticKind::FunctionAlreadyDefined { name: "a".to_string() }, 88..112),
             ],
         );
     }
