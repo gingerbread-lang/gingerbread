@@ -1,4 +1,5 @@
 use ast::{AstNode, AstToken};
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 use text_size::TextRange;
@@ -69,11 +70,15 @@ pub fn index(root: ast::Root) -> (Index, Vec<IndexingError>) {
                     None => Ty::Unit,
                 };
 
-                if functions.insert(name, Function { params, return_ty }).is_some() {
-                    errors.push(IndexingError {
-                        kind: IndexingErrorKind::FunctionWithNameAlreadyDefined,
+                let name_string_clone = name.0.clone();
+                match functions.entry(name) {
+                    Entry::Occupied(_) => errors.push(IndexingError {
+                        kind: IndexingErrorKind::FunctionAlreadyDefined { name: name_string_clone },
                         range: function.range(),
-                    });
+                    }),
+                    Entry::Vacant(vacant_entry) => {
+                        vacant_entry.insert(Function { params, return_ty });
+                    }
                 }
             }
         }
@@ -82,15 +87,15 @@ pub fn index(root: ast::Root) -> (Index, Vec<IndexingError>) {
     (Index { functions }, errors)
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct IndexingError {
     pub kind: IndexingErrorKind,
     pub range: TextRange,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum IndexingErrorKind {
-    FunctionWithNameAlreadyDefined,
+    FunctionAlreadyDefined { name: String },
 }
 
 impl fmt::Debug for Index {
@@ -294,11 +299,11 @@ mod tests {
                 fnc a(x: s32): s32 -> x;
             "#,
             expect![[r#"
-                fnc a(x: s32): s32;
+                fnc a;
             "#]],
             [
-                (IndexingErrorKind::FunctionWithNameAlreadyDefined, 46..71),
-                (IndexingErrorKind::FunctionWithNameAlreadyDefined, 88..112),
+                (IndexingErrorKind::FunctionAlreadyDefined { name: "a".to_string() }, 46..71),
+                (IndexingErrorKind::FunctionAlreadyDefined { name: "a".to_string() }, 88..112),
             ],
         );
     }
