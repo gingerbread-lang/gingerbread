@@ -95,7 +95,6 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            // this is a comment
             lsp::model::Msg::Res(res) => eprintln!(
                 "\n== RESPONSE ==\nid: {:?}\nresult: {}\nerror: {:?}\n",
                 res.id, res.result, res.error
