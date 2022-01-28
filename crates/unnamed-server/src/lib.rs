@@ -175,16 +175,29 @@ impl Analysis {
         let diagnostics = syntax_errors.chain(validation_diagnostics).chain(indexing_diagnostics);
 
         diagnostics
-            .map(|diagnostics| Diagnostic {
-                range: convert_text_range(diagnostics.range(), &self.line_index),
-                severity: Some(DiagnosticSeverity::ERROR),
-                code: None,
-                code_description: None,
-                source: Some("unnamedc".to_string()),
-                message: format!("{}:\n{}", diagnostics.kind(), diagnostics.message()),
-                related_information: None,
-                tags: None,
-                data: None,
+            .map(|diagnostics| {
+                let range = convert_text_range(diagnostics.range(), &self.line_index);
+
+                let (kind, severity) = diagnostics.kind();
+
+                let severity = match severity {
+                    diagnostics::Severity::Warning => DiagnosticSeverity::WARNING,
+                    diagnostics::Severity::Error => DiagnosticSeverity::ERROR,
+                };
+
+                let message = format!("{}:\n{}", kind, diagnostics.message());
+
+                Diagnostic {
+                    range,
+                    severity: Some(severity),
+                    code: None,
+                    code_description: None,
+                    source: Some("unnamedc".to_string()),
+                    message,
+                    related_information: None,
+                    tags: None,
+                    data: None,
+                }
             })
             .collect()
     }

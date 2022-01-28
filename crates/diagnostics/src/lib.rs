@@ -14,6 +14,11 @@ enum Repr {
     Indexing(IndexingDiagnostic),
 }
 
+pub enum Severity {
+    Warning,
+    Error,
+}
+
 impl Diagnostic {
     pub fn from_syntax(error: SyntaxError) -> Self {
         Self(Repr::Syntax(error))
@@ -38,7 +43,7 @@ impl Diagnostic {
 
         let mut lines = vec![format!(
             "{} at {}:{}: {}",
-            self.kind(),
+            self.kind().0,
             start_line.0 + 1,
             start_col.0 + 1,
             self.message()
@@ -62,10 +67,20 @@ impl Diagnostic {
         }
     }
 
-    pub fn kind(&self) -> &'static str {
+    pub fn kind(&self) -> (&'static str, Severity) {
         match &self.0 {
-            Repr::Syntax(_) | Repr::Validation(_) => "syntax error",
-            Repr::Indexing(_) => "error",
+            Repr::Syntax(_)
+            | Repr::Validation(ValidationDiagnostic {
+                kind: ValidationDiagnosticKind::IntLiteralTooBig,
+                ..
+            }) => ("syntax error", Severity::Error),
+
+            Repr::Validation(ValidationDiagnostic {
+                kind: ValidationDiagnosticKind::UnneededParens,
+                ..
+            }) => ("warning", Severity::Warning),
+
+            Repr::Indexing(_) => ("error", Severity::Error),
         }
     }
 
@@ -310,7 +325,7 @@ mod tests {
             ValidationDiagnosticKind::UnneededParens,
             8..10,
             expect![[r#"
-                syntax error at 1:9: unneeded parentheses
+                warning at 1:9: unneeded parentheses
                   fnc five(): s32 -> 5;
                           ^^
             "#]],
