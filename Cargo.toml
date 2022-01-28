@@ -3,6 +3,7 @@ members = [
   "crates/arena",
   "crates/ast", #   "crates/errors",  #   "crates/eval",
   "crates/gen",
+  "crates/hir",
   "crates/lexer",
   "crates/line_index",
   "crates/lsp",
