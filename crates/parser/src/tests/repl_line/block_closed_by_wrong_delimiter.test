@@ -3,7 +3,7 @@
 Root@0..4
   Block@0..4
     LBrace@0..1 "{"
-    ExprStmt@1..3
+    ExprStatement@1..3
       Call@1..2
         Ident@1..2 "a"
       Semicolon@2..3 ";"

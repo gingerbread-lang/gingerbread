@@ -1,7 +1,7 @@
 { fnc
 ===
 Root@0..5
-  ExprStmt@0..1
+  ExprStatement@0..1
     Block@0..1
       LBrace@0..1 "{"
   Whitespace@1..2 " "

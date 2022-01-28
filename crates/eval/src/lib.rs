@@ -17,8 +17,8 @@ impl Evaluator {
             exprs: &program.exprs,
         };
 
-        for stmt in program.stmts {
-            eval_ctx.eval_stmt(stmt);
+        for statement in program.statements {
+            eval_ctx.eval_statement(statement);
         }
 
         let result = program.tail_expr.map_or(Val::Nil, |expr| eval_ctx.eval_expr(expr));
@@ -39,10 +39,10 @@ struct EvalCtx<'program> {
 }
 
 impl EvalCtx<'_> {
-    fn eval_stmt(&mut self, stmt: hir::Stmt) {
-        match stmt {
-            hir::Stmt::LocalDef(local_def) => self.eval_local_def(local_def),
-            hir::Stmt::Expr(expr) => {
+    fn eval_statement(&mut self, statement: hir::Statement) {
+        match statement {
+            hir::Statement::LocalDef(local_def) => self.eval_local_def(local_def),
+            hir::Statement::Expr(expr) => {
                 self.eval_expr(expr);
             }
         }
@@ -67,9 +67,9 @@ impl EvalCtx<'_> {
 
                 self.eval_expr(function.body)
             }
-            hir::Expr::Block { stmts, tail_expr } => {
-                for stmt in stmts {
-                    self.eval_stmt(*stmt);
+            hir::Expr::Block { statements, tail_expr } => {
+                for statement in statements {
+                    self.eval_statement(*statement);
                 }
 
                 match tail_expr {
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn eval_block_ending_in_stmt() {
+    fn eval_block_ending_in_statement() {
         check("{ let foo = 10; }", Val::Nil);
     }
 

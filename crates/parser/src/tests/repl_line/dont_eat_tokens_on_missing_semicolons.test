@@ -14,7 +14,7 @@ Root@0..29
     IntLiteral@8..9
       Int@8..9 "0"
   Whitespace@9..10 "\n"
-  ExprStmt@10..15
+  ExprStatement@10..15
     BinExpr@10..15
       Call@10..11
         Ident@10..11 "a"
@@ -24,7 +24,7 @@ Root@0..29
       IntLiteral@14..15
         Int@14..15 "1"
   Whitespace@15..16 "\n"
-  ExprStmt@16..21
+  ExprStatement@16..21
     BinExpr@16..21
       Call@16..17
         Ident@16..17 "a"

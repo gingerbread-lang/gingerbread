@@ -1,10 +1,10 @@
 mod def;
 mod expr;
-mod stmt;
+mod statement;
 mod ty;
 
 use self::def::{parse_def, DEF_FIRST};
-use self::stmt::parse_stmt;
+use self::statement::parse_statement;
 use crate::parser::Parser;
 use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
@@ -30,7 +30,7 @@ pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
             let _guard = p.expected_syntax_name("definition or statement");
             p.error_with_recovery_set_no_default(TokenSet::default());
         } else {
-            parse_stmt(p);
+            parse_statement(p);
         }
     }
 

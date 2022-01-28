@@ -1,5 +1,5 @@
 use crate::grammar::def::DEF_FIRST;
-use crate::grammar::stmt::parse_stmt;
+use crate::grammar::statement::parse_statement;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
@@ -120,7 +120,7 @@ fn parse_block(p: &mut Parser<'_, '_>) -> CompletedMarker {
     p.bump();
 
     while !p.at(TokenKind::RBrace) && !p.at_set(DEF_FIRST) && !p.at_eof() {
-        parse_stmt(p);
+        parse_statement(p);
     }
 
     p.expect(TokenKind::RBrace);

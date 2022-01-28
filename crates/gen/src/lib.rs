@@ -55,7 +55,7 @@ impl Gen {
         self.newline();
     }
 
-    fn gen_stmt(&mut self, level: u8) {
+    fn gen_statement(&mut self, level: u8) {
         match self.rng.generate_range(0..2) {
             0 => self.gen_local_def(level + 1),
             1 => {
@@ -131,9 +131,9 @@ impl Gen {
     }
 
     fn gen_block_expr(&mut self, level: u8) {
-        let num_stmts = self.rng.generate_range(0..=5);
+        let num_statements = self.rng.generate_range(0..=5);
 
-        if num_stmts == 0 {
+        if num_statements == 0 {
             self.buf.push_str("{}");
             return;
         }
@@ -143,8 +143,8 @@ impl Gen {
         self.buf.push('{');
         self.newline();
 
-        for _ in 0..num_stmts {
-            self.gen_stmt(level + 1);
+        for _ in 0..num_statements {
+            self.gen_statement(level + 1);
         }
 
         let has_tail = self.rng.generate();

@@ -4,7 +4,7 @@ use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
-pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+pub(super) fn parse_statement(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("statement");
 
     if p.at(TokenKind::Semicolon) {
@@ -24,7 +24,7 @@ pub(super) fn parse_stmt(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     let m = cm.precede(p);
     p.expect_with_no_skip(TokenKind::Semicolon);
 
-    Some(m.complete(p, SyntaxKind::ExprStmt))
+    Some(m.complete(p, SyntaxKind::ExprStatement))
 }
 
 fn parse_local_def(p: &mut Parser<'_, '_>) -> CompletedMarker {

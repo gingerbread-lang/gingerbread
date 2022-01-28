@@ -68,7 +68,7 @@ impl Root {
         nodes(self)
     }
 
-    pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
+    pub fn statements(&self) -> impl Iterator<Item = Statement> {
         nodes(self)
     }
 
@@ -118,16 +118,16 @@ impl Function {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Stmt {
+pub enum Statement {
     LocalDef(LocalDef),
-    ExprStmt(ExprStmt),
+    ExprStatement(ExprStatement),
 }
 
-impl AstNode for Stmt {
+impl AstNode for Statement {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
             SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
-            SyntaxKind::ExprStmt => Some(Self::ExprStmt(ExprStmt(node))),
+            SyntaxKind::ExprStatement => Some(Self::ExprStatement(ExprStatement(node))),
             _ => None,
         }
     }
@@ -135,7 +135,7 @@ impl AstNode for Stmt {
     fn syntax(&self) -> &SyntaxNode {
         match self {
             Self::LocalDef(local_def) => local_def.syntax(),
-            Self::ExprStmt(expr) => expr.syntax(),
+            Self::ExprStatement(expr) => expr.syntax(),
         }
     }
 }
@@ -188,9 +188,9 @@ impl Ty {
     }
 }
 
-def_ast_node!(ExprStmt);
+def_ast_node!(ExprStatement);
 
-impl ExprStmt {
+impl ExprStatement {
     pub fn expr(&self) -> Option<Expr> {
         node(self)
     }
@@ -247,7 +247,7 @@ impl BinExpr {
 def_ast_node!(Block);
 
 impl Block {
-    pub fn stmts(&self) -> impl Iterator<Item = Stmt> {
+    pub fn statements(&self) -> impl Iterator<Item = Statement> {
         nodes(self)
     }
 
@@ -364,28 +364,28 @@ mod tests {
     }
 
     #[test]
-    fn get_stmts() {
+    fn get_statements() {
         let root = parse("let a = b; a;");
-        assert_eq!(root.stmts().count(), 2);
+        assert_eq!(root.statements().count(), 2);
     }
 
     #[test]
-    fn inspect_stmt_kind() {
+    fn inspect_statement_kind() {
         let root = parse("let foo = bar; baz * quuz;");
-        let mut stmts = root.stmts();
+        let mut statements = root.statements();
 
-        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
-        assert!(matches!(stmts.next(), Some(Stmt::ExprStmt(_))));
-        assert!(stmts.next().is_none());
+        assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
+        assert!(matches!(statements.next(), Some(Statement::ExprStatement(_))));
+        assert!(statements.next().is_none());
     }
 
     #[test]
     fn get_name_of_local_def() {
         let root = parse("let a = 10;");
-        let stmt = root.stmts().next().unwrap();
+        let statement = root.statements().next().unwrap();
 
-        let local_def = match stmt {
-            Stmt::LocalDef(local_def) => local_def,
+        let local_def = match statement {
+            Statement::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
@@ -395,10 +395,10 @@ mod tests {
     #[test]
     fn get_value_of_local_def() {
         let root = parse("let foo = 5;");
-        let stmt = root.stmts().next().unwrap();
+        let statement = root.statements().next().unwrap();
 
-        let local_def = match stmt {
-            Stmt::LocalDef(local_def) => local_def,
+        let local_def = match statement {
+            Statement::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
@@ -408,7 +408,7 @@ mod tests {
     #[test]
     fn get_lhs_and_rhs_of_bin_expr() {
         let root = parse("foo * 2");
-        assert!(root.stmts().next().is_none());
+        assert!(root.statements().next().is_none());
 
         let bin_expr = match root.tail_expr() {
             Some(Expr::Bin(bin_expr)) => bin_expr,
@@ -484,7 +484,7 @@ mod tests {
     }
 
     #[test]
-    fn get_block_stmts_and_tail_expr() {
+    fn get_block_statements_and_tail_expr() {
         let root = parse("{ let a = 10; let b = a * {a - 1}; b + 5 }");
 
         let block = match root.tail_expr() {
@@ -492,11 +492,11 @@ mod tests {
             _ => unreachable!(),
         };
 
-        let mut stmts = block.stmts();
+        let mut statements = block.statements();
 
-        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
-        assert!(matches!(stmts.next(), Some(Stmt::LocalDef(_))));
-        assert!(stmts.next().is_none());
+        assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
+        assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
+        assert!(statements.next().is_none());
 
         assert!(matches!(block.tail_expr(), Some(Expr::Bin(_))));
     }
@@ -553,6 +553,6 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert!(block.stmts().next().is_none());
+        assert!(block.statements().next().is_none());
     }
 }
