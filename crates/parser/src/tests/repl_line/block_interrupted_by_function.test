@@ -5,7 +5,7 @@ Root@0..5
     Block@0..1
       LBrace@0..1 "{"
   Whitespace@1..2 " "
-  FncDef@2..5
+  Function@2..5
     FncKw@2..5 "fnc"
 error at 1: missing RBrace
 error at 1: missing Semicolon

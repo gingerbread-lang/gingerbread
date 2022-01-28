@@ -1,7 +1,7 @@
 fnc (x: s32) -> x;
 ===
 Root@0..18
-  FncDef@0..18
+  Function@0..18
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     ParamList@4..12

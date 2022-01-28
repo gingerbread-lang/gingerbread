@@ -13,7 +13,7 @@ impl Evaluator {
             locals: mem::take(&mut self.locals),
             params: mem::take(&mut self.params),
             local_defs: &program.local_defs,
-            fnc_defs: &program.fnc_defs,
+            functions: &program.functions,
             exprs: &program.exprs,
         };
 
@@ -34,7 +34,7 @@ struct EvalCtx<'program> {
     locals: ArenaMap<hir::LocalDefId, Val>,
     params: ArenaMap<hir::ParamId, Val>,
     local_defs: &'program Arena<hir::LocalDef>,
-    fnc_defs: &'program Arena<hir::FncDef>,
+    functions: &'program Arena<hir::Function>,
     exprs: &'program Arena<hir::Expr>,
 }
 
@@ -58,14 +58,14 @@ impl EvalCtx<'_> {
             hir::Expr::Missing => Val::Nil,
             hir::Expr::Bin { lhs, rhs, op } => self.eval_bin_expr(*op, *lhs, *rhs),
             hir::Expr::Call { def, args } => {
-                let fnc_def = &self.fnc_defs[*def];
+                let function = &self.functions[*def];
 
-                for (param, &arg) in fnc_def.params.clone().zip(args) {
+                for (param, &arg) in function.params.clone().zip(args) {
                     let arg = self.eval_expr(arg);
                     self.params.insert(param, arg);
                 }
 
-                self.eval_expr(fnc_def.body)
+                self.eval_expr(function.body)
             }
             hir::Expr::Block { stmts, tail_expr } => {
                 for stmt in stmts {
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn preserve_fnc_defs_across_eval_calls() {
+    fn preserve_functions_across_eval_calls() {
         let mut evaluator = Evaluator::default();
 
         let parse = parser::parse_source_file(&lexer::lex(

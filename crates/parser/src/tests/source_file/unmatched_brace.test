@@ -2,7 +2,7 @@ fnc foo -> {};
 }
 ===
 Root@0..16
-  FncDef@0..14
+  Function@0..14
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"

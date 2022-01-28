@@ -1,7 +1,7 @@
 fnc {
 ===
 Root@0..5
-  FncDef@0..5
+  Function@0..5
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Block@4..5

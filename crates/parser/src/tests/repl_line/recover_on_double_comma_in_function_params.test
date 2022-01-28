@@ -1,7 +1,7 @@
 fnc f(s: string,,) -> {};
 ===
 Root@0..25
-  FncDef@0..25
+  Function@0..25
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..5 "f"

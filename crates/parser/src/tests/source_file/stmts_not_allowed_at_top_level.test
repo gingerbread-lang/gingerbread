@@ -3,7 +3,7 @@ let foo = 5;
 fnc world: string -> "world";
 ===
 Root@0..72
-  FncDef@0..29
+  Function@0..29
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..9 "hello"
@@ -33,7 +33,7 @@ Root@0..72
   Error@41..42
     Semicolon@41..42 ";"
   Whitespace@42..43 "\n"
-  FncDef@43..72
+  Function@43..72
     FncKw@43..46 "fnc"
     Whitespace@46..47 " "
     Ident@47..52 "world"

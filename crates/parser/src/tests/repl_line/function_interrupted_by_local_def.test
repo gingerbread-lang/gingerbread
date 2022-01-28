@@ -2,7 +2,7 @@ fnc foo
 let bar = 5;
 ===
 Root@0..20
-  FncDef@0..7
+  Function@0..7
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "foo"

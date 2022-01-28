@@ -1,7 +1,7 @@
 fnc
 ===
 Root@0..3
-  FncDef@0..3
+  Function@0..3
     FncKw@0..3 "fnc"
 error at 3: missing function name
 error at 3: missing Arrow

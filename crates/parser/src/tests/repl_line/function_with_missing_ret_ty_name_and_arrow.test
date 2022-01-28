@@ -4,7 +4,7 @@ fnc gen: {
 };
 ===
 Root@0..34
-  FncDef@0..34
+  Function@0..34
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..7 "gen"

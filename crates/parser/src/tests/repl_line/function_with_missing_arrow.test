@@ -1,7 +1,7 @@
 fnc five: s32 5;
 ===
 Root@0..16
-  FncDef@0..16
+  Function@0..16
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "five"

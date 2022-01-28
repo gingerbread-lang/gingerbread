@@ -1,4 +1,4 @@
-use crate::{AstNode, AstToken, FncDef, IntLiteral};
+use crate::{AstNode, AstToken, Function, IntLiteral};
 use text_size::TextRange;
 
 pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
@@ -16,8 +16,8 @@ pub fn validate(ast: &impl AstNode) -> Vec<ValidationError> {
                     });
                 }
             }
-        } else if let Some(fnc_def) = FncDef::cast(node) {
-            if let Some(param_list) = fnc_def.param_list() {
+        } else if let Some(function) = Function::cast(node) {
+            if let Some(param_list) = function.param_list() {
                 if param_list.params().next().is_none() {
                     errors.push(ValidationError {
                         kind: ValidationErrorKind::UnneededParens,
@@ -117,7 +117,7 @@ mod validation_tests {
     }
 
     #[test]
-    fn validate_unneeded_parens_on_fnc_def() {
+    fn validate_unneeded_parens_on_function() {
         check_source_file("fnc foo ( ) -> {};", [(ValidationErrorKind::UnneededParens, 8..11)]);
     }
 }

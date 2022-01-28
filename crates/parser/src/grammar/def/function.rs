@@ -5,7 +5,7 @@ use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
-pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
+pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::FncKw));
     let m = p.start();
     p.bump();
@@ -27,7 +27,7 @@ pub(super) fn parse_fnc_def(p: &mut Parser<'_, '_>) -> CompletedMarker {
     parse_expr(p, "function body");
     p.expect(TokenKind::Semicolon);
 
-    m.complete(p, SyntaxKind::FncDef)
+    m.complete(p, SyntaxKind::Function)
 }
 
 fn parse_fnc_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {

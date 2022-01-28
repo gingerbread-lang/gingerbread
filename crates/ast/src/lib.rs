@@ -78,13 +78,13 @@ impl Root {
 }
 
 pub enum Def {
-    FncDef(FncDef),
+    Function(Function),
 }
 
 impl AstNode for Def {
     fn cast(node: SyntaxNode) -> Option<Self> {
         match node.kind() {
-            SyntaxKind::FncDef => Some(Self::FncDef(FncDef(node))),
+            SyntaxKind::Function => Some(Self::Function(Function(node))),
 
             _ => None,
         }
@@ -92,14 +92,14 @@ impl AstNode for Def {
 
     fn syntax(&self) -> &SyntaxNode {
         match self {
-            Self::FncDef(fnc_def) => fnc_def.syntax(),
+            Self::Function(function) => function.syntax(),
         }
     }
 }
 
-def_ast_node!(FncDef);
+def_ast_node!(Function);
 
-impl FncDef {
+impl Function {
     pub fn name(&self) -> Option<Ident> {
         token(self)
     }
@@ -502,23 +502,23 @@ mod tests {
     }
 
     #[test]
-    fn get_fnc_def_name() {
+    fn get_function_name() {
         let root = parse("fnc a -> {};");
         let def = root.defs().next().unwrap();
 
-        let Def::FncDef(fnc_def) = def;
+        let Def::Function(function) = def;
 
-        assert_eq!(fnc_def.name().unwrap().text(), "a");
+        assert_eq!(function.name().unwrap().text(), "a");
     }
 
     #[test]
-    fn get_fnc_def_params() {
+    fn get_function_params() {
         let root = parse("fnc add(x: s32, y: s32) -> {};");
         let def = root.defs().next().unwrap();
 
-        let Def::FncDef(fnc_def) = def;
+        let Def::Function(function) = def;
 
-        let mut params = fnc_def.param_list().unwrap().params();
+        let mut params = function.param_list().unwrap().params();
 
         let param = params.next().unwrap();
         assert_eq!(param.name().unwrap().text(), "x");
@@ -532,23 +532,23 @@ mod tests {
     }
 
     #[test]
-    fn get_fnc_def_ret_ty() {
+    fn get_function_ret_ty() {
         let root = parse("fnc four: s32 -> 4;");
         let def = root.defs().next().unwrap();
 
-        let Def::FncDef(fnc_def) = def;
+        let Def::Function(function) = def;
 
-        assert_eq!(fnc_def.ret_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
+        assert_eq!(function.ret_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
     }
 
     #[test]
-    fn get_fnc_def_body() {
+    fn get_function_body() {
         let root = parse("fnc nothing -> {};");
         let def = root.defs().next().unwrap();
 
-        let Def::FncDef(fnc_def) = def;
+        let Def::Function(function) = def;
 
-        let block = match fnc_def.body().unwrap() {
+        let block = match function.body().unwrap() {
             Expr::Block(block) => block,
             _ => unreachable!(),
         };

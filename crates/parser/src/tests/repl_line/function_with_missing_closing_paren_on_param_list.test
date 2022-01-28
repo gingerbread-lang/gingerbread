@@ -1,7 +1,7 @@
 fnc main(
 ===
 Root@0..9
-  FncDef@0..9
+  Function@0..9
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "main"

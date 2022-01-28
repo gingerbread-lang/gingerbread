@@ -1,6 +1,6 @@
-mod fnc_def;
+mod function;
 
-use self::fnc_def::parse_fnc_def;
+use self::function::parse_function;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use token::TokenKind;
@@ -11,7 +11,7 @@ pub(super) fn parse_def(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("definition");
 
     if p.at(TokenKind::FncKw) {
-        return Some(parse_fnc_def(p));
+        return Some(parse_function(p));
     }
 
     p.error_with_recovery_set_no_default(TokenSet::default())

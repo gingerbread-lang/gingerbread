@@ -1,7 +1,7 @@
 fnc id(: foo) -> {};
 ===
 Root@0..20
-  FncDef@0..20
+  Function@0..20
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..6 "id"

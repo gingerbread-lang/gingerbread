@@ -9,7 +9,7 @@ Root@0..21
     Whitespace@5..6 " "
     Eq@6..7 "="
   Whitespace@7..8 "\n"
-  FncDef@8..21
+  Function@8..21
     FncKw@8..11 "fnc"
     Whitespace@11..12 " "
     Ident@12..15 "one"

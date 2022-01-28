@@ -76,7 +76,7 @@ pub enum SyntaxKind {
     BinExpr,
     LocalDef,
     ExprStmt,
-    FncDef,
+    Function,
     ParamList,
     Param,
     RetTy,

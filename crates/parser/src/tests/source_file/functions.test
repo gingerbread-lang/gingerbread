@@ -2,7 +2,7 @@ fnc average_two(x: s32, y: s32): s32 -> {x + y} / 2;
 fnc average_three(x: s32, y: s32, z: s32): s32 -> {x + y + z} / 3;
 ===
 Root@0..119
-  FncDef@0..52
+  Function@0..52
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..15 "average_two"
@@ -50,7 +50,7 @@ Root@0..119
         Int@50..51 "2"
     Semicolon@51..52 ";"
   Whitespace@52..53 "\n"
-  FncDef@53..119
+  Function@53..119
     FncKw@53..56 "fnc"
     Whitespace@56..57 " "
     Ident@57..70 "average_three"

@@ -1,7 +1,7 @@
 fnc nothing -> {};
 ===
 Root@0..18
-  FncDef@0..18
+  Function@0..18
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..11 "nothing"
