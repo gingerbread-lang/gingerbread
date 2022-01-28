@@ -1,17 +1,14 @@
-fnc nothing() -> {};
+fnc nothing -> {};
 ===
-Root@0..20
-  FncDef@0..20
+Root@0..18
+  FncDef@0..18
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..11 "nothing"
-    ParamList@11..13
-      LParen@11..12 "("
-      RParen@12..13 ")"
-    Whitespace@13..14 " "
-    Arrow@14..16 "->"
-    Whitespace@16..17 " "
-    Block@17..19
-      LBrace@17..18 "{"
-      RBrace@18..19 "}"
-    Semicolon@19..20 ";"
+    Whitespace@11..12 " "
+    Arrow@12..14 "->"
+    Whitespace@14..15 " "
+    Block@15..17
+      LBrace@15..16 "{"
+      RBrace@16..17 "}"
+    Semicolon@17..18 ";"

@@ -7,7 +7,6 @@ Root@0..5
     Block@4..5
       LBrace@4..5 "{"
 error at 3: missing function name
-error at 3: missing function parameters
 error at 3: missing Arrow
 error at 5: missing RBrace
 error at 5: missing Semicolon

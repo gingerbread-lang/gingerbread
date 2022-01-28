@@ -10,7 +10,6 @@ Root@0..5
 error at 1: missing RBrace
 error at 1: missing Semicolon
 error at 5: missing function name
-error at 5: missing function parameters
 error at 5: missing Arrow
 error at 5: missing function body
 error at 5: missing Semicolon

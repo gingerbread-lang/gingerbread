@@ -21,7 +21,7 @@ pub fn lower(ast: ast::Root) -> hir::summary::Summary {
                             ty: lower_ty(param.ty()),
                         })
                         .collect(),
-                    None => continue,
+                    None => Vec::new(),
                 };
 
                 let ret_ty = match fnc_def.ret_ty() {
@@ -68,9 +68,9 @@ mod tests {
     #[test]
     fn fnc() {
         check(
-            r#"fnc main() -> {};"#,
+            r#"fnc main -> {};"#,
             expect![[r#"
-                fnc main();
+                fnc main;
             "#]],
         );
     }
@@ -78,9 +78,9 @@ mod tests {
     #[test]
     fn fnc_with_non_unit_body() {
         check(
-            r#"fnc five() -> 5;"#,
+            r#"fnc five -> 5;"#,
             expect![[r#"
-                fnc five();
+                fnc five;
             "#]],
         );
     }
@@ -88,9 +88,9 @@ mod tests {
     #[test]
     fn fnc_with_ret_ty() {
         check(
-            r#"fnc one(): s32 -> 1;"#,
+            r#"fnc one: s32 -> 1;"#,
             expect![[r#"
-                fnc one(): s32;
+                fnc one: s32;
             "#]],
         );
     }
@@ -98,9 +98,9 @@ mod tests {
     #[test]
     fn fnc_with_malformed_ret_ty() {
         check(
-            r#"fnc a(): @ -> {};"#,
+            r#"fnc a: @ -> {};"#,
             expect![[r#"
-                fnc a(): ?;
+                fnc a: ?;
             "#]],
         );
     }
@@ -137,25 +137,25 @@ mod tests {
 
     #[test]
     fn fnc_with_missing_name() {
-        check(r#"fnc () -> {};"#, expect![[""]]);
+        check(r#"fnc -> {};"#, expect![[""]]);
     }
 
     #[test]
     fn multiple_fncs() {
         check(
             r#"
-                fnc a() -> {};
-                fnc b() -> {};
-                fnc c() -> {};
-                fnc d() -> {};
-                fnc e() -> {};
+                fnc a -> {};
+                fnc b -> {};
+                fnc c -> {};
+                fnc d -> {};
+                fnc e -> {};
             "#,
             expect![[r#"
-                fnc a();
-                fnc b();
-                fnc c();
-                fnc d();
-                fnc e();
+                fnc a;
+                fnc b;
+                fnc c;
+                fnc d;
+                fnc e;
             "#]],
         );
     }

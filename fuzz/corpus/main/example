@@ -5,7 +5,7 @@ some_expressions;
 10000 - 2 * hello;
 
 let string = "the quick brown fox jumps over the lazy dog";
-fnc get_greeting(): string -> "hello!";
+fnc get_greeting: string -> "hello!";
 
 {
     fnc add(x: s32, y: s32): s32 -> x + y;

@@ -94,14 +94,14 @@ mod validation_tests {
     fn validate_multiple_too_big_int_literals() {
         check_source_file(
             "
-                fnc main() -> {
+                fnc main -> {
                   let b = 5000000000;
                   let a = 9999999999999999999 + b;
                 };
             ",
             [
-                (ValidationErrorKind::IntLiteralTooBig, 59..69),
-                (ValidationErrorKind::IntLiteralTooBig, 97..116),
+                (ValidationErrorKind::IntLiteralTooBig, 57..67),
+                (ValidationErrorKind::IntLiteralTooBig, 95..114),
             ],
         );
     }

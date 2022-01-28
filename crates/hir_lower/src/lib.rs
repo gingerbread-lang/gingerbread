@@ -475,7 +475,7 @@ mod tests {
 
         check(
             r#"
-                fnc zero(): s32 -> 0;
+                fnc zero: s32 -> 0;
                 zero;
             "#,
             hir::Program {
@@ -523,7 +523,7 @@ mod tests {
         check(
             r#"
                 unit;
-                fnc unit() -> {};
+                fnc unit -> {};
             "#,
             hir::Program {
                 fnc_defs,
@@ -785,7 +785,7 @@ mod tests {
         });
 
         check(
-            "fnc f() -> {};",
+            "fnc f -> {};",
             hir::Program {
                 fnc_defs,
                 exprs,
@@ -925,14 +925,14 @@ mod tests {
         });
 
         check(
-            "fnc a(): foo -> {};",
+            "fnc a: foo -> {};",
             hir::Program {
                 fnc_defs,
                 exprs,
                 defs: vec![hir::Def::FncDef(fnc_def)],
                 ..Default::default()
             },
-            [(9..12, LowerErrorKind::UndefinedTy { name: "foo".to_string() })],
+            [(7..10, LowerErrorKind::UndefinedTy { name: "foo".to_string() })],
         );
     }
 
@@ -949,7 +949,7 @@ mod tests {
         });
 
         check(
-            r#"fnc crab(): string -> "🦀";"#,
+            r#"fnc crab: string -> "🦀";"#,
             hir::Program {
                 fnc_defs,
                 exprs,
@@ -962,7 +962,7 @@ mod tests {
 
     #[test]
     fn source_map() {
-        let parse = parser::parse_repl_line(&lexer::lex("fnc f(): s32 -> 4; let a = 10; a - 5; f"));
+        let parse = parser::parse_repl_line(&lexer::lex("fnc f: s32 -> 4; let a = 10; a - 5; f"));
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let mut defs = root.defs();
         let mut stmts = root.stmts();

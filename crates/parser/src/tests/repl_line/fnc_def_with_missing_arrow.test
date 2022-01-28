@@ -1,20 +1,17 @@
-fnc five(): s32 5;
+fnc five: s32 5;
 ===
-Root@0..18
-  FncDef@0..18
+Root@0..16
+  FncDef@0..16
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..8 "five"
-    ParamList@8..10
-      LParen@8..9 "("
-      RParen@9..10 ")"
-    RetTy@10..15
-      Colon@10..11 ":"
-      Whitespace@11..12 " "
-      Ty@12..15
-        Ident@12..15 "s32"
-    Whitespace@15..16 " "
-    IntLiteral@16..17
-      Int@16..17 "5"
-    Semicolon@17..18 ";"
-error at 15: missing Arrow
+    RetTy@8..13
+      Colon@8..9 ":"
+      Whitespace@9..10 " "
+      Ty@10..13
+        Ident@10..13 "s32"
+    Whitespace@13..14 " "
+    IntLiteral@14..15
+      Int@14..15 "5"
+    Semicolon@15..16 ";"
+error at 13: missing Arrow

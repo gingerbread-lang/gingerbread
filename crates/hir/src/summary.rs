@@ -31,23 +31,25 @@ impl fmt::Debug for Summary {
         for (name, fnc) in &self.fncs {
             write!(f, "fnc {}", name.0)?;
 
-            write!(f, "(")?;
+            if !fnc.params.is_empty() {
+                write!(f, "(")?;
 
-            for (idx, param) in fnc.params.iter().enumerate() {
-                if idx != 0 {
-                    write!(f, ", ")?;
+                for (idx, param) in fnc.params.iter().enumerate() {
+                    if idx != 0 {
+                        write!(f, ", ")?;
+                    }
+
+                    match &param.name {
+                        Some(Name(name)) => write!(f, "{}", name)?,
+                        None => write!(f, "?")?,
+                    }
+
+                    write!(f, ": ")?;
+                    format_ty(&param.ty, f)?;
                 }
 
-                match &param.name {
-                    Some(Name(name)) => write!(f, "{}", name)?,
-                    None => write!(f, "?")?,
-                }
-
-                write!(f, ": ")?;
-                format_ty(&param.ty, f)?;
+                write!(f, ")")?;
             }
-
-            write!(f, ")")?;
 
             if fnc.ret_ty != Ty::Unit {
                 write!(f, ": ")?;

@@ -1,61 +1,55 @@
-fnc hello(): string -> "hello";
+fnc hello: string -> "hello";
 let foo = 5;
-fnc world(): string -> "world";
+fnc world: string -> "world";
 ===
-Root@0..76
-  FncDef@0..31
+Root@0..72
+  FncDef@0..29
     FncKw@0..3 "fnc"
     Whitespace@3..4 " "
     Ident@4..9 "hello"
-    ParamList@9..11
-      LParen@9..10 "("
-      RParen@10..11 ")"
-    RetTy@11..19
-      Colon@11..12 ":"
-      Whitespace@12..13 " "
-      Ty@13..19
-        Ident@13..19 "string"
-    Whitespace@19..20 " "
-    Arrow@20..22 "->"
-    Whitespace@22..23 " "
-    StringLiteral@23..30
-      String@23..30 "\"hello\""
-    Semicolon@30..31 ";"
-  Whitespace@31..32 "\n"
-  Error@32..35
-    LetKw@32..35 "let"
-  Whitespace@35..36 " "
-  Error@36..39
-    Ident@36..39 "foo"
+    RetTy@9..17
+      Colon@9..10 ":"
+      Whitespace@10..11 " "
+      Ty@11..17
+        Ident@11..17 "string"
+    Whitespace@17..18 " "
+    Arrow@18..20 "->"
+    Whitespace@20..21 " "
+    StringLiteral@21..28
+      String@21..28 "\"hello\""
+    Semicolon@28..29 ";"
+  Whitespace@29..30 "\n"
+  Error@30..33
+    LetKw@30..33 "let"
+  Whitespace@33..34 " "
+  Error@34..37
+    Ident@34..37 "foo"
+  Whitespace@37..38 " "
+  Error@38..39
+    Eq@38..39 "="
   Whitespace@39..40 " "
   Error@40..41
-    Eq@40..41 "="
-  Whitespace@41..42 " "
-  Error@42..43
-    Int@42..43 "5"
-  Error@43..44
-    Semicolon@43..44 ";"
-  Whitespace@44..45 "\n"
-  FncDef@45..76
-    FncKw@45..48 "fnc"
-    Whitespace@48..49 " "
-    Ident@49..54 "world"
-    ParamList@54..56
-      LParen@54..55 "("
-      RParen@55..56 ")"
-    RetTy@56..64
-      Colon@56..57 ":"
-      Whitespace@57..58 " "
-      Ty@58..64
-        Ident@58..64 "string"
-    Whitespace@64..65 " "
-    Arrow@65..67 "->"
-    Whitespace@67..68 " "
-    StringLiteral@68..75
-      String@68..75 "\"world\""
-    Semicolon@75..76 ";"
-error at 32..35: expected definition but found LetKw
-error at 36..39: expected definition but found Ident
-error at 40..41: expected definition but found Eq
-error at 42..43: expected definition but found Int
-error at 43..44: expected definition but found Semicolon
+    Int@40..41 "5"
+  Error@41..42
+    Semicolon@41..42 ";"
+  Whitespace@42..43 "\n"
+  FncDef@43..72
+    FncKw@43..46 "fnc"
+    Whitespace@46..47 " "
+    Ident@47..52 "world"
+    RetTy@52..60
+      Colon@52..53 ":"
+      Whitespace@53..54 " "
+      Ty@54..60
+        Ident@54..60 "string"
+    Whitespace@60..61 " "
+    Arrow@61..63 "->"
+    Whitespace@63..64 " "
+    StringLiteral@64..71
+      String@64..71 "\"world\""
+    Semicolon@71..72 ";"
+error at 30..33: expected definition but found LetKw
+error at 34..37: expected definition but found Ident
+error at 38..39: expected definition but found Eq
+error at 40..41: expected definition but found Int
+error at 41..42: expected definition but found Semicolon

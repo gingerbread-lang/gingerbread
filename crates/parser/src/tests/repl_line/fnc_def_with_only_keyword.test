@@ -4,7 +4,6 @@ Root@0..3
   FncDef@0..3
     FncKw@0..3 "fnc"
 error at 3: missing function name
-error at 3: missing function parameters
 error at 3: missing Arrow
 error at 3: missing function body
 error at 3: missing Semicolon

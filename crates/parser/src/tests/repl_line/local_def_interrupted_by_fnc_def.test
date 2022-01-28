@@ -1,7 +1,7 @@
 let a =
-fnc one() -> 1;
+fnc one -> 1;
 ===
-Root@0..23
+Root@0..21
   LocalDef@0..7
     LetKw@0..3 "let"
     Whitespace@3..4 " "
@@ -9,18 +9,15 @@ Root@0..23
     Whitespace@5..6 " "
     Eq@6..7 "="
   Whitespace@7..8 "\n"
-  FncDef@8..23
+  FncDef@8..21
     FncKw@8..11 "fnc"
     Whitespace@11..12 " "
     Ident@12..15 "one"
-    ParamList@15..17
-      LParen@15..16 "("
-      RParen@16..17 ")"
-    Whitespace@17..18 " "
-    Arrow@18..20 "->"
-    Whitespace@20..21 " "
-    IntLiteral@21..22
-      Int@21..22 "1"
-    Semicolon@22..23 ";"
+    Whitespace@15..16 " "
+    Arrow@16..18 "->"
+    Whitespace@18..19 " "
+    IntLiteral@19..20
+      Int@19..20 "1"
+    Semicolon@20..21 ";"
 error at 7: missing variable value
 error at 7: missing Semicolon
