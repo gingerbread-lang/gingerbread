@@ -76,10 +76,10 @@ impl Error {
             ErrorRepr::Syntax(_) | ErrorRepr::Validation(_) => "syntax error",
 
             ErrorRepr::Lower(error) => match error.kind {
-                LowerErrorKind::UndefinedVarOrFnc { .. } => {
+                LowerErrorKind::UndefinedVarOrFunction { .. } => {
                     "undefined variable or zero-parameter function"
                 }
-                LowerErrorKind::UndefinedFnc { .. } => "undefined function",
+                LowerErrorKind::UndefinedFunction { .. } => "undefined function",
                 LowerErrorKind::UndefinedTy { .. } => "undefined type",
             },
 
@@ -179,10 +179,10 @@ fn validation_error_message(validation_error: &ValidationError) -> String {
 
 fn lower_error_message(lower_error: &LowerError) -> String {
     match lower_error.kind {
-        LowerErrorKind::UndefinedVarOrFnc { ref name } => {
+        LowerErrorKind::UndefinedVarOrFunction { ref name } => {
             format!("`{}` has not been defined", name)
         }
-        LowerErrorKind::UndefinedFnc { ref name } => {
+        LowerErrorKind::UndefinedFunction { ref name } => {
             format!("`{}` has not been defined", name)
         }
         LowerErrorKind::UndefinedTy { ref name } => {
@@ -369,10 +369,10 @@ mod tests {
     }
 
     #[test]
-    fn lower_error_undefined_var_or_fnc() {
+    fn lower_error_undefined_var_or_function() {
         check_lower_error(
             "let the_value = 10\nteh_value",
-            LowerErrorKind::UndefinedVarOrFnc { name: "teh_value".to_string() },
+            LowerErrorKind::UndefinedVarOrFunction { name: "teh_value".to_string() },
             19..28,
             expect![[r#"
                 undefined variable or zero-parameter function at 2:1: `teh_value` has not been defined
@@ -383,10 +383,10 @@ mod tests {
     }
 
     #[test]
-    fn lower_error_undefined_fnc() {
+    fn lower_error_undefined_function() {
         check_lower_error(
             "frobnicate 10, 20",
-            LowerErrorKind::UndefinedFnc { name: "frobnicate".to_string() },
+            LowerErrorKind::UndefinedFunction { name: "frobnicate".to_string() },
             0..10,
             expect![[r#"
                 undefined function at 1:1: `frobnicate` has not been defined

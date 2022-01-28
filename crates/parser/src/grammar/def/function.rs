@@ -16,7 +16,7 @@ pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
     }
 
     if p.at(TokenKind::LParen) {
-        parse_fnc_param_list(p);
+        parse_param_list(p);
     }
 
     if p.at(TokenKind::Colon) {
@@ -30,7 +30,7 @@ pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::Function)
 }
 
-fn parse_fnc_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
     assert!(p.at(TokenKind::LParen));
     let m = p.start();
     p.bump();
@@ -44,7 +44,7 @@ fn parse_fnc_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
             let _guard = p.expected_syntax_name("parameter");
             p.error_with_no_skip();
         } else {
-            parse_fnc_param(p);
+            parse_param(p);
         }
 
         if should_stop(p) {
@@ -78,7 +78,7 @@ fn parse_ret_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::RetTy)
 }
 
-fn parse_fnc_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
 
     {

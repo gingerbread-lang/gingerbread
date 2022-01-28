@@ -18,13 +18,13 @@ struct Gen {
 impl Gen {
     fn finish(mut self) -> String {
         while !self.generated_enough() {
-            self.gen_fnc();
+            self.gen_function();
         }
 
         self.buf
     }
 
-    fn gen_fnc(&mut self) {
+    fn gen_function(&mut self) {
         self.buf.push_str("fnc ");
         self.gen_ident();
         self.buf.push('(');

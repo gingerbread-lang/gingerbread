@@ -230,7 +230,7 @@ mod tests {
             &root,
             hir_lower::InScope::new(
                 lower_result.program,
-                lower_result.fnc_names,
+                lower_result.function_names,
                 lower_result.var_names,
             ),
         );
@@ -303,7 +303,7 @@ mod tests {
             &root,
             hir_lower::InScope::new(
                 lower_result.program,
-                lower_result.fnc_names,
+                lower_result.function_names,
                 lower_result.var_names,
             ),
         );
