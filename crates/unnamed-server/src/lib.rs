@@ -1,8 +1,6 @@
 use ast::validation::ValidationError;
 use ast::AstNode;
 use errors::Error;
-use hir_lower::LowerResult;
-use hir_ty::InferResult;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
@@ -24,8 +22,8 @@ struct Analysis {
     parse: Parse,
     ast: ast::Root,
     validation_errors: Vec<ValidationError>,
-    lower_result: LowerResult,
-    infer_result: InferResult,
+    index: hir::Index,
+    indexing_errors: Vec<hir::IndexingError>,
 }
 
 impl GlobalState {
@@ -53,8 +51,7 @@ impl Analysis {
             parser::parse_source_file(&tokens)
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower(&ast);
-        let infer_result = hir_ty::infer(&lower_result.program);
+        let (index, indexing_errors) = hir::index(&ast);
 
         let mut analysis = Self {
             content,
@@ -62,8 +59,8 @@ impl Analysis {
             parse,
             ast,
             validation_errors: Vec::new(),
-            lower_result,
-            infer_result,
+            index,
+            indexing_errors,
         };
 
         analysis.update_line_index();
@@ -93,8 +90,7 @@ impl Analysis {
 
         self.reparse();
         self.validate();
-        self.lower();
-        self.infer();
+        self.index();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -170,16 +166,9 @@ impl Analysis {
         let validation_errors =
             self.validation_errors.iter().copied().map(Error::from_validation_error);
 
-        let lower_errors = self.lower_result.errors.iter().cloned().map(Error::from_lower_error);
+        let indexing_errors = self.indexing_errors.iter().cloned().map(Error::from_indexing_error);
 
-        let ty_errors = self
-            .infer_result
-            .errors()
-            .iter()
-            .copied()
-            .map(|e| Error::from_ty_error(e, &self.lower_result.source_map));
-
-        let errors = syntax_errors.chain(validation_errors).chain(lower_errors).chain(ty_errors);
+        let errors = syntax_errors.chain(validation_errors).chain(indexing_errors);
 
         errors
             .map(|error| Diagnostic {
@@ -210,12 +199,10 @@ impl Analysis {
         self.validation_errors = ast::validation::validate(&self.ast);
     }
 
-    fn lower(&mut self) {
-        self.lower_result = hir_lower::lower(&self.ast);
-    }
-
-    fn infer(&mut self) {
-        self.infer_result = hir_ty::infer(&self.lower_result.program);
+    fn index(&mut self) {
+        let (index, errors) = hir::index(&self.ast);
+        self.index = index;
+        self.indexing_errors = errors;
     }
 }
 

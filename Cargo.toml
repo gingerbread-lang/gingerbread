@@ -1,7 +1,8 @@
 [workspace]
 members = [
   "crates/arena",
-  "crates/ast", #   "crates/errors",  #   "crates/eval",
+  "crates/ast",
+  "crates/errors", #   "crates/eval",
   "crates/gen",
   "crates/hir",
   "crates/lexer",
@@ -10,7 +11,8 @@ members = [
   "crates/parser",
   "crates/parser_bench",
   "crates/syntax",
-  "crates/token", #   "crates/unnamed-server",  #   "crates/unnamedc",
+  "crates/token",
+  "crates/unnamed-server", #   "crates/unnamedc",
 ]
 
 [profile.release]
