@@ -36,7 +36,7 @@ pub enum Ty {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Name(String);
 
-pub fn index(root: ast::Root) -> (Index, Vec<IndexingError>) {
+pub fn index(root: &ast::Root) -> (Index, Vec<IndexingError>) {
     let mut functions = HashMap::new();
     let mut errors = Vec::new();
 
@@ -58,7 +58,6 @@ pub fn index(root: ast::Root) -> (Index, Vec<IndexingError>) {
                 if let Some(param_list) = function.param_list() {
                     for param in param_list.params() {
                         let name = param.name().map(|ident| Name(ident.text().to_string()));
-
                         let ty = lower_ty(param.ty());
 
                         params.push(Param { name, ty })
@@ -160,7 +159,7 @@ mod tests {
         let tokens = lexer::lex(input);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, actual_errors) = index(root);
+        let (index, actual_errors) = index(&root);
 
         expect.assert_eq(&format!("{:?}", index));
 
