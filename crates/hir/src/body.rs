@@ -1,6 +1,6 @@
 use crate::{Function, Index, Name};
 use arena::{Arena, Id};
-use ast::AstToken;
+use ast::{AstNode, AstToken};
 use std::collections::HashMap;
 use std::fmt;
 use text_size::TextRange;
@@ -51,6 +51,7 @@ pub struct LoweringDiagnostic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoweringDiagnosticKind {
+    OutOfRangeIntLiteral,
     UndefinedLocal { name: String },
     MismatchedArgCount { name: String, expected: u32, got: u32 },
     CalledLocal { name: String },
@@ -273,11 +274,19 @@ impl<'a> Ctx<'a> {
         Expr::Call { name, args }
     }
 
-    fn lower_int_literal(&self, int_literal: ast::IntLiteral) -> Expr {
-        int_literal
-            .value()
-            .and_then(|int| int.text().parse().ok())
-            .map_or(Expr::Missing, Expr::IntLiteral)
+    fn lower_int_literal(&mut self, int_literal: ast::IntLiteral) -> Expr {
+        let value = int_literal.value().and_then(|int| int.text().parse().ok());
+
+        if let Some(value) = value {
+            return Expr::IntLiteral(value);
+        }
+
+        self.diagnostics.push(LoweringDiagnostic {
+            kind: LoweringDiagnosticKind::OutOfRangeIntLiteral,
+            range: int_literal.range(),
+        });
+
+        Expr::Missing
     }
 
     fn lower_string_literal(&self, string_literal: ast::StringLiteral) -> Expr {
@@ -528,7 +537,7 @@ mod tests {
             expect![[r#"
                 fnc a -> <missing>;
             "#]],
-            [],
+            [(LoweringDiagnosticKind::OutOfRangeIntLiteral, 31..46)],
         );
     }
 

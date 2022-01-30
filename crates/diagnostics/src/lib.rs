@@ -81,14 +81,8 @@ impl Diagnostic {
     pub fn severity(&self) -> Severity {
         match &self.0 {
             Repr::Syntax(_) => Severity::Error,
-
-            Repr::Validation(ValidationDiagnostic { kind, .. }) => match kind {
-                ValidationDiagnosticKind::IntLiteralTooBig => Severity::Error,
-                ValidationDiagnosticKind::UnneededParens => Severity::Warning,
-            },
-
+            Repr::Validation(_) => Severity::Warning,
             Repr::Indexing(_) => Severity::Error,
-
             Repr::Lowering(_) => Severity::Error,
         }
     }
@@ -175,7 +169,6 @@ fn syntax_error_message(e: &SyntaxError) -> String {
 
 fn validation_diagnostic_message(d: &ValidationDiagnostic) -> String {
     match d.kind {
-        ValidationDiagnosticKind::IntLiteralTooBig => "integer literal too large".to_string(),
         ValidationDiagnosticKind::UnneededParens => "unneeded parentheses".to_string(),
     }
 }
@@ -190,6 +183,7 @@ fn indexing_diagnostic_message(d: &IndexingDiagnostic) -> String {
 
 fn lowering_diagnostic_message(d: &LoweringDiagnostic) -> String {
     match &d.kind {
+        LoweringDiagnosticKind::OutOfRangeIntLiteral => "integer literal out of range".to_string(),
         LoweringDiagnosticKind::UndefinedLocal { name } => format!("undefined variable `{}`", name),
         LoweringDiagnosticKind::MismatchedArgCount { name, expected, got } => {
             format!("`{}` expected {} arguments, but got {}", name, expected, got)
@@ -344,20 +338,6 @@ mod tests {
     }
 
     #[test]
-    fn validation_int_literal_too_big() {
-        check_validation(
-            "let a = 9999999999999999999",
-            ValidationDiagnosticKind::IntLiteralTooBig,
-            8..27,
-            expect![[r#"
-                error at 1:9: integer literal too large
-                  let a = 9999999999999999999
-                          ^^^^^^^^^^^^^^^^^^^
-            "#]],
-        );
-    }
-
-    #[test]
     fn validation_unneeded_parens() {
         check_validation(
             "fnc five(): s32 -> 5;",
@@ -381,6 +361,20 @@ mod tests {
                 error at 1:1: function `do_thing` already defined
                   fnc do_thing -> {};
                   ^^^^^^^^^^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_out_of_range_int_literal() {
+        check_lowering(
+            "1000000000000000;",
+            LoweringDiagnosticKind::OutOfRangeIntLiteral,
+            0..16,
+            expect![[r#"
+                error at 1:1: integer literal out of range
+                  1000000000000000;
+                  ^^^^^^^^^^^^^^^^
             "#]],
         );
     }

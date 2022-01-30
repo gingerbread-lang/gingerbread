@@ -1,22 +1,11 @@
-use crate::{AstNode, AstToken, Function, IntLiteral};
+use crate::{AstNode, Function};
 use text_size::TextRange;
 
 pub fn validate(ast: &impl AstNode) -> Vec<ValidationDiagnostic> {
     let mut diagnostics = Vec::new();
 
     for node in ast.syntax().descendants() {
-        if let Some(int_literal) = IntLiteral::cast(node.clone()) {
-            if let Some(value) = int_literal.value() {
-                let text = value.text();
-
-                if text.parse::<u32>().is_err() {
-                    diagnostics.push(ValidationDiagnostic {
-                        kind: ValidationDiagnosticKind::IntLiteralTooBig,
-                        range: value.range(),
-                    });
-                }
-            }
-        } else if let Some(function) = Function::cast(node) {
+        if let Some(function) = Function::cast(node) {
             if let Some(param_list) = function.param_list() {
                 if param_list.params().next().is_none() {
                     diagnostics.push(ValidationDiagnostic {
@@ -39,7 +28,6 @@ pub struct ValidationDiagnostic {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValidationDiagnosticKind {
-    IntLiteralTooBig,
     UnneededParens,
 }
 
@@ -93,27 +81,6 @@ mod validation_tests {
     #[test]
     fn validate_u32_max_int_literal() {
         check_repl_line("4294967295", []);
-    }
-
-    #[test]
-    fn validate_too_big_int_literal() {
-        check_repl_line("4294967296", [(ValidationDiagnosticKind::IntLiteralTooBig, 0..10)]);
-    }
-
-    #[test]
-    fn validate_multiple_too_big_int_literals() {
-        check_source_file(
-            "
-                fnc main -> {
-                  let b = 5000000000;
-                  let a = 9999999999999999999 + b;
-                };
-            ",
-            [
-                (ValidationDiagnosticKind::IntLiteralTooBig, 57..67),
-                (ValidationDiagnosticKind::IntLiteralTooBig, 95..114),
-            ],
-        );
     }
 
     #[test]
