@@ -352,6 +352,22 @@ mod tests {
     }
 
     #[test]
+    fn validation_unneeded_parens_multiline() {
+        check_validation(
+            "fnc main(\n) -> {};",
+            ValidationDiagnosticKind::UnneededParens,
+            8..11,
+            expect![[r#"
+                warning at 1:9: unneeded parentheses
+                          v
+                  fnc main(
+                  ) -> {};
+                  ^
+            "#]],
+        );
+    }
+
+    #[test]
     fn indexing_function_already_defined() {
         check_indexing(
             "fnc do_thing -> {};",
