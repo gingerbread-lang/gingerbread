@@ -1,4 +1,4 @@
-use crate::{Index, Name};
+use crate::{Function, Index, Name};
 use arena::{Arena, Id};
 use ast::AstToken;
 use std::collections::HashMap;
@@ -145,7 +145,7 @@ impl<'a> Ctx<'a> {
         match expr {
             ast::Expr::Binary(binary_expr) => self.lower_binary_expr(binary_expr),
             ast::Expr::Block(block) => self.lower_block(block),
-            ast::Expr::Call(call) => self.lower_call(call),
+            ast::Expr::Call(call) => self.lower_local_or_call(call),
             ast::Expr::IntLiteral(int_literal) => self.lower_int_literal(int_literal),
             ast::Expr::StringLiteral(string_literal) => self.lower_string_literal(string_literal),
         }
@@ -190,7 +190,7 @@ impl<'a> Ctx<'a> {
         Expr::Block { statements, tail_expr }
     }
 
-    fn lower_call(&mut self, call: ast::Call) -> Expr {
+    fn lower_local_or_call(&mut self, call: ast::Call) -> Expr {
         let ident = match call.name() {
             Some(ident) => ident,
             None => return Expr::Missing,
@@ -209,39 +209,8 @@ impl<'a> Ctx<'a> {
         }
 
         let name = Name(name.to_string());
-
         if let Some(function) = self.index.get_function(&name) {
-            let arg_list = call.arg_list();
-
-            let expected = function.params.len() as u32;
-            let got = match &arg_list {
-                Some(al) => al.args().count() as u32,
-                None => 0,
-            };
-
-            if expected != got {
-                self.diagnostics.push(LoweringDiagnostic {
-                    kind: LoweringDiagnosticKind::MismatchedArgCount {
-                        name: name.0,
-                        expected,
-                        got,
-                    },
-                    range: ident.range(),
-                });
-
-                return Expr::Missing;
-            }
-
-            let mut args = Vec::new();
-
-            if let Some(arg_list) = arg_list {
-                for arg in arg_list.args() {
-                    let expr = self.lower_expr(arg.value());
-                    args.push(self.bodies.exprs.alloc(expr));
-                }
-            }
-
-            return Expr::Call { name, args };
+            return self.lower_call(call, function, name, ident);
         }
 
         self.diagnostics.push(LoweringDiagnostic {
@@ -266,6 +235,42 @@ impl<'a> Ctx<'a> {
                 }
             }
         }
+    }
+
+    fn lower_call(
+        &mut self,
+        call: ast::Call,
+        function: &Function,
+        name: Name,
+        ident: ast::Ident,
+    ) -> Expr {
+        let arg_list = call.arg_list();
+
+        let expected = function.params.len() as u32;
+        let got = match &arg_list {
+            Some(al) => al.args().count() as u32,
+            None => 0,
+        };
+
+        if expected != got {
+            self.diagnostics.push(LoweringDiagnostic {
+                kind: LoweringDiagnosticKind::MismatchedArgCount { name: name.0, expected, got },
+                range: ident.range(),
+            });
+
+            return Expr::Missing;
+        }
+
+        let mut args = Vec::new();
+
+        if let Some(arg_list) = arg_list {
+            for arg in arg_list.args() {
+                let expr = self.lower_expr(arg.value());
+                args.push(self.bodies.exprs.alloc(expr));
+            }
+        }
+
+        Expr::Call { name, args }
     }
 
     fn lower_int_literal(&self, int_literal: ast::IntLiteral) -> Expr {
