@@ -211,13 +211,13 @@ impl<'a> Ctx<'a> {
         let name = Name(name.to_string());
 
         if let Some(function) = self.index.get_function(&name) {
-            let arg_list = match call.arg_list() {
-                Some(arg_list) => arg_list,
-                None => return Expr::Call { name, args: Vec::new() },
-            };
+            let arg_list = call.arg_list();
 
             let expected = function.params.len() as u32;
-            let got = arg_list.args().count() as u32;
+            let got = match &arg_list {
+                Some(al) => al.args().count() as u32,
+                None => 0,
+            };
 
             if expected != got {
                 self.diagnostics.push(LoweringDiagnostic {
@@ -234,9 +234,11 @@ impl<'a> Ctx<'a> {
 
             let mut args = Vec::new();
 
-            for arg in arg_list.args() {
-                let expr = self.lower_expr(arg.value());
-                args.push(self.bodies.exprs.alloc(expr));
+            if let Some(arg_list) = arg_list {
+                for arg in arg_list.args() {
+                    let expr = self.lower_expr(arg.value());
+                    args.push(self.bodies.exprs.alloc(expr));
+                }
             }
 
             return Expr::Call { name, args };
@@ -801,6 +803,28 @@ mod tests {
                     got: 2,
                 },
                 41..43,
+            )],
+        );
+    }
+
+    #[test]
+    fn call_with_no_args_when_some_were_expected() {
+        check(
+            r#"
+                fnc a: string -> id;
+                fnc id(s: string): string -> s;
+            "#,
+            expect![[r#"
+                fnc a -> <missing>;
+                fnc id -> p0;
+            "#]],
+            [(
+                LoweringDiagnosticKind::MismatchedArgCount {
+                    name: "id".to_string(),
+                    expected: 1,
+                    got: 0,
+                },
+                34..36,
             )],
         );
     }
