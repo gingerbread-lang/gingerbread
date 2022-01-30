@@ -51,7 +51,7 @@ pub struct LoweringDiagnostic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoweringDiagnosticKind {
-    UndefinedVariable { name: String },
+    UndefinedLocal { name: String },
     MismatchedArgCount { name: String, expected: u32, got: u32 },
     CalledLocal { name: String },
 }
@@ -243,7 +243,7 @@ impl<'a> Ctx<'a> {
         }
 
         self.diagnostics.push(LoweringDiagnostic {
-            kind: LoweringDiagnosticKind::UndefinedVariable { name: ident.text().to_string() },
+            kind: LoweringDiagnosticKind::UndefinedLocal { name: ident.text().to_string() },
             range: ident.range(),
         });
 
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[test]
-    fn undefined_variable() {
+    fn undefined_local() {
         check(
             r#"
                 fnc foo -> bar;
@@ -689,12 +689,12 @@ mod tests {
             expect![[r#"
                 fnc foo -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::UndefinedVariable { name: "bar".to_string() }, 28..31)],
+            [(LoweringDiagnosticKind::UndefinedLocal { name: "bar".to_string() }, 28..31)],
         );
     }
 
     #[test]
-    fn scope_variables_to_blocks() {
+    fn scope_locals_to_blocks() {
         check(
             r#"
                 fnc a: s32 -> {
@@ -710,7 +710,7 @@ mod tests {
                     <missing>
                 };
             "#]],
-            [(LoweringDiagnosticKind::UndefinedVariable { name: "foo".to_string() }, 91..94)],
+            [(LoweringDiagnosticKind::UndefinedLocal { name: "foo".to_string() }, 91..94)],
         );
     }
 
