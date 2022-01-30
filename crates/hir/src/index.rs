@@ -34,7 +34,7 @@ pub enum Ty {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Name(String);
+pub struct Name(pub(crate) String);
 
 pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
@@ -101,10 +101,6 @@ pub enum IndexingDiagnosticKind {
 
 impl fmt::Debug for Index {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // There is no need to preserve the order of items in the index,
-        // so we just use a regular HashMap. To preserve stability,
-        // we sort all definitions alphabetically for debug output.
-
         let mut functions: Vec<_> = self.functions.iter().collect();
         functions.sort_unstable_by_key(|(name, _)| &name.0);
 
