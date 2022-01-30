@@ -23,6 +23,8 @@ struct Analysis {
     validation_diagnostics: Vec<ValidationDiagnostic>,
     index: hir::Index,
     indexing_diagnostics: Vec<hir::IndexingDiagnostic>,
+    bodies: hir::Bodies,
+    lowering_diagnostics: Vec<hir::LoweringDiagnostic>,
 }
 
 impl GlobalState {
@@ -51,6 +53,7 @@ impl Analysis {
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
         let (index, indexing_diagnostics) = hir::index(&ast);
+        let (bodies, lowering_diagnostics) = hir::lower(&ast, &index);
 
         let mut analysis = Self {
             content,
@@ -60,6 +63,8 @@ impl Analysis {
             validation_diagnostics: Vec::new(),
             index,
             indexing_diagnostics,
+            bodies,
+            lowering_diagnostics,
         };
 
         analysis.update_line_index();
@@ -90,6 +95,7 @@ impl Analysis {
         self.reparse();
         self.validate();
         self.index();
+        self.lower();
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -172,7 +178,13 @@ impl Analysis {
         let indexing_diagnostics =
             self.indexing_diagnostics.iter().cloned().map(diagnostics::Diagnostic::from_indexing);
 
-        let diagnostics = syntax_errors.chain(validation_diagnostics).chain(indexing_diagnostics);
+        let lowering_diagnostics =
+            self.lowering_diagnostics.iter().cloned().map(diagnostics::Diagnostic::from_lowering);
+
+        let diagnostics = syntax_errors
+            .chain(validation_diagnostics)
+            .chain(indexing_diagnostics)
+            .chain(lowering_diagnostics);
 
         diagnostics
             .map(|diagnostic| Diagnostic {
@@ -207,6 +219,12 @@ impl Analysis {
         let (index, diagnostics) = hir::index(&self.ast);
         self.index = index;
         self.indexing_diagnostics = diagnostics;
+    }
+
+    fn lower(&mut self) {
+        let (bodies, diagnostics) = hir::lower(&self.ast, &self.index);
+        self.bodies = bodies;
+        self.lowering_diagnostics = diagnostics;
     }
 }
 

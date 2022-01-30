@@ -1,5 +1,5 @@
 use ast::validation::{ValidationDiagnostic, ValidationDiagnosticKind};
-use hir::{IndexingDiagnostic, IndexingDiagnosticKind};
+use hir::{IndexingDiagnostic, IndexingDiagnosticKind, LoweringDiagnostic, LoweringDiagnosticKind};
 use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::TryInto;
@@ -12,6 +12,7 @@ enum Repr {
     Syntax(SyntaxError),
     Validation(ValidationDiagnostic),
     Indexing(IndexingDiagnostic),
+    Lowering(LoweringDiagnostic),
 }
 
 pub enum Severity {
@@ -30,6 +31,10 @@ impl Diagnostic {
 
     pub fn from_indexing(diagnostic: IndexingDiagnostic) -> Self {
         Self(Repr::Indexing(diagnostic))
+    }
+
+    pub fn from_lowering(diagnostic: LoweringDiagnostic) -> Self {
+        Self(Repr::Lowering(diagnostic))
     }
 
     pub fn display(&self, input: &str, line_index: &LineIndex) -> Vec<String> {
@@ -69,6 +74,7 @@ impl Diagnostic {
             }) => range,
             Repr::Validation(ValidationDiagnostic { range, .. }) => range,
             Repr::Indexing(IndexingDiagnostic { range, .. }) => range,
+            Repr::Lowering(LoweringDiagnostic { range, .. }) => range,
         }
     }
 
@@ -82,6 +88,8 @@ impl Diagnostic {
             },
 
             Repr::Indexing(_) => Severity::Error,
+
+            Repr::Lowering(_) => Severity::Error,
         }
     }
 
@@ -90,6 +98,7 @@ impl Diagnostic {
             Repr::Syntax(e) => syntax_error_message(e),
             Repr::Validation(d) => validation_diagnostic_message(d),
             Repr::Indexing(d) => indexing_diagnostic_message(d),
+            Repr::Lowering(d) => lowering_diagnostic_message(d),
         }
     }
 }
@@ -179,6 +188,18 @@ fn indexing_diagnostic_message(d: &IndexingDiagnostic) -> String {
     }
 }
 
+fn lowering_diagnostic_message(d: &LoweringDiagnostic) -> String {
+    match &d.kind {
+        LoweringDiagnosticKind::UndefinedLocal { name } => format!("undefined variable `{}`", name),
+        LoweringDiagnosticKind::MismatchedArgCount { name, expected, got } => {
+            format!("`{}` expected {} arguments, but got {}", name, expected, got)
+        }
+        LoweringDiagnosticKind::CalledLocal { name } => {
+            format!("tried to call `{}`, which is a variable, not a function", name)
+        }
+    }
+}
+
 fn format_kind(kind: TokenKind) -> &'static str {
     match kind {
         TokenKind::LetKw => "`let`",
@@ -250,6 +271,23 @@ mod tests {
         formatted: Expect,
     ) {
         let diagnostic = Diagnostic::from_indexing(IndexingDiagnostic {
+            kind,
+            range: TextRange::new(range.start.into(), range.end.into()),
+        });
+
+        formatted.assert_eq(&format!(
+            "{}\n",
+            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+        ));
+    }
+
+    fn check_lowering(
+        input: &str,
+        kind: LoweringDiagnosticKind,
+        range: StdRange<u32>,
+        formatted: Expect,
+    ) {
+        let diagnostic = Diagnostic::from_lowering(LoweringDiagnostic {
             kind,
             range: TextRange::new(range.start.into(), range.end.into()),
         });
@@ -343,6 +381,52 @@ mod tests {
                 error at 1:1: function `do_thing` already defined
                   fnc do_thing -> {};
                   ^^^^^^^^^^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_undefined_local() {
+        check_lowering(
+            "foo + 1;",
+            LoweringDiagnosticKind::UndefinedLocal { name: "foo".to_string() },
+            0..3,
+            expect![[r#"
+                error at 1:1: undefined variable `foo`
+                  foo + 1;
+                  ^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_mismatched_arg_count() {
+        check_lowering(
+            "add 1, 2, 3",
+            LoweringDiagnosticKind::MismatchedArgCount {
+                name: "add".to_string(),
+                expected: 2,
+                got: 3,
+            },
+            0..3,
+            expect![[r#"
+                error at 1:1: `add` expected 2 arguments, but got 3
+                  add 1, 2, 3
+                  ^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_called_local() {
+        check_lowering(
+            "frobnicate a, b",
+            LoweringDiagnosticKind::CalledLocal { name: "frobnicate".to_string() },
+            0..10,
+            expect![[r#"
+                error at 1:1: tried to call `frobnicate`, which is a variable, not a function
+                  frobnicate a, b
+                  ^^^^^^^^^^
             "#]],
         );
     }
