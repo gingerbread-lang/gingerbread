@@ -106,7 +106,16 @@ fn main() -> anyhow::Result<()> {
                 connection
                     .not_handler(not)
                     .on::<DidOpenTextDocument, _>(|params| {
-                        global_state.open_file(params.text_document.uri, params.text_document.text);
+                        global_state
+                            .open_file(params.text_document.uri.clone(), params.text_document.text);
+
+                        let diagnostics = global_state.diagnostics(&params.text_document.uri);
+                        connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+                            uri: params.text_document.uri,
+                            diagnostics,
+                            version: None,
+                        })?;
+
                         Ok(())
                     })?
                     .on::<DidChangeTextDocument, _>(|params| {
