@@ -6,8 +6,19 @@
   "engines": {
     "vscode": "^1.43.0"
   },
+  "contributes": {
+    "languages": [
+      {
+        "id": "unnamed",
+        "extensions": [
+          ".un"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ]
+  },
   "activationEvents": [
-    "onLanguage:plaintext"
+    "onLanguage:unnamed"
   ],
   "main": "./out/extension",
   "scripts": {
