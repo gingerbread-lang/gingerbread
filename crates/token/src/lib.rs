@@ -33,6 +33,7 @@ pub enum TokenKind {
     Asterisk,
     Slash,
     Eq,
+    Dot,
     Colon,
     Comma,
     Semicolon,

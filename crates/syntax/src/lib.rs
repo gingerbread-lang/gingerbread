@@ -54,6 +54,7 @@ pub enum SyntaxKind {
     Asterisk,
     Slash,
     Eq,
+    Dot,
     Colon,
     Comma,
     Semicolon,

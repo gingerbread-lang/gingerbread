@@ -206,6 +206,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Asterisk => "`*`",
         TokenKind::Slash => "`/`",
         TokenKind::Eq => "`=`",
+        TokenKind::Dot => "`.`",
         TokenKind::Colon => "`:`",
         TokenKind::Comma => "`,`",
         TokenKind::Semicolon => "`;`",

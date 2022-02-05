@@ -147,6 +147,7 @@ impl Analysis {
                     | TokenKind::Slash => 4,
                     TokenKind::Comment => 5,
                     TokenKind::Eq
+                    | TokenKind::Dot
                     | TokenKind::Colon
                     | TokenKind::Comma
                     | TokenKind::Semicolon
