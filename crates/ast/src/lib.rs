@@ -259,8 +259,16 @@ impl Block {
 def_ast_node!(Call);
 
 impl Call {
-    pub fn name(&self) -> Option<Ident> {
+    pub fn top_level_name(&self) -> Option<Ident> {
         token(self)
+    }
+
+    pub fn nested_name(&self) -> Option<Ident> {
+        self.syntax()
+            .children_with_tokens()
+            .filter_map(SyntaxElement::into_token)
+            .filter_map(Ident::cast)
+            .nth(1)
     }
 
     pub fn arg_list(&self) -> Option<ArgList> {
@@ -440,7 +448,20 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert_eq!(call.name().unwrap().text(), "idx");
+        assert_eq!(call.top_level_name().unwrap().text(), "idx");
+    }
+
+    #[test]
+    fn get_name_of_call_in_nested_module() {
+        let root = parse("foo.bar");
+
+        let call = match root.tail_expr() {
+            Some(Expr::Call(call)) => call,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(call.top_level_name().unwrap().text(), "foo");
+        assert_eq!(call.nested_name().unwrap().text(), "bar");
     }
 
     #[test]

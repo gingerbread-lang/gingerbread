@@ -81,6 +81,11 @@ fn parse_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
 
+    if p.at(TokenKind::Dot) {
+        p.bump();
+        p.expect(TokenKind::Ident);
+    }
+
     if p.at_set(EXPR_FIRST) {
         parse_arg_list(p);
     }

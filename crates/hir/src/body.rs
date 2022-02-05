@@ -192,7 +192,7 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_local_or_call(&mut self, call: ast::Call) -> Expr {
-        let ident = match call.name() {
+        let ident = match call.top_level_name() {
             Some(ident) => ident,
             None => return Expr::Missing,
         };

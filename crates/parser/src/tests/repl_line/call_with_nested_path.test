@@ -1,0 +1,12 @@
+io.write "hello!"
+===
+Root@0..17
+  Call@0..17
+    Ident@0..2 "io"
+    Dot@2..3 "."
+    Ident@3..8 "write"
+    Whitespace@8..9 " "
+    ArgList@9..17
+      Arg@9..17
+        StringLiteral@9..17
+          String@9..17 "\"hello!\""
