@@ -1,6 +1,6 @@
 {
-  "name": "unnamed-vscode",
-  "description": "A VS Code extension for unnamed-language",
+  "name": "gingerbread",
+  "description": "VS Code support for the Gingerbread language",
   "license": "MIT",
   "version": "0.0.0",
   "engines": {
@@ -9,16 +9,16 @@
   "contributes": {
     "languages": [
       {
-        "id": "unnamed",
+        "id": "gingerbread",
         "extensions": [
-          ".un"
+          ".gb"
         ],
         "configuration": "./language-configuration.json"
       }
     ]
   },
   "activationEvents": [
-    "onLanguage:unnamed"
+    "onLanguage:gingerbread"
   ],
   "main": "./out/extension",
   "scripts": {

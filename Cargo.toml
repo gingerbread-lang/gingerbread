@@ -12,7 +12,7 @@ members = [
   "crates/parser_bench",
   "crates/syntax",
   "crates/token",
-  "crates/unnamed-server", #   "crates/unnamedc",
+  "crates/gb-server", #   "crates/gb",
 ]
 
 [profile.release]

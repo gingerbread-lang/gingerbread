@@ -3,9 +3,9 @@ use std::mem;
 use token::TokenKind;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum UnnamedLang {}
+pub enum L {}
 
-impl Language for UnnamedLang {
+impl Language for L {
     type Kind = SyntaxKind;
 
     fn kind_from_raw(raw: rowan::SyntaxKind) -> Self::Kind {
@@ -17,16 +17,16 @@ impl Language for UnnamedLang {
     }
 }
 
-pub type SyntaxNode = rowan::SyntaxNode<UnnamedLang>;
-pub type SyntaxToken = rowan::SyntaxToken<UnnamedLang>;
-pub type SyntaxElement = rowan::SyntaxElement<UnnamedLang>;
+pub type SyntaxNode = rowan::SyntaxNode<L>;
+pub type SyntaxToken = rowan::SyntaxToken<L>;
+pub type SyntaxElement = rowan::SyntaxElement<L>;
 
 #[derive(Default)]
 pub struct SyntaxBuilder(rowan::GreenNodeBuilder<'static>);
 
 impl SyntaxBuilder {
     pub fn start_node(&mut self, kind: SyntaxKind) {
-        self.0.start_node(UnnamedLang::kind_to_raw(kind));
+        self.0.start_node(L::kind_to_raw(kind));
     }
 
     pub fn finish_node(&mut self) {
@@ -34,7 +34,7 @@ impl SyntaxBuilder {
     }
 
     pub fn token(&mut self, kind: SyntaxKind, text: &str) {
-        self.0.token(UnnamedLang::kind_to_raw(kind), text);
+        self.0.token(L::kind_to_raw(kind), text);
     }
 
     pub fn finish(self) -> SyntaxNode {

@@ -11,16 +11,16 @@ let client: LanguageClient;
 export function activate(context: ExtensionContext) {
   const serverOptions: ServerOptions = {
     // FIXME: make server binary location configurable
-    command: "/Users/luna/.cache/cargo-target/debug/unnamed-server",
+    command: "/Users/luna/.cache/cargo-target/debug/gb-server",
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "unnamed" }],
+    documentSelector: [{ scheme: "file", language: "gingerbread" }],
   };
 
   client = new LanguageClient(
-    "unnamed",
-    "unnamed",
+    "gingerbread",
+    "Gingerbread Language Server",
     serverOptions,
     clientOptions
   );

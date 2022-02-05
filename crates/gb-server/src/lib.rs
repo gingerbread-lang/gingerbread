@@ -211,7 +211,7 @@ impl Analysis {
                 severity: Some(convert_diagnostic_severity(diagnostic.severity())),
                 code: None,
                 code_description: None,
-                source: Some("unnamedc".to_string()),
+                source: Some("gb".to_string()),
                 message: diagnostic.message(),
                 related_information: None,
                 tags: None,
