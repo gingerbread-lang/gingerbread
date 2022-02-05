@@ -1,0 +1,22 @@
+foo. 1, 2, 3
+===
+Root@0..12
+  Call@0..12
+    Ident@0..3 "foo"
+    Dot@3..4 "."
+    Whitespace@4..5 " "
+    ArgList@5..12
+      Arg@5..6
+        IntLiteral@5..6
+          Int@5..6 "1"
+      Comma@6..7 ","
+      Whitespace@7..8 " "
+      Arg@8..9
+        IntLiteral@8..9
+          Int@8..9 "2"
+      Comma@9..10 ","
+      Whitespace@10..11 " "
+      Arg@11..12
+        IntLiteral@11..12
+          Int@11..12 "3"
+error at 4: missing Ident

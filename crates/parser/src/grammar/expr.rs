@@ -83,7 +83,7 @@ fn parse_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     if p.at(TokenKind::Dot) {
         p.bump();
-        p.expect(TokenKind::Ident);
+        p.expect_with_no_skip(TokenKind::Ident);
     }
 
     if p.at_set(EXPR_FIRST) {
