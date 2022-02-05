@@ -1,4 +1,4 @@
-use crate::{Function, Index, Name};
+use crate::{Function, GetFunctionResult, Index, Name, WorldIndex};
 use arena::{Arena, Id};
 use ast::{AstNode, AstToken};
 use std::collections::HashMap;
@@ -21,7 +21,13 @@ pub enum Expr {
     Block { statements: Vec<Id<Statement>>, tail_expr: Option<Id<Expr>> },
     Local(Id<LocalDef>),
     Param { idx: u32 },
-    Call { name: Name, args: Vec<Id<Expr>> },
+    Call { path: Path, args: Vec<Id<Expr>> },
+}
+
+#[derive(Debug)]
+pub enum Path {
+    ThisModule { name: Name },
+    OtherModule { module: Name, name: Name },
 }
 
 #[derive(Debug)]
@@ -53,12 +59,17 @@ pub struct LoweringDiagnostic {
 pub enum LoweringDiagnosticKind {
     OutOfRangeIntLiteral,
     UndefinedLocal { name: String },
+    UndefinedModule { name: String },
     MismatchedArgCount { name: String, expected: u32, got: u32 },
     CalledLocal { name: String },
 }
 
-pub fn lower(root: &ast::Root, index: &Index) -> (Bodies, Vec<LoweringDiagnostic>) {
-    let mut ctx = Ctx::new(index);
+pub fn lower(
+    root: &ast::Root,
+    index: &Index,
+    world_index: &WorldIndex,
+) -> (Bodies, Vec<LoweringDiagnostic>) {
+    let mut ctx = Ctx::new(index, world_index);
 
     for def in root.defs() {
         match def {
@@ -72,13 +83,14 @@ pub fn lower(root: &ast::Root, index: &Index) -> (Bodies, Vec<LoweringDiagnostic
 struct Ctx<'a> {
     bodies: Bodies,
     index: &'a Index,
+    world_index: &'a WorldIndex,
     diagnostics: Vec<LoweringDiagnostic>,
     scopes: Vec<HashMap<String, Id<LocalDef>>>,
     params: HashMap<String, u32>,
 }
 
 impl<'a> Ctx<'a> {
-    fn new(index: &'a Index) -> Self {
+    fn new(index: &'a Index, world_index: &'a WorldIndex) -> Self {
         Self {
             bodies: Bodies {
                 local_defs: Arena::new(),
@@ -87,6 +99,7 @@ impl<'a> Ctx<'a> {
                 function_bodies: HashMap::new(),
             },
             index,
+            world_index,
             diagnostics: Vec::new(),
             scopes: vec![HashMap::new()],
             params: HashMap::new(),
@@ -197,6 +210,46 @@ impl<'a> Ctx<'a> {
             None => return Expr::Missing,
         };
 
+        if let Some(function_name_token) = call.nested_name() {
+            let module_name_token = ident;
+
+            let module_name = Name(module_name_token.text().to_string());
+            let function_name = Name(function_name_token.text().to_string());
+
+            match self.world_index.get_function(&module_name, &function_name) {
+                GetFunctionResult::Found(function) => {
+                    return self.lower_call(
+                        call,
+                        function,
+                        Path::OtherModule { module: module_name, name: function_name },
+                        function_name_token,
+                    )
+                }
+
+                GetFunctionResult::UnknownModule => {
+                    self.diagnostics.push(LoweringDiagnostic {
+                        kind: LoweringDiagnosticKind::UndefinedModule {
+                            name: module_name_token.text().to_string(),
+                        },
+                        range: module_name_token.range(),
+                    });
+
+                    return Expr::Missing;
+                }
+
+                GetFunctionResult::UnknownFunction => {
+                    self.diagnostics.push(LoweringDiagnostic {
+                        kind: LoweringDiagnosticKind::UndefinedLocal {
+                            name: function_name_token.text().to_string(),
+                        },
+                        range: function_name_token.range(),
+                    });
+
+                    return Expr::Missing;
+                }
+            }
+        }
+
         let name = ident.text();
 
         if let Some(idx) = self.look_up_param(name) {
@@ -211,7 +264,7 @@ impl<'a> Ctx<'a> {
 
         let name = Name(name.to_string());
         if let Some(function) = self.index.get_function(&name) {
-            return self.lower_call(call, function, name, ident);
+            return self.lower_call(call, function, Path::ThisModule { name }, ident);
         }
 
         self.diagnostics.push(LoweringDiagnostic {
@@ -242,7 +295,7 @@ impl<'a> Ctx<'a> {
         &mut self,
         call: ast::Call,
         function: &Function,
-        name: Name,
+        path: Path,
         ident: ast::Ident,
     ) -> Expr {
         let arg_list = call.arg_list();
@@ -254,8 +307,13 @@ impl<'a> Ctx<'a> {
         };
 
         if expected != got {
+            let name = match path {
+                Path::ThisModule { name } => name.0,
+                Path::OtherModule { name, .. } => name.0,
+            };
+
             self.diagnostics.push(LoweringDiagnostic {
-                kind: LoweringDiagnosticKind::MismatchedArgCount { name: name.0, expected, got },
+                kind: LoweringDiagnosticKind::MismatchedArgCount { name, expected, got },
                 range: ident.range(),
             });
 
@@ -271,7 +329,7 @@ impl<'a> Ctx<'a> {
             }
         }
 
-        Expr::Call { name, args }
+        Expr::Call { path, args }
     }
 
     fn lower_int_literal(&mut self, int_literal: ast::IntLiteral) -> Expr {
@@ -437,8 +495,11 @@ impl fmt::Debug for Bodies {
 
                 Expr::Param { idx } => write!(f, "p{}", idx)?,
 
-                Expr::Call { name, args } => {
-                    write!(f, "{}", name.0)?;
+                Expr::Call { path, args } => {
+                    match path {
+                        Path::ThisModule { name } => write!(f, "{}", name.0)?,
+                        Path::OtherModule { module, name } => write!(f, "{}.{}", module.0, name.0)?,
+                    }
 
                     for (idx, arg) in args.iter().enumerate() {
                         if idx == 0 {
@@ -491,11 +552,28 @@ mod tests {
         expect: Expect,
         expected_diagnostics: [(LoweringDiagnosticKind, std::ops::Range<u32>); N],
     ) {
-        let tokens = lexer::lex(input);
+        let modules = split_multi_module_test_data(input);
+        let mut world_index = WorldIndex::default();
+
+        for (name, text) in &modules {
+            if *name == "main" {
+                continue;
+            }
+
+            let tokens = lexer::lex(text);
+            let parse = parser::parse_source_file(&tokens);
+            let root = ast::Root::cast(parse.syntax_node()).unwrap();
+            let (index, _) = index(&root);
+
+            world_index.add_module(Name(name.to_string()), index);
+        }
+
+        let tokens = lexer::lex(modules["main"]);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
         let (index, _) = index(&root);
-        let (bodies, actual_diagnostics) = lower(&root, &index);
+
+        let (bodies, actual_diagnostics) = lower(&root, &index, &world_index);
 
         expect.assert_eq(&format!("{:?}", bodies));
 
@@ -508,6 +586,43 @@ mod tests {
             .collect();
 
         assert_eq!(expected_diagnostics, actual_diagnostics);
+    }
+
+    fn split_multi_module_test_data(input: &str) -> HashMap<&str, &str> {
+        const MARKER_COMMENT_START: &str = "#- ";
+
+        let has_no_marker_comments = !input.contains(MARKER_COMMENT_START);
+        if has_no_marker_comments {
+            let mut modules = HashMap::with_capacity(1);
+            modules.insert("main", input);
+            return modules;
+        }
+
+        let mut module_idxs = HashMap::with_capacity(1);
+        let mut current_module_name = None;
+        let mut line_idxs = input.match_indices('\n').map(|(idx, _)| idx + 1).peekable();
+
+        while let Some(line_start) = line_idxs.next() {
+            let line_end = match line_idxs.peek() {
+                Some(end) => *end,
+                None => break,
+            };
+
+            let line = &input[line_start..line_end];
+            if let Some(idx) = line.find(MARKER_COMMENT_START) {
+                let module_name_start = idx + MARKER_COMMENT_START.len();
+                let module_name_end = line.len() - 1; // remove newline
+
+                let module_name = &line[module_name_start..module_name_end];
+
+                module_idxs.insert(module_name, line_end..line_end);
+                current_module_name = Some(module_name);
+            }
+
+            module_idxs.get_mut(&current_module_name.unwrap()).unwrap().end = line_end;
+        }
+
+        module_idxs.into_iter().map(|(module_name, range)| (module_name, &input[range])).collect()
     }
 
     #[test]
@@ -946,6 +1061,86 @@ mod tests {
                 fnc b -> a;
             "#]],
             [],
+        );
+    }
+
+    #[test]
+    fn function_from_other_module() {
+        check(
+            r#"
+                #- main
+                fnc a: s32 -> foo.constant;
+                #- foo
+                fnc constant: s32 -> 42;
+            "#,
+            expect![[r#"
+                fnc a -> foo.constant;
+            "#]],
+            [],
+        );
+    }
+
+    #[test]
+    fn function_from_undefined_module() {
+        check(
+            r#"
+                fnc main -> foo.bar;
+            "#,
+            expect![[r#"
+                fnc main -> <missing>;
+            "#]],
+            [(LoweringDiagnosticKind::UndefinedModule { name: "foo".to_string() }, 29..32)],
+        );
+    }
+
+    #[test]
+    fn function_from_undefined_module_with_same_name_as_local_function() {
+        check(
+            r#"
+                fnc a -> a.foo;
+            "#,
+            expect![[r#"
+                fnc a -> <missing>;
+            "#]],
+            [(LoweringDiagnosticKind::UndefinedModule { name: "a".to_string() }, 26..27)],
+        );
+    }
+
+    #[test]
+    fn undefined_function_from_other_module() {
+        check(
+            r#"
+                #- main
+                fnc trim(s: string): string -> utils.strip s, " ";
+                #- utils
+            "#,
+            expect![[r#"
+                fnc trim -> <missing>;
+            "#]],
+            [(LoweringDiagnosticKind::UndefinedLocal { name: "strip".to_string() }, 53..58)],
+        );
+    }
+
+    #[test]
+    fn mismatched_arg_count_for_function_from_other_module() {
+        check(
+            r#"
+                #- main
+                fnc the_answer: s32 -> math.add 14, 14, 14;
+                #- math
+                fnc add(x: s32, y: s32): s32 -> x + y;
+            "#,
+            expect![[r#"
+                fnc the_answer -> <missing>;
+            "#]],
+            [(
+                LoweringDiagnosticKind::MismatchedArgCount {
+                    name: "add".to_string(),
+                    expected: 2,
+                    got: 3,
+                },
+                44..47,
+            )],
         );
     }
 }

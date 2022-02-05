@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 use text_size::TextRange;
 
+#[derive(Clone)]
 pub struct Index {
     functions: HashMap<Name, Function>,
 }
@@ -14,27 +15,27 @@ impl Index {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub name: Option<Name>,
     pub ty: Ty,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Ty {
     Missing,
     Named(Name),
     Unit,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct Name(pub(crate) String);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Name(pub String);
 
 pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();

@@ -185,6 +185,7 @@ fn lowering_diagnostic_message(d: &LoweringDiagnostic) -> String {
     match &d.kind {
         LoweringDiagnosticKind::OutOfRangeIntLiteral => "integer literal out of range".to_string(),
         LoweringDiagnosticKind::UndefinedLocal { name } => format!("undefined variable `{}`", name),
+        LoweringDiagnosticKind::UndefinedModule { name } => format!("undefined module `{}`", name),
         LoweringDiagnosticKind::MismatchedArgCount { name, expected, got } => {
             format!("`{}` expected {} arguments, but got {}", name, expected, got)
         }
@@ -406,6 +407,20 @@ mod tests {
                 error at 1:1: undefined variable `foo`
                   foo + 1;
                   ^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_undefined_module() {
+        check_lowering(
+            "io.print \"10\";",
+            LoweringDiagnosticKind::UndefinedModule { name: "io".to_string() },
+            0..2,
+            expect![[r#"
+                error at 1:1: undefined module `io`
+                  io.print "10";
+                  ^^
             "#]],
         );
     }

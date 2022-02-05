@@ -12,12 +12,14 @@ use token::TokenKind;
 
 #[derive(Default)]
 pub struct GlobalState {
+    world_index: hir::WorldIndex,
     analyses: HashMap<Url, Analysis>,
 }
 
 struct Analysis {
     content: String,
     line_index: LineIndex,
+    module_name: hir::Name,
     parse: Parse,
     ast: ast::Root,
     validation_diagnostics: Vec<ValidationDiagnostic>,
@@ -29,11 +31,17 @@ struct Analysis {
 
 impl GlobalState {
     pub fn open_file(&mut self, uri: Url, content: String) {
-        self.analyses.insert(uri, Analysis::new(content));
+        let filename = uri.path_segments().unwrap().next_back().unwrap();
+        let module_name = filename.find('.').map_or(filename, |dot| &filename[..dot]);
+
+        let analysis =
+            Analysis::new(content, hir::Name(module_name.to_string()), &mut self.world_index);
+
+        self.analyses.insert(uri, analysis);
     }
 
     pub fn apply_changes(&mut self, uri: &Url, changes: Vec<TextDocumentContentChangeEvent>) {
-        self.analyses.get_mut(uri).unwrap().apply_changes(changes);
+        self.analyses.get_mut(uri).unwrap().apply_changes(changes, &mut self.world_index);
     }
 
     pub fn highlight(&self, uri: &Url) -> Vec<SemanticToken> {
@@ -46,18 +54,21 @@ impl GlobalState {
 }
 
 impl Analysis {
-    fn new(content: String) -> Self {
+    fn new(content: String, module_name: hir::Name, world_index: &mut hir::WorldIndex) -> Self {
         let parse = {
             let tokens = lexer::lex(&content);
             parser::parse_source_file(&tokens)
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
         let (index, indexing_diagnostics) = hir::index(&ast);
-        let (bodies, lowering_diagnostics) = hir::lower(&ast, &index);
+        let (bodies, lowering_diagnostics) = hir::lower(&ast, &index, world_index);
+
+        world_index.add_module(module_name.clone(), index.clone());
 
         let mut analysis = Self {
             content,
             line_index: LineIndex::default(),
+            module_name,
             parse,
             ast,
             validation_diagnostics: Vec::new(),
@@ -73,7 +84,11 @@ impl Analysis {
         analysis
     }
 
-    fn apply_changes(&mut self, changes: Vec<TextDocumentContentChangeEvent>) {
+    fn apply_changes(
+        &mut self,
+        changes: Vec<TextDocumentContentChangeEvent>,
+        world_index: &mut hir::WorldIndex,
+    ) {
         for change in changes {
             let range = match change.range {
                 Some(r) => convert_lsp_range(r, &self.line_index),
@@ -95,7 +110,9 @@ impl Analysis {
         self.reparse();
         self.validate();
         self.index();
-        self.lower();
+        self.lower(world_index);
+
+        world_index.update_module(&self.module_name, self.index.clone());
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -223,8 +240,8 @@ impl Analysis {
         self.indexing_diagnostics = diagnostics;
     }
 
-    fn lower(&mut self) {
-        let (bodies, diagnostics) = hir::lower(&self.ast, &self.index);
+    fn lower(&mut self, world_index: &hir::WorldIndex) {
+        let (bodies, diagnostics) = hir::lower(&self.ast, &self.index, world_index);
         self.bodies = bodies;
         self.lowering_diagnostics = diagnostics;
     }
