@@ -106,6 +106,7 @@ impl Analysis {
             if matches!(
                 token.kind,
                 TokenKind::Eq
+                    | TokenKind::Dot
                     | TokenKind::Colon
                     | TokenKind::Comma
                     | TokenKind::Semicolon
