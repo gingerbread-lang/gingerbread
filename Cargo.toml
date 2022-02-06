@@ -6,6 +6,7 @@ members = [
   "crates/gb-server", #   "crates/gb",
   "crates/gen",
   "crates/hir",
+  "crates/hir_ty",
   "crates/lexer",
   "crates/line_index",
   "crates/lsp",

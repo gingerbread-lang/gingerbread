@@ -14,6 +14,10 @@ impl Index {
     pub fn get_function(&self, name: &Name) -> Option<&Function> {
         self.functions.get(name)
     }
+
+    pub fn functions(&self) -> impl Iterator<Item = &Name> {
+        self.functions.keys()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

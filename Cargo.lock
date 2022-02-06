@@ -60,6 +60,7 @@ dependencies = [
  "ast",
  "expect-test",
  "hir",
+ "hir_ty",
  "line_index",
  "parser",
  "text-size",
@@ -112,6 +113,7 @@ dependencies = [
  "ast",
  "diagnostics",
  "hir",
+ "hir_ty",
  "lexer",
  "line_index",
  "lsp",
@@ -142,6 +144,20 @@ dependencies = [
  "arena",
  "ast",
  "expect-test",
+ "lexer",
+ "parser",
+ "text-size",
+ "utils",
+]
+
+[[package]]
+name = "hir_ty"
+version = "0.0.0"
+dependencies = [
+ "arena",
+ "ast",
+ "expect-test",
+ "hir",
  "lexer",
  "parser",
  "text-size",
