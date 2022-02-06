@@ -178,6 +178,7 @@ fn indexing_diagnostic_message(d: &IndexingDiagnostic) -> String {
         IndexingDiagnosticKind::FunctionAlreadyDefined { name } => {
             format!("function `{}` already defined", name)
         }
+        IndexingDiagnosticKind::UndefinedTy { name } => format!("undefined type `{}`", name),
     }
 }
 
@@ -379,6 +380,20 @@ mod tests {
                 error at 1:1: function `do_thing` already defined
                   fnc do_thing -> {};
                   ^^^^^^^^^^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn indexing_function_undefined_ty() {
+        check_indexing(
+            "fnc header: sring -> \"=====\";",
+            IndexingDiagnosticKind::UndefinedTy { name: "sring".to_string() },
+            12..17,
+            expect![[r#"
+                error at 1:13: undefined type `sring`
+                  fnc header: sring -> "=====";
+                              ^^^^^
             "#]],
         );
     }

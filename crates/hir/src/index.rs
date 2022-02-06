@@ -1,3 +1,4 @@
+use crate::WorldIndex;
 use ast::{AstNode, AstToken};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -30,21 +31,17 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Ty {
     Missing,
-    Named(Name),
+    PrimitiveS32,
+    PrimitiveString,
     Unit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name(pub String);
 
-pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
+pub fn index(root: &ast::Root, world_index: &WorldIndex) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
     let mut diagnostics = Vec::new();
-
-    let lower_ty = |ty: Option<ast::Ty>| match ty.and_then(|ty| ty.name()) {
-        Some(ident) => Ty::Named(Name(ident.text().to_string())),
-        None => Ty::Missing,
-    };
 
     for def in root.defs() {
         match def {
@@ -59,14 +56,14 @@ pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
                 if let Some(param_list) = function.param_list() {
                     for param in param_list.params() {
                         let name = param.name().map(|ident| Name(ident.text().to_string()));
-                        let ty = lower_ty(param.ty());
+                        let ty = lower_ty(param.ty(), world_index, &mut diagnostics);
 
                         params.push(Param { name, ty })
                     }
                 }
 
                 let return_ty = match function.return_ty() {
-                    Some(return_ty) => lower_ty(return_ty.ty()),
+                    Some(return_ty) => lower_ty(return_ty.ty(), world_index, &mut diagnostics),
                     None => Ty::Unit,
                 };
 
@@ -89,6 +86,29 @@ pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
     (Index { functions }, diagnostics)
 }
 
+fn lower_ty(
+    ty: Option<ast::Ty>,
+    world_index: &WorldIndex,
+    diagnostics: &mut Vec<IndexingDiagnostic>,
+) -> Ty {
+    let ident = match ty.and_then(|ty| ty.name()) {
+        Some(ident) => ident,
+        None => return Ty::Missing,
+    };
+
+    let name = Name(ident.text().to_string());
+    if let Some(ty) = world_index.get_ty(&name) {
+        return ty;
+    }
+
+    diagnostics.push(IndexingDiagnostic {
+        kind: IndexingDiagnosticKind::UndefinedTy { name: name.0 },
+        range: ident.range(),
+    });
+
+    Ty::Missing
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct IndexingDiagnostic {
     pub kind: IndexingDiagnosticKind,
@@ -98,6 +118,7 @@ pub struct IndexingDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndexingDiagnosticKind {
     FunctionAlreadyDefined { name: String },
+    UndefinedTy { name: String },
 }
 
 impl fmt::Debug for Index {
@@ -106,9 +127,10 @@ impl fmt::Debug for Index {
         functions.sort_unstable_by_key(|(name, _)| &name.0);
 
         let display_ty = |ty: &Ty| match ty {
-            Ty::Missing => "?".to_string(),
-            Ty::Named(name) => name.0.clone(),
-            Ty::Unit => "unit".to_string(),
+            Ty::Missing => "?",
+            Ty::PrimitiveS32 => "s32",
+            Ty::PrimitiveString => "string",
+            Ty::Unit => "unit",
         };
 
         for (name, function) in functions {
@@ -158,7 +180,7 @@ mod tests {
         let tokens = lexer::lex(input);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, actual_diagnostics) = index(&root);
+        let (index, actual_diagnostics) = index(&root, &WorldIndex::default());
 
         expect.assert_eq(&format!("{:?}", index));
 
@@ -285,6 +307,19 @@ mod tests {
                 fnc foo: ?;
             "#]],
             [],
+        );
+    }
+
+    #[test]
+    fn function_with_undefined_return_ty() {
+        check(
+            r#"
+                fnc foo: bar;
+            "#,
+            expect![[r#"
+                fnc foo: ?;
+            "#]],
+            [(IndexingDiagnosticKind::UndefinedTy { name: "bar".to_string() }, 26..29)],
         );
     }
 

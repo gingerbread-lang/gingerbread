@@ -72,7 +72,7 @@ impl Analysis {
             parser::parse_source_file(&tokens)
         };
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, indexing_diagnostics) = hir::index(&ast);
+        let (index, indexing_diagnostics) = hir::index(&ast, world_index);
         let (bodies, lowering_diagnostics) = hir::lower(&ast, &index, world_index);
 
         world_index.add_module(module_name.clone(), index.clone());
@@ -121,7 +121,7 @@ impl Analysis {
 
         self.reparse();
         self.validate();
-        self.index();
+        self.index(world_index);
         self.recheck(world_index);
     }
 
@@ -249,8 +249,8 @@ impl Analysis {
         self.validation_diagnostics = ast::validation::validate(&self.ast);
     }
 
-    fn index(&mut self) {
-        let (index, diagnostics) = hir::index(&self.ast);
+    fn index(&mut self, world_index: &hir::WorldIndex) {
+        let (index, diagnostics) = hir::index(&self.ast, world_index);
         self.index = index;
         self.indexing_diagnostics = diagnostics;
     }

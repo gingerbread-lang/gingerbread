@@ -581,7 +581,7 @@ mod tests {
             let tokens = lexer::lex(text);
             let parse = parser::parse_source_file(&tokens);
             let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = index(&root);
+            let (index, _) = index(&root, &WorldIndex::default());
 
             world_index.add_module(Name(name.to_string()), index);
         }
@@ -589,7 +589,7 @@ mod tests {
         let tokens = lexer::lex(modules["main"]);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, _) = index(&root);
+        let (index, _) = index(&root, &WorldIndex::default());
 
         let (bodies, actual_diagnostics) = lower(&root, &index, &world_index);
 

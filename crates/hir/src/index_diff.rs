@@ -52,7 +52,7 @@ impl fmt::Debug for Diff {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::index;
+    use crate::{index, WorldIndex};
     use ast::AstNode;
     use expect_test::{expect, Expect};
 
@@ -61,7 +61,7 @@ mod tests {
             let tokens = lexer::lex(input);
             let parse = parser::parse_source_file(&tokens);
             let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = index(&root);
+            let (index, _) = index(&root, &WorldIndex::default());
             index
         };
 
