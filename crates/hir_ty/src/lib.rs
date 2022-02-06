@@ -149,7 +149,7 @@ impl Ctx<'_> {
     }
 
     fn expect_match(&mut self, found: hir::TyKind, expected: hir::TyKind, expr: Id<hir::Expr>) {
-        if expected == hir::TyKind::Unknown {
+        if found == hir::TyKind::Unknown || expected == hir::TyKind::Unknown {
             return;
         }
 
@@ -429,6 +429,24 @@ mod tests {
                 },
                 33..38,
             )],
+        );
+    }
+
+    #[test]
+    fn binary_expr_with_missing_operand() {
+        check(
+            r#"
+                fnc f: s32 -> 5 +;
+            "#,
+            "f",
+            expect![[r#"
+                (): s32
+
+                0: s32
+                1: <unknown>
+                2: s32
+            "#]],
+            [],
         );
     }
 
