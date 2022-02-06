@@ -29,7 +29,7 @@ pub struct Diff<'a> {
 impl fmt::Debug for Diff<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut deleted_or_changed: Vec<_> = self.deleted_or_changed.iter().collect();
-        deleted_or_changed.sort_unstable_by_key(|name| &name.0);
+        deleted_or_changed.sort_unstable();
 
         for (idx, function) in deleted_or_changed.iter().enumerate() {
             if idx != 0 {

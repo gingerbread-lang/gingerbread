@@ -418,7 +418,7 @@ impl std::ops::Index<Id<Expr>> for Bodies {
 impl fmt::Debug for Bodies {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut function_bodies: Vec<_> = self.function_bodies.iter().collect();
-        function_bodies.sort_unstable_by_key(|(name, _)| &name.0);
+        function_bodies.sort_unstable_by_key(|(name, _)| *name);
 
         for (name, expr_id) in function_bodies {
             write!(f, "fnc {} -> ", name.0)?;

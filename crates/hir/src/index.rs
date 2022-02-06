@@ -34,7 +34,7 @@ pub enum Ty {
     Unit,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name(pub String);
 
 pub fn index(root: &ast::Root) -> (Index, Vec<IndexingDiagnostic>) {
