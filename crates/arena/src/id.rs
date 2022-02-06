@@ -34,4 +34,8 @@ impl<T> Id<T> {
     pub(crate) fn from_raw(raw: u32) -> Self {
         Self { raw, phantom: PhantomData }
     }
+
+    pub fn to_raw(self) -> u32 {
+        self.raw
+    }
 }

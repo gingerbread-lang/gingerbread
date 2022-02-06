@@ -491,7 +491,7 @@ impl fmt::Debug for Bodies {
                     write!(f, "}}")?;
                 }
 
-                Expr::Local(id) => write!(f, "l{}", unsafe { std::mem::transmute::<_, u32>(*id) })?,
+                Expr::Local(id) => write!(f, "l{}", id.to_raw())?,
 
                 Expr::Param { idx } => write!(f, "p{}", idx)?,
 
@@ -528,9 +528,7 @@ impl fmt::Debug for Bodies {
                     write!(f, ";")
                 }
                 Statement::LocalDef(local_def_id) => {
-                    write!(f, "let l{} = ", unsafe {
-                        std::mem::transmute::<_, u32>(*local_def_id)
-                    })?;
+                    write!(f, "let l{} = ", local_def_id.to_raw())?;
                     write_expr(bodies[*local_def_id].value, bodies, f, indentation)?;
                     write!(f, ";")
                 }
