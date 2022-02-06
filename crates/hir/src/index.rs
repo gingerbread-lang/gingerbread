@@ -6,7 +6,7 @@ use text_size::TextRange;
 
 #[derive(Clone)]
 pub struct Index {
-    functions: HashMap<Name, Function>,
+    pub(crate) functions: HashMap<Name, Function>,
 }
 
 impl Index {
@@ -15,13 +15,13 @@ impl Index {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Param {
     pub name: Option<Name>,
     pub ty: Ty,
