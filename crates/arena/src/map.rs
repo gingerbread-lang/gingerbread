@@ -53,6 +53,10 @@ impl<K, V> ArenaMap<Id<K>, V> {
             .enumerate()
             .filter_map(|(idx, o)| Some((Id::from_raw(idx as u32), o.as_ref()?)))
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
 }
 
 impl<V, K> Index<Id<K>> for ArenaMap<Id<K>, V> {
