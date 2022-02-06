@@ -1,5 +1,5 @@
 use crate::{Function, GetFunctionResult, Index, Name, WorldIndex};
-use arena::{Arena, Id};
+use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -9,6 +9,7 @@ pub struct Bodies {
     local_defs: Arena<LocalDef>,
     statements: Arena<Statement>,
     exprs: Arena<Expr>,
+    expr_ranges: ArenaMap<Id<Expr>, TextRange>,
     function_bodies: HashMap<Name, Id<Expr>>,
     other_module_references: HashSet<(Name, Name)>,
 }
@@ -97,6 +98,7 @@ impl<'a> Ctx<'a> {
                 local_defs: Arena::new(),
                 statements: Arena::new(),
                 exprs: Arena::new(),
+                expr_ranges: ArenaMap::default(),
                 function_bodies: HashMap::new(),
                 other_module_references: HashSet::new(),
             },
@@ -122,12 +124,9 @@ impl<'a> Ctx<'a> {
             }
         }
 
-        let expr = self.lower_expr(function.body());
-        let id = self.bodies.exprs.alloc(expr);
-
+        let body = self.lower_expr(function.body());
         self.params.clear();
-
-        self.bodies.function_bodies.insert(name, id);
+        self.bodies.function_bodies.insert(name, body);
     }
 
     fn lower_statement(&mut self, statement: ast::Statement) -> Statement {
@@ -135,14 +134,13 @@ impl<'a> Ctx<'a> {
             ast::Statement::LocalDef(local_def) => self.lower_local_def(local_def),
             ast::Statement::ExprStatement(expr_statement) => {
                 let expr = self.lower_expr(expr_statement.expr());
-                Statement::Expr(self.bodies.exprs.alloc(expr))
+                Statement::Expr(expr)
             }
         }
     }
 
     fn lower_local_def(&mut self, local_def: ast::LocalDef) -> Statement {
         let value = self.lower_expr(local_def.value());
-        let value = self.bodies.exprs.alloc(value);
         let id = self.bodies.local_defs.alloc(LocalDef { value });
 
         if let Some(ident) = local_def.name() {
@@ -152,19 +150,26 @@ impl<'a> Ctx<'a> {
         Statement::LocalDef(id)
     }
 
-    fn lower_expr(&mut self, expr: Option<ast::Expr>) -> Expr {
-        let expr = match expr {
+    fn lower_expr(&mut self, expr: Option<ast::Expr>) -> Id<Expr> {
+        let expr_ast = match expr {
             Some(expr) => expr,
-            None => return Expr::Missing,
+            None => return self.bodies.exprs.alloc(Expr::Missing),
         };
 
-        match expr {
+        let range = expr_ast.range();
+
+        let expr = match expr_ast {
             ast::Expr::Binary(binary_expr) => self.lower_binary_expr(binary_expr),
             ast::Expr::Block(block) => self.lower_block(block),
             ast::Expr::Call(call) => self.lower_local_or_call(call),
             ast::Expr::IntLiteral(int_literal) => self.lower_int_literal(int_literal),
             ast::Expr::StringLiteral(string_literal) => self.lower_string_literal(string_literal),
-        }
+        };
+
+        let id = self.bodies.exprs.alloc(expr);
+        self.bodies.expr_ranges.insert(id, range);
+
+        id
     }
 
     fn lower_binary_expr(&mut self, binary_expr: ast::BinaryExpr) -> Expr {
@@ -179,11 +184,7 @@ impl<'a> Ctx<'a> {
             None => return Expr::Missing,
         };
 
-        Expr::Binary {
-            lhs: self.bodies.exprs.alloc(lhs),
-            rhs: self.bodies.exprs.alloc(rhs),
-            operator,
-        }
+        Expr::Binary { lhs, rhs, operator }
     }
 
     fn lower_block(&mut self, block: ast::Block) -> Expr {
@@ -196,10 +197,7 @@ impl<'a> Ctx<'a> {
             statements.push(self.bodies.statements.alloc(statement));
         }
 
-        let tail_expr = block.tail_expr().map(|tail_expr| {
-            let expr = self.lower_expr(Some(tail_expr));
-            self.bodies.exprs.alloc(expr)
-        });
+        let tail_expr = block.tail_expr().map(|tail_expr| self.lower_expr(Some(tail_expr)));
 
         self.destroy_current_scope();
 
@@ -331,7 +329,7 @@ impl<'a> Ctx<'a> {
         if let Some(arg_list) = arg_list {
             for arg in arg_list.args() {
                 let expr = self.lower_expr(arg.value());
-                args.push(self.bodies.exprs.alloc(expr));
+                args.push(expr);
             }
         }
 
@@ -394,6 +392,10 @@ impl<'a> Ctx<'a> {
 impl Bodies {
     pub fn function_body(&self, name: &Name) -> Id<Expr> {
         self.function_bodies[name]
+    }
+
+    pub fn range_for_expr(&self, expr: Id<Expr>) -> TextRange {
+        self.expr_ranges[expr]
     }
 
     pub fn other_module_references(&self) -> &HashSet<(Name, Name)> {
