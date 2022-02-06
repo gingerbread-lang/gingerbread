@@ -29,10 +29,16 @@ pub struct Param {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Ty {
-    Missing,
-    PrimitiveS32,
-    PrimitiveString,
+pub struct Ty {
+    pub kind: TyKind,
+    pub range: Option<TextRange>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TyKind {
+    Unknown,
+    S32,
+    String,
     Unit,
 }
 
@@ -64,7 +70,7 @@ pub fn index(root: &ast::Root, world_index: &WorldIndex) -> (Index, Vec<Indexing
 
                 let return_ty = match function.return_ty() {
                     Some(return_ty) => lower_ty(return_ty.ty(), world_index, &mut diagnostics),
-                    None => Ty::Unit,
+                    None => Ty { kind: TyKind::Unit, range: None },
                 };
 
                 let name_string_clone = name.0.clone();
@@ -93,12 +99,12 @@ fn lower_ty(
 ) -> Ty {
     let ident = match ty.and_then(|ty| ty.name()) {
         Some(ident) => ident,
-        None => return Ty::Missing,
+        None => return Ty { kind: TyKind::Unknown, range: None },
     };
 
     let name = Name(ident.text().to_string());
-    if let Some(ty) = world_index.get_ty(&name) {
-        return ty;
+    if let Some(kind) = world_index.get_ty(&name) {
+        return Ty { kind, range: Some(ident.range()) };
     }
 
     diagnostics.push(IndexingDiagnostic {
@@ -106,7 +112,7 @@ fn lower_ty(
         range: ident.range(),
     });
 
-    Ty::Missing
+    Ty { kind: TyKind::Unknown, range: Some(ident.range()) }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -126,13 +132,6 @@ impl fmt::Debug for Index {
         let mut functions: Vec<_> = self.functions.iter().collect();
         functions.sort_unstable_by_key(|(name, _)| &name.0);
 
-        let display_ty = |ty: &Ty| match ty {
-            Ty::Missing => "?",
-            Ty::PrimitiveS32 => "s32",
-            Ty::PrimitiveString => "string",
-            Ty::Unit => "unit",
-        };
-
         for (name, function) in functions {
             write!(f, "fnc {}", name.0)?;
 
@@ -148,21 +147,32 @@ impl fmt::Debug for Index {
                         f,
                         "{}: {}",
                         param.name.as_ref().map_or("?", |name| &name.0),
-                        display_ty(&param.ty)
+                        param.ty.kind
                     )?;
                 }
 
                 write!(f, ")")?;
             }
 
-            if function.return_ty != Ty::Unit {
-                write!(f, ": {}", display_ty(&function.return_ty))?;
+            if function.return_ty.kind != TyKind::Unit {
+                write!(f, ": {}", function.return_ty.kind)?;
             }
 
             writeln!(f, ";")?;
         }
 
         Ok(())
+    }
+}
+
+impl fmt::Display for TyKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unknown => write!(f, "?"),
+            Self::S32 => write!(f, "s32"),
+            Self::String => write!(f, "string"),
+            Self::Unit => write!(f, "unit"),
+        }
     }
 }
 

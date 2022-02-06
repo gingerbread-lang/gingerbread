@@ -1,4 +1,4 @@
-use crate::{Function, Index, Name, Ty};
+use crate::{Function, Index, Name, TyKind};
 use std::collections::HashMap;
 
 #[derive(Default)]
@@ -15,10 +15,10 @@ impl WorldIndex {
         }
     }
 
-    pub fn get_ty(&self, name: &Name) -> Option<Ty> {
+    pub fn get_ty(&self, name: &Name) -> Option<TyKind> {
         match name.0.as_str() {
-            "s32" => Some(Ty::PrimitiveS32),
-            "string" => Some(Ty::PrimitiveString),
+            "s32" => Some(TyKind::S32),
+            "string" => Some(TyKind::String),
             _ => None,
         }
     }
