@@ -3,6 +3,7 @@ members = [
   "crates/arena",
   "crates/ast",
   "crates/diagnostics", #   "crates/eval",
+  "crates/gb-server", #   "crates/gb",
   "crates/gen",
   "crates/hir",
   "crates/lexer",
@@ -12,7 +13,6 @@ members = [
   "crates/parser_bench",
   "crates/syntax",
   "crates/token",
-  "crates/gb-server", #   "crates/gb",
   "crates/utils",
 ]
 
