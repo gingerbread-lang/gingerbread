@@ -1,5 +1,6 @@
 use ast::validation::{ValidationDiagnostic, ValidationDiagnosticKind};
 use hir::{IndexingDiagnostic, IndexingDiagnosticKind, LoweringDiagnostic, LoweringDiagnosticKind};
+use hir_ty::{TyDiagnostic, TyDiagnosticKind};
 use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::TryInto;
@@ -13,6 +14,7 @@ enum Repr {
     Validation(ValidationDiagnostic),
     Indexing(IndexingDiagnostic),
     Lowering(LoweringDiagnostic),
+    Ty(TyDiagnostic),
 }
 
 pub enum Severity {
@@ -35,6 +37,10 @@ impl Diagnostic {
 
     pub fn from_lowering(diagnostic: LoweringDiagnostic) -> Self {
         Self(Repr::Lowering(diagnostic))
+    }
+
+    pub fn from_ty(diagnostic: TyDiagnostic) -> Self {
+        Self(Repr::Ty(diagnostic))
     }
 
     pub fn display(&self, input: &str, line_index: &LineIndex) -> Vec<String> {
@@ -75,6 +81,7 @@ impl Diagnostic {
             Repr::Validation(ValidationDiagnostic { range, .. }) => range,
             Repr::Indexing(IndexingDiagnostic { range, .. }) => range,
             Repr::Lowering(LoweringDiagnostic { range, .. }) => range,
+            Repr::Ty(TyDiagnostic { range, .. }) => range,
         }
     }
 
@@ -84,6 +91,7 @@ impl Diagnostic {
             Repr::Validation(_) => Severity::Warning,
             Repr::Indexing(_) => Severity::Error,
             Repr::Lowering(_) => Severity::Error,
+            Repr::Ty(_) => Severity::Error,
         }
     }
 
@@ -93,6 +101,7 @@ impl Diagnostic {
             Repr::Validation(d) => validation_diagnostic_message(d),
             Repr::Indexing(d) => indexing_diagnostic_message(d),
             Repr::Lowering(d) => lowering_diagnostic_message(d),
+            Repr::Ty(d) => ty_diagnostic_message(d),
         }
     }
 }
@@ -196,6 +205,14 @@ fn lowering_diagnostic_message(d: &LoweringDiagnostic) -> String {
     }
 }
 
+fn ty_diagnostic_message(d: &TyDiagnostic) -> String {
+    match &d.kind {
+        TyDiagnosticKind::Mismatch { expected, found } => {
+            format!("expected `{}` but found `{}`", expected, found)
+        }
+    }
+}
+
 fn format_kind(kind: TokenKind) -> &'static str {
     match kind {
         TokenKind::LetKw => "`let`",
@@ -285,6 +302,18 @@ mod tests {
         formatted: Expect,
     ) {
         let diagnostic = Diagnostic::from_lowering(LoweringDiagnostic {
+            kind,
+            range: TextRange::new(range.start.into(), range.end.into()),
+        });
+
+        formatted.assert_eq(&format!(
+            "{}\n",
+            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+        ));
+    }
+
+    fn check_ty(input: &str, kind: TyDiagnosticKind, range: StdRange<u32>, formatted: Expect) {
+        let diagnostic = Diagnostic::from_ty(TyDiagnostic {
             kind,
             range: TextRange::new(range.start.into(), range.end.into()),
         });
@@ -468,6 +497,20 @@ mod tests {
                 error at 1:1: tried to call `frobnicate`, which is a variable, not a function
                   frobnicate a, b
                   ^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn ty_mismatch() {
+        check_ty(
+            "1 + \"foo\"",
+            TyDiagnosticKind::Mismatch { expected: hir::TyKind::S32, found: hir::TyKind::String },
+            4..9,
+            expect![[r#"
+                error at 1:5: expected `s32` but found `string`
+                  1 + "foo"
+                      ^^^^^
             "#]],
         );
     }

@@ -27,6 +27,8 @@ struct Analysis {
     indexing_diagnostics: Vec<hir::IndexingDiagnostic>,
     bodies: hir::Bodies,
     lowering_diagnostics: Vec<hir::LoweringDiagnostic>,
+    inference_results: HashMap<hir::Name, hir_ty::InferenceResult>,
+    ty_diagnostics: Vec<hir_ty::TyDiagnostic>,
 }
 
 impl GlobalState {
@@ -74,6 +76,7 @@ impl Analysis {
         let ast = ast::Root::cast(parse.syntax_node()).unwrap();
         let (index, indexing_diagnostics) = hir::index(&ast, world_index);
         let (bodies, lowering_diagnostics) = hir::lower(&ast, &index, world_index);
+        let (inference_results, ty_diagnostics) = hir_ty::infer_all(&bodies, &index, world_index);
 
         world_index.add_module(module_name.clone(), index.clone());
 
@@ -88,6 +91,8 @@ impl Analysis {
             indexing_diagnostics,
             bodies,
             lowering_diagnostics,
+            inference_results,
+            ty_diagnostics,
         };
 
         analysis.update_line_index();
@@ -128,6 +133,8 @@ impl Analysis {
     fn recheck(&mut self, world_index: &mut hir::WorldIndex) {
         self.lower(world_index);
         world_index.update_module(&self.module_name, self.index.clone());
+
+        self.infer(world_index);
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {
@@ -215,10 +222,14 @@ impl Analysis {
         let lowering_diagnostics =
             self.lowering_diagnostics.iter().cloned().map(diagnostics::Diagnostic::from_lowering);
 
+        let ty_diagnostics =
+            self.ty_diagnostics.iter().cloned().map(diagnostics::Diagnostic::from_ty);
+
         let diagnostics = syntax_errors
             .chain(validation_diagnostics)
             .chain(indexing_diagnostics)
-            .chain(lowering_diagnostics);
+            .chain(lowering_diagnostics)
+            .chain(ty_diagnostics);
 
         diagnostics
             .map(|diagnostic| Diagnostic {
@@ -259,6 +270,12 @@ impl Analysis {
         let (bodies, diagnostics) = hir::lower(&self.ast, &self.index, world_index);
         self.bodies = bodies;
         self.lowering_diagnostics = diagnostics;
+    }
+
+    fn infer(&mut self, world_index: &hir::WorldIndex) {
+        let (results, diagnostics) = hir_ty::infer_all(&self.bodies, &self.index, world_index);
+        self.inference_results = results;
+        self.ty_diagnostics = diagnostics;
     }
 }
 
