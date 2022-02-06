@@ -2,7 +2,7 @@ use crate::{Index, Name};
 use std::collections::HashSet;
 use std::fmt;
 
-pub fn diff<'a>(old_index: &'a Index, new_index: &'a Index) -> Diff<'a> {
+pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
     let mut deleted_or_changed = HashSet::new();
 
     for (name, old_function) in &old_index.functions {
@@ -14,7 +14,7 @@ pub fn diff<'a>(old_index: &'a Index, new_index: &'a Index) -> Diff<'a> {
             // or
             // the function is only in the old index (it has been deleted)
             Some(_) | None => {
-                deleted_or_changed.insert(name);
+                deleted_or_changed.insert(name.clone());
             }
         }
     }
@@ -22,11 +22,17 @@ pub fn diff<'a>(old_index: &'a Index, new_index: &'a Index) -> Diff<'a> {
     Diff { deleted_or_changed }
 }
 
-pub struct Diff<'a> {
-    deleted_or_changed: HashSet<&'a Name>,
+pub struct Diff {
+    deleted_or_changed: HashSet<Name>,
 }
 
-impl fmt::Debug for Diff<'_> {
+impl Diff {
+    pub fn deleted_or_changed(&self) -> &HashSet<Name> {
+        &self.deleted_or_changed
+    }
+}
+
+impl fmt::Debug for Diff {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut deleted_or_changed: Vec<_> = self.deleted_or_changed.iter().collect();
         deleted_or_changed.sort_unstable();
