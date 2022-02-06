@@ -37,19 +37,31 @@ impl GlobalState {
         let analysis =
             Analysis::new(content, hir::Name(module_name.to_string()), &mut self.world_index);
 
+        for analysis in self.analyses.values_mut() {
+            analysis.recheck(&mut self.world_index);
+        }
+
         self.analyses.insert(uri, analysis);
     }
 
     pub fn apply_changes(&mut self, uri: &Url, changes: Vec<TextDocumentContentChangeEvent>) {
         self.analyses.get_mut(uri).unwrap().apply_changes(changes, &mut self.world_index);
+
+        for (analysis_uri, analysis) in &mut self.analyses {
+            if analysis_uri == uri {
+                continue;
+            }
+
+            analysis.recheck(&mut self.world_index);
+        }
     }
 
     pub fn highlight(&self, uri: &Url) -> Vec<SemanticToken> {
         self.analyses[uri].highlight()
     }
 
-    pub fn diagnostics(&self, uri: &Url) -> Vec<Diagnostic> {
-        self.analyses[uri].diagnostics()
+    pub fn diagnostics(&self) -> impl Iterator<Item = (&Url, Vec<Diagnostic>)> {
+        self.analyses.iter().map(|(uri, analysis)| (uri, analysis.diagnostics()))
     }
 }
 
@@ -110,8 +122,11 @@ impl Analysis {
         self.reparse();
         self.validate();
         self.index();
-        self.lower(world_index);
+        self.recheck(world_index);
+    }
 
+    fn recheck(&mut self, world_index: &mut hir::WorldIndex) {
+        self.lower(world_index);
         world_index.update_module(&self.module_name, self.index.clone());
     }
 

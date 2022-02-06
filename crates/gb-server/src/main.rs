@@ -109,12 +109,13 @@ fn main() -> anyhow::Result<()> {
                         global_state
                             .open_file(params.text_document.uri.clone(), params.text_document.text);
 
-                        let diagnostics = global_state.diagnostics(&params.text_document.uri);
-                        connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-                            uri: params.text_document.uri,
-                            diagnostics,
-                            version: None,
-                        })?;
+                        for (uri, diagnostics) in global_state.diagnostics() {
+                            connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+                                uri: uri.clone(),
+                                diagnostics,
+                                version: None,
+                            })?;
+                        }
 
                         Ok(())
                     })?
@@ -122,13 +123,13 @@ fn main() -> anyhow::Result<()> {
                         global_state
                             .apply_changes(&params.text_document.uri, params.content_changes);
 
-                        let diagnostics = global_state.diagnostics(&params.text_document.uri);
-
-                        connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-                            uri: params.text_document.uri,
-                            diagnostics,
-                            version: None,
-                        })?;
+                        for (uri, diagnostics) in global_state.diagnostics() {
+                            connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
+                                uri: uri.clone(),
+                                diagnostics,
+                                version: None,
+                            })?;
+                        }
 
                         connection.make_request::<SemanticTokensRefresh>(())?;
 
