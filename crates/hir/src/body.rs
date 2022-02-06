@@ -1,7 +1,7 @@
 use crate::{Function, GetFunctionResult, Index, Name, WorldIndex};
 use arena::{Arena, Id};
 use ast::{AstNode, AstToken};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use text_size::TextRange;
 
@@ -10,6 +10,7 @@ pub struct Bodies {
     statements: Arena<Statement>,
     exprs: Arena<Expr>,
     function_bodies: HashMap<Name, Id<Expr>>,
+    other_module_references: HashSet<(Name, Name)>,
 }
 
 #[derive(Debug)]
@@ -97,6 +98,7 @@ impl<'a> Ctx<'a> {
                 statements: Arena::new(),
                 exprs: Arena::new(),
                 function_bodies: HashMap::new(),
+                other_module_references: HashSet::new(),
             },
             index,
             world_index,
@@ -218,12 +220,16 @@ impl<'a> Ctx<'a> {
 
             match self.world_index.get_function(&module_name, &function_name) {
                 GetFunctionResult::Found(function) => {
+                    self.bodies
+                        .other_module_references
+                        .insert((module_name.clone(), function_name.clone()));
+
                     return self.lower_call(
                         call,
                         function,
                         Path::OtherModule { module: module_name, name: function_name },
                         function_name_token,
-                    )
+                    );
                 }
 
                 GetFunctionResult::UnknownModule => {
@@ -389,6 +395,10 @@ impl Bodies {
     pub fn function_body(&self, name: &Name) -> Id<Expr> {
         self.function_bodies[name]
     }
+
+    pub fn other_module_references(&self) -> &HashSet<(Name, Name)> {
+        &self.other_module_references
+    }
 }
 
 impl std::ops::Index<Id<LocalDef>> for Bodies {
@@ -424,6 +434,16 @@ impl fmt::Debug for Bodies {
             write!(f, "fnc {} -> ", name.0)?;
             write_expr(*expr_id, self, f, 0)?;
             writeln!(f, ";")?;
+        }
+
+        if !self.other_module_references.is_empty() {
+            let mut other_module_references: Vec<_> = self.other_module_references.iter().collect();
+            other_module_references.sort_unstable();
+
+            writeln!(f, "\nReferences to other modules:")?;
+            for (module, name) in &other_module_references {
+                writeln!(f, "- {}.{}", module.0, name.0)?;
+            }
         }
 
         return Ok(());
@@ -1063,16 +1083,21 @@ mod tests {
     }
 
     #[test]
-    fn function_from_other_module() {
+    fn functions_from_other_module() {
         check(
             r#"
                 #- main
-                fnc a: s32 -> foo.constant;
+                fnc a: s32 -> foo.id foo.constant;
                 #- foo
+                fnc id(n: s32): s32 -> n;
                 fnc constant: s32 -> 42;
             "#,
             expect![[r#"
-                fnc a -> foo.constant;
+                fnc a -> foo.id foo.constant;
+
+                References to other modules:
+                - foo.constant
+                - foo.id
             "#]],
             [],
         );
@@ -1130,6 +1155,9 @@ mod tests {
             "#,
             expect![[r#"
                 fnc the_answer -> <missing>;
+
+                References to other modules:
+                - math.add
             "#]],
             [(
                 LoweringDiagnosticKind::MismatchedArgCount {
