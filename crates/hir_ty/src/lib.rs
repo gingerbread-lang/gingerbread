@@ -154,6 +154,13 @@ impl Ctx<'_> {
         }
 
         if found != expected {
+            // if the erroneous expression is a block with a tail expression,
+            // attach the error to the tail instead of the whole block
+            let expr = match self.bodies[expr] {
+                hir::Expr::Block { tail_expr: Some(tail_expr), .. } => tail_expr,
+                _ => expr,
+            };
+
             self.diagnostics.push(TyDiagnostic {
                 kind: TyDiagnosticKind::Mismatch { expected, found },
                 range: self.bodies.range_for_expr(expr),
@@ -575,6 +582,40 @@ mod tests {
                 1: string
             "#]],
             [],
-        )
+        );
+    }
+
+    #[test]
+    fn attach_mismatch_diagnostics_to_block_tail_expr() {
+        check(
+            r#"
+                fnc main -> take_s32 {
+                    let a = 10 + 10;
+                    "foo"
+                };
+
+                fnc take_s32(n: s32) -> {};
+            "#,
+            "main",
+            expect![[r#"
+                (): unit
+
+                0: s32
+                1: s32
+                2: s32
+                3: string
+                4: string
+                5: unit
+
+                l0: s32
+            "#]],
+            [(
+                TyDiagnosticKind::Mismatch {
+                    expected: hir::TyKind::S32,
+                    found: hir::TyKind::String,
+                },
+                97..102,
+            )],
+        );
     }
 }
