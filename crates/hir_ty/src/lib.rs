@@ -4,9 +4,25 @@ use std::fmt;
 use text_size::TextRange;
 
 pub struct InferenceResult {
-    signature: Signature,
+    signatures: HashMap<hir::Name, Signature>,
     expr_tys: ArenaMap<Id<hir::Expr>, hir::TyKind>,
     local_tys: ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
+}
+
+impl std::ops::Index<Id<hir::Expr>> for InferenceResult {
+    type Output = hir::TyKind;
+
+    fn index(&self, expr: Id<hir::Expr>) -> &Self::Output {
+        &self.expr_tys[expr]
+    }
+}
+
+impl std::ops::Index<Id<hir::LocalDef>> for InferenceResult {
+    type Output = hir::TyKind;
+
+    fn index(&self, local_def: Id<hir::LocalDef>) -> &Self::Output {
+        &self.local_tys[local_def]
+    }
 }
 
 struct Signature {
@@ -29,17 +45,28 @@ pub fn infer_all(
     bodies: &hir::Bodies,
     index: &hir::Index,
     world_index: &hir::WorldIndex,
-) -> (HashMap<hir::Name, InferenceResult>, Vec<TyDiagnostic>) {
-    let mut results = HashMap::new();
+) -> (InferenceResult, Vec<TyDiagnostic>) {
+    let mut expr_tys = ArenaMap::default();
+    let mut local_tys = ArenaMap::default();
     let mut diagnostics = Vec::new();
+    let mut signatures = HashMap::new();
 
     for function_name in index.functions() {
-        let (r, mut d) = infer(function_name, bodies, index, world_index);
-        results.insert(function_name.clone(), r);
-        diagnostics.append(&mut d);
+        signatures.insert(
+            function_name.clone(),
+            infer_impl(
+                function_name,
+                bodies,
+                index,
+                world_index,
+                &mut expr_tys,
+                &mut local_tys,
+                &mut diagnostics,
+            ),
+        );
     }
 
-    (results, diagnostics)
+    (InferenceResult { signatures, expr_tys, local_tys }, diagnostics)
 }
 
 pub fn infer(
@@ -48,16 +75,44 @@ pub fn infer(
     index: &hir::Index,
     world_index: &hir::WorldIndex,
 ) -> (InferenceResult, Vec<TyDiagnostic>) {
+    let mut expr_tys = ArenaMap::default();
+    let mut local_tys = ArenaMap::default();
+    let mut diagnostics = Vec::new();
+    let signature = infer_impl(
+        function_name,
+        bodies,
+        index,
+        world_index,
+        &mut expr_tys,
+        &mut local_tys,
+        &mut diagnostics,
+    );
+
+    let mut signatures = HashMap::new();
+    signatures.insert(function_name.clone(), signature);
+
+    (InferenceResult { signatures, expr_tys, local_tys }, diagnostics)
+}
+
+fn infer_impl(
+    function_name: &hir::Name,
+    bodies: &hir::Bodies,
+    index: &hir::Index,
+    world_index: &hir::WorldIndex,
+    expr_tys: &mut ArenaMap<Id<hir::Expr>, hir::TyKind>,
+    local_tys: &mut ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
+    diagnostics: &mut Vec<TyDiagnostic>,
+) -> Signature {
     let signature = get_signature(index.get_function(function_name).unwrap());
 
     let mut ctx = Ctx {
-        expr_tys: ArenaMap::default(),
-        local_tys: ArenaMap::default(),
+        expr_tys,
+        local_tys,
         param_tys: &signature.param_tys,
         bodies,
         index,
         world_index,
-        diagnostics: Vec::new(),
+        diagnostics,
     };
 
     let function_body = bodies.function_body(function_name);
@@ -67,17 +122,17 @@ pub fn infer(
 
     let Ctx { expr_tys, local_tys, diagnostics, .. } = ctx;
 
-    (InferenceResult { signature, expr_tys, local_tys }, diagnostics)
+    signature
 }
 
 struct Ctx<'a> {
-    expr_tys: ArenaMap<Id<hir::Expr>, hir::TyKind>,
-    local_tys: ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
+    expr_tys: &'a mut ArenaMap<Id<hir::Expr>, hir::TyKind>,
+    local_tys: &'a mut ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
     param_tys: &'a [hir::TyKind],
     bodies: &'a hir::Bodies,
     index: &'a hir::Index,
     world_index: &'a hir::WorldIndex,
-    diagnostics: Vec<TyDiagnostic>,
+    diagnostics: &'a mut Vec<TyDiagnostic>,
 }
 
 impl Ctx<'_> {
@@ -185,18 +240,20 @@ impl fmt::Debug for InferenceResult {
             hir::TyKind::String => "string",
         };
 
-        write!(f, "(")?;
-        for (idx, param_ty) in self.signature.param_tys.iter().enumerate() {
-            if idx != 0 {
-                write!(f, ", ")?;
+        for (name, signature) in &self.signatures {
+            write!(f, "{}(", name.0)?;
+            for (idx, param_ty) in signature.param_tys.iter().enumerate() {
+                if idx != 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{}", display_ty(*param_ty))?;
             }
-            write!(f, "{}", display_ty(*param_ty))?;
+            write!(f, ")")?;
+
+            writeln!(f, ": {}", display_ty(signature.return_ty))?;
         }
-        write!(f, ")")?;
 
-        write!(f, ": {}", display_ty(self.signature.return_ty))?;
-
-        writeln!(f, "\n")?;
+        writeln!(f)?;
         for (expr_id, ty) in self.expr_tys.iter() {
             writeln!(f, "{}: {}", expr_id.to_raw(), display_ty(*ty))?;
         }
@@ -219,7 +276,6 @@ mod tests {
     use super::*;
     use ast::AstNode;
     use expect_test::{expect, Expect};
-    use hir::WorldIndex;
 
     #[track_caller]
     fn check<const N: usize>(
@@ -229,7 +285,7 @@ mod tests {
         expected_diagnostics: [(TyDiagnosticKind, std::ops::Range<u32>); N],
     ) {
         let modules = utils::split_multi_module_test_data(input);
-        let mut world_index = WorldIndex::default();
+        let mut world_index = hir::WorldIndex::default();
 
         for (name, text) in &modules {
             if *name == "main" {
@@ -239,7 +295,7 @@ mod tests {
             let tokens = lexer::lex(text);
             let parse = parser::parse_source_file(&tokens);
             let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = hir::index(&root, &WorldIndex::default());
+            let (index, _) = hir::index(&root, &world_index);
 
             world_index.add_module(hir::Name(name.to_string()), index);
         }
@@ -247,7 +303,7 @@ mod tests {
         let tokens = lexer::lex(modules["main"]);
         let parse = parser::parse_source_file(&tokens);
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, _) = hir::index(&root, &WorldIndex::default());
+        let (index, _) = hir::index(&root, &world_index);
         let (bodies, _) = hir::lower(&root, &index, &world_index);
 
         let (inference_result, actual_diagnostics) =
@@ -274,7 +330,7 @@ mod tests {
             "#,
             "foo",
             expect![[r#"
-                (): unit
+                foo(): unit
 
                 0: unit
             "#]],
@@ -290,7 +346,7 @@ mod tests {
             "#,
             "one",
             expect![[r#"
-                (): s32
+                one(): s32
 
                 0: s32
             "#]],
@@ -306,7 +362,7 @@ mod tests {
             "#,
             "one",
             expect![[r#"
-                (): <unknown>
+                one(): <unknown>
 
                 0: s32
             "#]],
@@ -322,7 +378,7 @@ mod tests {
             "#,
             "one",
             expect![[r#"
-                (): <unknown>
+                one(): <unknown>
 
                 0: s32
             "#]],
@@ -338,7 +394,7 @@ mod tests {
             "#,
             "twenty",
             expect![[r#"
-                (): s32
+                twenty(): s32
 
                 0: s32
                 1: s32
@@ -356,7 +412,7 @@ mod tests {
             "#,
             "add",
             expect![[r#"
-                (s32, s32): s32
+                add(s32, s32): s32
 
                 0: s32
                 1: s32
@@ -377,7 +433,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): unit
+                main(): unit
 
                 0: s32
                 1: s32
@@ -401,7 +457,7 @@ mod tests {
             "#,
             "foo",
             expect![[r#"
-                (): unit
+                foo(): unit
 
                 0: s32
                 1: string
@@ -423,7 +479,7 @@ mod tests {
             "#,
             "sum",
             expect![[r#"
-                (): s32
+                sum(): s32
 
                 0: string
                 1: s32
@@ -447,7 +503,7 @@ mod tests {
             "#,
             "f",
             expect![[r#"
-                (): s32
+                f(): s32
 
                 0: s32
                 1: <unknown>
@@ -465,7 +521,7 @@ mod tests {
             "#,
             "s",
             expect![[r#"
-                (): string
+                s(): string
 
                 0: s32
             "#]],
@@ -488,7 +544,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): unit
+                main(): unit
 
                 0: unit
             "#]],
@@ -505,7 +561,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): s32
+                main(): s32
 
                 0: s32
             "#]],
@@ -522,7 +578,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): s32
+                main(): s32
 
                 0: s32
                 1: s32
@@ -540,7 +596,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): s32
+                main(): s32
 
                 0: unit
                 1: string
@@ -576,7 +632,7 @@ mod tests {
             "#,
             "a",
             expect![[r#"
-                (): string
+                a(): string
 
                 0: s32
                 1: string
@@ -598,7 +654,7 @@ mod tests {
             "#,
             "main",
             expect![[r#"
-                (): unit
+                main(): unit
 
                 0: s32
                 1: s32

@@ -27,7 +27,7 @@ struct Analysis {
     indexing_diagnostics: Vec<hir::IndexingDiagnostic>,
     bodies: hir::Bodies,
     lowering_diagnostics: Vec<hir::LoweringDiagnostic>,
-    inference_results: HashMap<hir::Name, hir_ty::InferenceResult>,
+    inference_result: hir_ty::InferenceResult,
     ty_diagnostics: Vec<hir_ty::TyDiagnostic>,
 }
 
@@ -91,7 +91,7 @@ impl Analysis {
             indexing_diagnostics,
             bodies,
             lowering_diagnostics,
-            inference_results,
+            inference_result: inference_results,
             ty_diagnostics,
         };
 
@@ -274,7 +274,7 @@ impl Analysis {
 
     fn infer(&mut self, world_index: &hir::WorldIndex) {
         let (results, diagnostics) = hir_ty::infer_all(&self.bodies, &self.index, world_index);
-        self.inference_results = results;
+        self.inference_result = results;
         self.ty_diagnostics = diagnostics;
     }
 }

@@ -14,7 +14,7 @@ pub struct Bodies {
     other_module_references: HashSet<(Name, Name)>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Missing,
     IntLiteral(u32),
@@ -26,7 +26,7 @@ pub enum Expr {
     Call { path: Path, args: Vec<Id<Expr>> },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Path {
     ThisModule { name: Name },
     OtherModule { module: Name, name: Name },
@@ -43,7 +43,7 @@ pub struct LocalDef {
     pub value: Id<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinaryOperator {
     Add,
     Sub,
