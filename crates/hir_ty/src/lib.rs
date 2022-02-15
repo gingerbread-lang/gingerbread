@@ -120,8 +120,6 @@ fn infer_impl(
     let actual_return_ty = ctx.infer_expr(function_body);
     ctx.expect_match(actual_return_ty, signature.return_ty, function_body);
 
-    let Ctx { expr_tys, local_tys, diagnostics, .. } = ctx;
-
     signature
 }
 
