@@ -7,10 +7,13 @@ version = "0.0.0"
 [dependencies]
 arena = {path = "../arena"}
 hir = {path = "../hir"}
+hir_ty = {path = "../hir_ty"}
+wasm-encoder = "0.9.0"
+wasmtime = "0.34.0"
 
 [dev-dependencies]
 ast = {path = "../ast"}
-hir_lower = {path = "../hir_lower"}
-hir_ty = {path = "../hir_ty"}
+expect-test = "1.1"
 lexer = {path = "../lexer"}
 parser = {path = "../parser"}
+utils = {path = "../utils"}

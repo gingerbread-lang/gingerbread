@@ -1,321 +1,198 @@
-use arena::{Arena, ArenaMap};
-use std::mem;
+mod codegen;
+use self::codegen::Ctx;
 
-#[derive(Default)]
-pub struct Evaluator {
-    locals: ArenaMap<hir::LocalDefId, Val>,
-    params: ArenaMap<hir::ParamId, Val>,
-}
+use std::collections::HashMap;
 
-impl Evaluator {
-    pub fn eval(&mut self, program: hir::Program) -> Val {
-        let mut eval_ctx = EvalCtx {
-            locals: mem::take(&mut self.locals),
-            params: mem::take(&mut self.params),
-            local_defs: &program.local_defs,
-            functions: &program.functions,
-            exprs: &program.exprs,
-        };
+pub fn eval(
+    name: (hir::Name, hir::Name),
+    bodies_map: HashMap<hir::Name, hir::Bodies>,
+    tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+    world_index: hir::WorldIndex,
+) -> Option<wasmtime::Val> {
+    let ctx = Ctx::new(bodies_map, tys_map, world_index, name);
 
-        for statement in program.statements {
-            eval_ctx.eval_statement(statement);
-        }
+    let mut store = wasmtime::Store::<()>::default();
+    let module = wasmtime::Module::new(store.engine(), ctx.finish()).unwrap();
+    let instance = wasmtime::Instance::new(&mut store, &module, &[]).unwrap();
 
-        let result = program.tail_expr.map_or(Val::Nil, |expr| eval_ctx.eval_expr(expr));
+    let main = instance.get_func(&mut store, "main").unwrap();
 
-        self.locals = eval_ctx.locals;
+    let mut results = vec![wasmtime::Val::I32(0); 1];
+    main.call(&mut store, &[], &mut results).unwrap();
 
-        result
-    }
-}
-
-#[derive(Debug)]
-struct EvalCtx<'program> {
-    locals: ArenaMap<hir::LocalDefId, Val>,
-    params: ArenaMap<hir::ParamId, Val>,
-    local_defs: &'program Arena<hir::LocalDef>,
-    functions: &'program Arena<hir::Function>,
-    exprs: &'program Arena<hir::Expr>,
-}
-
-impl EvalCtx<'_> {
-    fn eval_statement(&mut self, statement: hir::Statement) {
-        match statement {
-            hir::Statement::LocalDef(local_def) => self.eval_local_def(local_def),
-            hir::Statement::Expr(expr) => {
-                self.eval_expr(expr);
-            }
-        }
-    }
-
-    fn eval_local_def(&mut self, local_def: hir::LocalDefId) {
-        let value = self.eval_expr(self.local_defs[local_def].value);
-        self.locals.insert(local_def, value);
-    }
-
-    fn eval_expr(&mut self, expr: hir::ExprId) -> Val {
-        match &self.exprs[expr] {
-            hir::Expr::Missing => Val::Nil,
-            hir::Expr::Binary { lhs, rhs, operator } => {
-                self.eval_binary_expr(*operator, *lhs, *rhs)
-            }
-            hir::Expr::Call { def, args } => {
-                let function = &self.functions[*def];
-
-                for (param, &arg) in function.params.clone().zip(args) {
-                    let arg = self.eval_expr(arg);
-                    self.params.insert(param, arg);
-                }
-
-                self.eval_expr(function.body)
-            }
-            hir::Expr::Block { statements, tail_expr } => {
-                for statement in statements {
-                    self.eval_statement(*statement);
-                }
-
-                match tail_expr {
-                    Some(tail_expr) => self.eval_expr(*tail_expr),
-                    None => Val::Nil,
-                }
-            }
-            hir::Expr::VariableRef(hir::VariableDefId::Local(local_def)) => {
-                self.locals[*local_def].clone()
-            }
-            hir::Expr::VariableRef(hir::VariableDefId::Param(param)) => self.params[*param].clone(),
-            hir::Expr::IntLiteral(value) => Val::Int(*value),
-            hir::Expr::StringLiteral(value) => Val::String(value.clone()),
-        }
-    }
-
-    fn eval_binary_expr(
-        &mut self,
-        operator: Option<hir::BinaryOperator>,
-        lhs: hir::ExprId,
-        rhs: hir::ExprId,
-    ) -> Val {
-        let operator = match operator {
-            Some(operator) => operator,
-            None => return Val::Nil,
-        };
-
-        let (lhs, rhs) = match (self.eval_expr(lhs), self.eval_expr(rhs)) {
-            (Val::Int(lhs), Val::Int(rhs)) => (lhs, rhs),
-            _ => return Val::Nil,
-        };
-
-        match operator {
-            hir::BinaryOperator::Add => lhs.checked_add(rhs),
-            hir::BinaryOperator::Sub => lhs.checked_sub(rhs),
-            hir::BinaryOperator::Mul => lhs.checked_mul(rhs),
-            hir::BinaryOperator::Div => lhs.checked_div(rhs),
-        }
-        .map_or(Val::Nil, Val::Int)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Val {
-    Nil,
-    Int(u32),
-    String(String),
+    results.get(0).cloned()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ast::AstNode;
+    use expect_test::{expect, Expect};
 
-    fn check(input: &str, val: Val) {
-        let parse = parser::parse_repl_line(&lexer::lex(input));
-        assert_eq!(parse.errors(), []);
+    fn check<const N: usize>(modules: [(&str, &str); N], expect: Expect) {
+        let mut analysis_results = HashMap::with_capacity(modules.len());
+        let mut world_index = hir::WorldIndex::default();
 
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower(&root);
-        assert_eq!(lower_result.errors, []);
+        for (module, text) in &modules {
+            let tokens = lexer::lex(text);
+            let parse = parser::parse_source_file(&tokens);
+            assert!(parse.errors().is_empty());
 
-        assert_eq!(hir_ty::infer(&lower_result.program).errors(), []);
+            let root = ast::Root::cast(parse.syntax_node()).unwrap();
+            assert!(ast::validation::validate(&root).is_empty());
 
-        assert_eq!(Evaluator::default().eval(lower_result.program), val);
+            let (index, d) = hir::index(&root, &world_index);
+            assert!(d.is_empty());
+
+            world_index.add_module(hir::Name(module.to_string()), index.clone());
+            analysis_results.insert(module, (root, index));
+        }
+
+        let mut bodies_map = HashMap::with_capacity(modules.len());
+        let mut tys_map = HashMap::with_capacity(modules.len());
+
+        for (module, (root, index)) in analysis_results {
+            let (bodies, _) = hir::lower(&root, &index, &world_index);
+
+            let (inference, d) = hir_ty::infer_all(&bodies, &index, &world_index);
+            assert!(d.is_empty());
+
+            bodies_map.insert(hir::Name(module.to_string()), bodies);
+            tys_map.insert(hir::Name(module.to_string()), inference);
+        }
+
+        let result = eval(
+            (hir::Name("main".to_string()), hir::Name("main".to_string())),
+            bodies_map,
+            tys_map,
+            world_index,
+        );
+
+        expect.assert_eq(&format!("{:?}", result));
     }
 
     #[test]
-    fn eval_int_literal() {
-        check("92", Val::Int(92));
-    }
-
-    #[test]
-    fn eval_string_literal() {
-        check("\"foo\"", Val::String("foo".to_string()));
-    }
-
-    #[test]
-    fn eval_binary_expr() {
-        check("10 * 5", Val::Int(50));
-    }
-
-    #[test]
-    fn eval_local_def() {
-        check("let a = 5;", Val::Nil);
-    }
-
-    #[test]
-    fn eval_local_def_and_ref() {
-        check("let a = 10; a", Val::Int(10));
-    }
-
-    #[test]
-    fn eval_empty_block() {
-        check("{}", Val::Nil);
-    }
-
-    #[test]
-    fn eval_block_ending_in_statement() {
-        check("{ let foo = 10; }", Val::Nil);
-    }
-
-    #[test]
-    fn eval_block_ending_in_expr() {
-        check("{ 10 - 5 }", Val::Int(5));
-    }
-
-    #[test]
-    fn eval_block_with_nested_scope() {
-        check("{ let n = 5; n+2 }", Val::Int(7));
-    }
-
-    #[test]
-    fn locals_have_lexical_scope() {
+    fn empty() {
         check(
-            r#"
-                let foo = "foo";
-                let bar = {
-                    let foo = 10;
-                    foo
-                };
-                foo
-            "#,
-            Val::String("foo".to_string()),
+            [(
+                "main",
+                r#"
+                    fnc main -> {};
+                "#,
+            )],
+            expect![["None"]],
         );
     }
 
     #[test]
-    fn add_with_overflow() {
-        check("3000000000 + 3000000000", Val::Nil);
-    }
-
-    #[test]
-    fn subtract_from_zero() {
-        check("0 - 10", Val::Nil);
-    }
-
-    #[test]
-    fn subtract_with_overflow() {
-        check("10 - 20", Val::Nil);
-    }
-
-    #[test]
-    fn multiply_with_overflow() {
-        check("1000000000 * 5", Val::Nil);
-    }
-
-    #[test]
-    fn divide_by_zero() {
-        check("0 / 0", Val::Nil);
-    }
-
-    #[test]
-    fn preserve_locals_across_eval_calls() {
-        let mut evaluator = Evaluator::default();
-
-        let parse = parser::parse_repl_line(&lexer::lex("let foo = 100;"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower(&root);
-        assert_eq!(evaluator.eval(lower_result.program.clone()), Val::Nil);
-
-        let parse = parser::parse_repl_line(&lexer::lex("foo"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower_with_in_scope(
-            &root,
-            hir_lower::InScope::new(
-                lower_result.program,
-                lower_result.function_names,
-                lower_result.variable_names,
-            ),
-        );
-        assert_eq!(evaluator.eval(lower_result.program), Val::Int(100));
-    }
-
-    #[test]
-    fn eval_call_with_zero_args() {
-        check("fnc magic_number: s32 -> 3735928559; magic_number", Val::Int(0xdeadbeef));
-    }
-
-    #[test]
-    fn eval_call_with_one_arg() {
+    fn return_constant_s32() {
         check(
-            r#"
-                fnc id(x: s32): s32 -> x;
-                id 10
-            "#,
-            Val::Int(10),
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> 10;
+                "#,
+            )],
+            expect![["Some(I32(10))"]],
         );
     }
 
     #[test]
-    fn eval_call_with_multiple_args() {
+    fn binary_expr() {
         check(
-            r#"
-                fnc add(x: s32, y: s32, z: s32): s32 -> x + y + z;
-                add 29, 31, 32
-            "#,
-            Val::Int(92),
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> 1 + 2 * 5;
+                "#,
+            )],
+            expect![["Some(I32(11))"]],
         );
     }
 
     #[test]
-    fn eval_nested_call() {
+    fn local() {
         check(
-            r#"
-                fnc mul(n: s32, m: s32): s32 -> n * m;
-                mul {mul 2, 6}, 8
-            "#,
-            Val::Int(96),
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> {
+                        let foo = 5;
+                        foo
+                    };
+                "#,
+            )],
+            expect![["Some(I32(5))"]],
         );
     }
 
     #[test]
-    fn eval_call_with_multiple_contained_exprs_in_last_arg() {
+    fn nested_blocks() {
         check(
-            r#"
-                fnc second(elem1: s32, elem2: s32): s32 -> elem2;
-                second 1, 4 * 5
-            "#,
-            Val::Int(20),
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> {
+                        let d = {
+                            let c = {
+                                let b = {
+                                    let a = 10;
+                                    a - 5
+                                };
+                                b + 22
+                            };
+                            c / 2
+                        };
+                        d * 5
+                    };
+                "#,
+            )],
+            expect![["Some(I32(65))"]],
         );
     }
 
     #[test]
-    fn preserve_functions_across_eval_calls() {
-        let mut evaluator = Evaluator::default();
-
-        let parse = parser::parse_source_file(&lexer::lex(
-            "fnc div(dividend: s32, divisor: s32): s32 -> dividend / divisor;",
-        ));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower(&root);
-        assert_eq!(evaluator.eval(lower_result.program.clone()), Val::Nil);
-
-        let parse = parser::parse_repl_line(&lexer::lex("div 10, 2"));
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let lower_result = hir_lower::lower_with_in_scope(
-            &root,
-            hir_lower::InScope::new(
-                lower_result.program,
-                lower_result.function_names,
-                lower_result.variable_names,
-            ),
+    fn call_with_no_params_or_return_ty() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> {
+                        nil;
+                        1
+                    };
+                    fnc nil -> {};
+                "#,
+            )],
+            expect![["Some(I32(1))"]],
         );
-        assert_eq!(evaluator.eval(lower_result.program), Val::Int(5));
+    }
+
+    #[test]
+    fn call_with_no_params_but_with_return_ty() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> n;
+                    fnc n: s32 -> 5;
+                "#,
+            )],
+            expect![["Some(I32(5))"]],
+        );
+    }
+
+    #[test]
+    fn call_with_params_and_return_ty() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> add 10, 20;
+                    fnc add(x: s32, y: s32): s32 -> x + y;
+                "#,
+            )],
+            expect![["Some(I32(30))"]],
+        );
     }
 }
