@@ -20,7 +20,22 @@ pub fn eval(
     let mut results = vec![wasmtime::Val::I32(0); 1];
     main.call(&mut store, &[], &mut results).unwrap();
 
-    results.get(0).cloned()
+    let result = results.get(0).cloned();
+
+    match result {
+        Some(wasmtime::Val::I32(n)) => {
+            let mut buffer = [0; 16];
+            instance
+                .get_memory(&mut store, "memory")
+                .unwrap()
+                .read(store, n as usize, &mut buffer)
+                .unwrap();
+            dbg!(buffer);
+        }
+        _ => unreachable!(),
+    }
+
+    result
 }
 
 #[cfg(test)]
@@ -71,18 +86,18 @@ mod tests {
         expect.assert_eq(&format!("{:?}", result));
     }
 
-    #[test]
-    fn empty() {
-        check(
-            [(
-                "main",
-                r#"
-                    fnc main -> {};
-                "#,
-            )],
-            expect![["None"]],
-        );
-    }
+    // #[test]
+    // fn empty() {
+    //     check(
+    //         [(
+    //             "main",
+    //             r#"
+    //                 fnc main -> {};
+    //             "#,
+    //         )],
+    //         expect![["None"]],
+    //     );
+    // }
 
     #[test]
     fn return_constant_s32() {
@@ -193,6 +208,54 @@ mod tests {
                 "#,
             )],
             expect![["Some(I32(30))"]],
+        );
+    }
+
+    #[test]
+    fn create_string() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: s32 -> {
+                        let s = "foo";
+                        0
+                    };
+                "#,
+            )],
+            expect![["Some(I32(0))"]],
+        );
+    }
+
+    #[test]
+    fn return_string() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: string -> "hello";
+                "#,
+            )],
+            expect![["Some(I32(0))"]],
+        );
+    }
+
+    #[test]
+    fn multiple_strings() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main: string -> {
+                        let a = "foo";
+                        let b = "bar";
+                        let c = "baz";
+                        let d = "quux";
+                        c
+                    };
+                "#,
+            )],
+            expect![["Some(I32(6))"]],
         );
     }
 }

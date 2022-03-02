@@ -2,13 +2,12 @@ use arena::{ArenaMap, Id};
 use std::collections::HashMap;
 use wasm_encoder::{
     CodeSection, DataSection, Export, ExportSection, Function, FunctionSection, Instruction,
-    MemorySection, Module, TypeSection, ValType,
+    MemorySection, MemoryType, Module, TypeSection, ValType,
 };
 
 pub(crate) struct Ctx {
     type_section: TypeSection,
     function_section: FunctionSection,
-    memory_section: MemorySection,
     export_section: ExportSection,
     code_section: CodeSection,
     data_section: DataSection,
@@ -19,6 +18,7 @@ pub(crate) struct Ctx {
     local_idxs: ArenaMap<Id<hir::LocalDef>, u32>,
     local_idx: u32,
     local_tys: Vec<(u32, ValType)>,
+    constant_idx: i32,
     bodies_map: HashMap<hir::Name, hir::Bodies>,
     tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
@@ -34,7 +34,6 @@ impl Ctx {
         let mut ctx = Self {
             type_section: TypeSection::new(),
             function_section: FunctionSection::new(),
-            memory_section: MemorySection::new(),
             export_section: ExportSection::new(),
             code_section: CodeSection::new(),
             data_section: DataSection::new(),
@@ -45,11 +44,13 @@ impl Ctx {
             local_idxs: ArenaMap::default(),
             local_idx: 0,
             local_tys: Vec::new(),
+            constant_idx: 0,
             bodies_map,
             tys_map,
             world_index,
         };
         ctx.export_section.export("main", Export::Function(ctx.function_idx));
+        ctx.export_section.export("memory", Export::Memory(0));
 
         ctx
     }
@@ -60,7 +61,11 @@ impl Ctx {
         let mut module = Module::new();
         module.section(&self.type_section);
         module.section(&self.function_section);
-        module.section(&self.memory_section);
+        module.section(MemorySection::new().memory(MemoryType {
+            minimum: 1,
+            maximum: None,
+            memory64: false,
+        }));
         module.section(&self.export_section);
         module.section(&self.code_section);
         module.section(&self.data_section);
@@ -90,7 +95,7 @@ impl Ctx {
         let results = match function.return_ty.kind {
             hir::TyKind::Unknown => unreachable!(),
             hir::TyKind::S32 => vec![ValType::I32],
-            hir::TyKind::String => todo!(),
+            hir::TyKind::String => vec![ValType::I32],
             hir::TyKind::Unit => Vec::new(),
         };
 
@@ -133,7 +138,7 @@ impl Ctx {
                 let ty = match self.tys_map[module][local_def] {
                     hir::TyKind::Unknown => unreachable!(),
                     hir::TyKind::S32 => ValType::I32,
-                    hir::TyKind::String => todo!(),
+                    hir::TyKind::String => ValType::I32,
                     hir::TyKind::Unit => return,
                 };
                 self.local_tys.push((1, ty));
@@ -149,7 +154,12 @@ impl Ctx {
                 self.push(Instruction::I32Const(n as i32));
             }
 
-            hir::Expr::StringLiteral(_) => todo!(),
+            hir::Expr::StringLiteral(s) => {
+                let instruction = Instruction::I32Const(self.constant_idx);
+                self.constant_idx += s.len() as i32;
+                self.data_section.active(0, &instruction, s.into_bytes());
+                self.push(instruction);
+            }
 
             hir::Expr::Binary { lhs, rhs, operator } => {
                 self.compile_expr(module, lhs);
