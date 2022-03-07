@@ -51,14 +51,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
 
 [[package]]
-name = "eval"
-version = "0.0.0"
-dependencies = [
- "arena",
- "hir",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -69,8 +61,7 @@ name = "fuzz"
 version = "0.0.0"
 dependencies = [
  "ast",
- "eval",
- "hir_lower",
+ "hir",
  "hir_ty",
  "lexer",
  "libfuzzer-sys",
@@ -88,15 +79,7 @@ name = "hir"
 version = "0.0.0"
 dependencies = [
  "arena",
-]
-
-[[package]]
-name = "hir_lower"
-version = "0.0.0"
-dependencies = [
- "arena",
  "ast",
- "hir",
  "text-size",
 ]
 
@@ -106,6 +89,7 @@ version = "0.0.0"
 dependencies = [
  "arena",
  "hir",
+ "text-size",
 ]
 
 [[package]]
@@ -163,15 +147,16 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.8.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
+checksum = "87f3e037eac156d1775da914196f0f37741a274155e34a0b7e427c35d2a2ecb9"
 
 [[package]]
 name = "parser"
 version = "0.0.0"
 dependencies = [
  "drop_bomb",
+ "static_assertions",
  "syntax",
  "text-size",
  "token",
@@ -219,6 +204,12 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "syn"
