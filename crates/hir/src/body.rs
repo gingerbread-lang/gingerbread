@@ -1,4 +1,4 @@
-use crate::{Function, GetFunctionResult, Index, Name, WorldIndex};
+use crate::{Function, GetFunctionError, Index, Name, WorldIndex};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use std::collections::{HashMap, HashSet};
@@ -217,7 +217,7 @@ impl<'a> Ctx<'a> {
             let function_name = Name(function_name_token.text().to_string());
 
             match self.world_index.get_function(&module_name, &function_name) {
-                GetFunctionResult::Found(function) => {
+                Ok(function) => {
                     self.bodies
                         .other_module_references
                         .insert((module_name.clone(), function_name.clone()));
@@ -230,7 +230,7 @@ impl<'a> Ctx<'a> {
                     );
                 }
 
-                GetFunctionResult::UnknownModule => {
+                Err(GetFunctionError::UnknownModule) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedModule {
                             name: module_name_token.text().to_string(),
@@ -241,7 +241,7 @@ impl<'a> Ctx<'a> {
                     return Expr::Missing;
                 }
 
-                GetFunctionResult::UnknownFunction => {
+                Err(GetFunctionError::UnknownFunction) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedLocal {
                             name: function_name_token.text().to_string(),

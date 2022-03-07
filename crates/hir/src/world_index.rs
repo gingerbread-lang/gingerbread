@@ -5,13 +5,17 @@ use std::collections::HashMap;
 pub struct WorldIndex(HashMap<Name, Index>);
 
 impl WorldIndex {
-    pub fn get_function(&self, module: &Name, function: &Name) -> GetFunctionResult<'_> {
+    pub fn get_function(
+        &self,
+        module: &Name,
+        function: &Name,
+    ) -> Result<&Function, GetFunctionError> {
         match self.0.get(module) {
             Some(index) => match index.get_function(function) {
-                Some(function) => GetFunctionResult::Found(function),
-                None => GetFunctionResult::UnknownFunction,
+                Some(function) => Ok(function),
+                None => Err(GetFunctionError::UnknownFunction),
             },
-            None => GetFunctionResult::UnknownModule,
+            None => Err(GetFunctionError::UnknownModule),
         }
     }
 
@@ -32,8 +36,8 @@ impl WorldIndex {
     }
 }
 
-pub enum GetFunctionResult<'a> {
-    Found(&'a Function),
+#[derive(Debug)]
+pub enum GetFunctionError {
     UnknownModule,
     UnknownFunction,
 }

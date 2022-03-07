@@ -10,12 +10,7 @@ pub fn eval(
     world_index: hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
-        let function = match world_index.get_function(&name.0, &name.1) {
-            hir::GetFunctionResult::Found(f) => f,
-            hir::GetFunctionResult::UnknownModule | hir::GetFunctionResult::UnknownFunction => {
-                unreachable!()
-            }
-        };
+        let function = world_index.get_function(&name.0, &name.1).unwrap();
         function.return_ty.kind
     };
 

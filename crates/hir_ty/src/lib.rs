@@ -177,11 +177,7 @@ impl Ctx<'_> {
                 let function = match path {
                     hir::Path::ThisModule { name } => self.index.get_function(name).unwrap(),
                     hir::Path::OtherModule { module, name } => {
-                        match self.world_index.get_function(module, name) {
-                            hir::GetFunctionResult::Found(function) => function,
-                            hir::GetFunctionResult::UnknownModule
-                            | hir::GetFunctionResult::UnknownFunction => unreachable!(),
-                        }
+                        self.world_index.get_function(module, name).unwrap()
                     }
                 };
 

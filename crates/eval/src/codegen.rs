@@ -74,12 +74,7 @@ impl Ctx {
     }
 
     fn compile_function(&mut self, name: (hir::Name, hir::Name)) {
-        let function = match self.world_index.get_function(&name.0, &name.1) {
-            hir::GetFunctionResult::Found(f) => f,
-            hir::GetFunctionResult::UnknownModule | hir::GetFunctionResult::UnknownFunction => {
-                unreachable!()
-            }
-        };
+        let function = self.world_index.get_function(&name.0, &name.1).unwrap();
 
         let params: Vec<_> = function
             .params
