@@ -12,9 +12,9 @@ pub(crate) struct Ctx {
     code_section: CodeSection,
     data_section: DataSection,
     instructions: Vec<Instruction<'static>>,
-    function_idxs: HashMap<(hir::Name, hir::Name), u32>,
+    function_idxs: HashMap<hir::Fqn, u32>,
     function_idx: u32,
-    functions_to_compile: Vec<(hir::Name, hir::Name)>,
+    functions_to_compile: Vec<hir::Fqn>,
     local_idxs: ArenaMap<Id<hir::LocalDef>, u32>,
     local_idx: u32,
     local_tys: Vec<(u32, ValType)>,
@@ -29,7 +29,7 @@ impl Ctx {
         bodies_map: HashMap<hir::Name, hir::Bodies>,
         tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
         world_index: hir::WorldIndex,
-        entry_point: (hir::Name, hir::Name),
+        entry_point: hir::Fqn,
     ) -> Self {
         let mut ctx = Self {
             type_section: TypeSection::new(),
@@ -73,8 +73,8 @@ impl Ctx {
         module.finish()
     }
 
-    fn compile_function(&mut self, name: (hir::Name, hir::Name)) {
-        let function = self.world_index.get_function(&name.0, &name.1).unwrap();
+    fn compile_function(&mut self, fqn: hir::Fqn) {
+        let function = self.world_index.get_function(&fqn).unwrap();
 
         let params: Vec<_> = function
             .params
@@ -98,7 +98,7 @@ impl Ctx {
 
         self.function_section.function(self.function_idx);
 
-        self.compile_expr(&name.0, self.bodies_map[&name.0].function_body(&name.1));
+        self.compile_expr(&fqn.module, self.bodies_map[&fqn.module].function_body(&fqn.function));
         self.push(Instruction::End);
 
         let mut f = Function::new(self.local_tys.drain(..));
@@ -193,13 +193,15 @@ impl Ctx {
             }
 
             hir::Expr::Call { path, args } => {
-                let (function_module, function_name) = match path {
-                    hir::Path::ThisModule { name } => (module.clone(), name),
-                    hir::Path::OtherModule { module, name } => (module, name),
+                let fqn = match path {
+                    hir::Path::ThisModule(function) => {
+                        hir::Fqn { module: module.clone(), function }
+                    }
+                    hir::Path::OtherModule(fqn) => fqn,
                 };
 
-                self.functions_to_compile.push((function_module.clone(), function_name.clone()));
-                self.function_idxs.insert((function_module, function_name), self.function_idx);
+                self.functions_to_compile.push(fqn.clone());
+                self.function_idxs.insert(fqn, self.function_idx);
                 self.function_idx += 1;
 
                 for arg in args {

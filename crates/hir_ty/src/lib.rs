@@ -175,10 +175,8 @@ impl Ctx<'_> {
             hir::Expr::Param { idx } => self.param_tys[*idx as usize],
             hir::Expr::Call { path, args } => {
                 let function = match path {
-                    hir::Path::ThisModule { name } => self.index.get_function(name).unwrap(),
-                    hir::Path::OtherModule { module, name } => {
-                        self.world_index.get_function(module, name).unwrap()
-                    }
+                    hir::Path::ThisModule(function) => self.index.get_function(function).unwrap(),
+                    hir::Path::OtherModule(fqn) => self.world_index.get_function(fqn).unwrap(),
                 };
 
                 let signature = get_signature(function);

@@ -1,4 +1,4 @@
-use crate::{Function, GetFunctionError, Index, Name, WorldIndex};
+use crate::{Fqn, Function, GetFunctionError, Index, Name, WorldIndex};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use std::collections::{HashMap, HashSet};
@@ -11,7 +11,7 @@ pub struct Bodies {
     exprs: Arena<Expr>,
     expr_ranges: ArenaMap<Id<Expr>, TextRange>,
     function_bodies: HashMap<Name, Id<Expr>>,
-    other_module_references: HashSet<(Name, Name)>,
+    other_module_references: HashSet<Fqn>,
 }
 
 #[derive(Debug, Clone)]
@@ -28,8 +28,8 @@ pub enum Expr {
 
 #[derive(Debug, Clone)]
 pub enum Path {
-    ThisModule { name: Name },
-    OtherModule { module: Name, name: Name },
+    ThisModule(Name),
+    OtherModule(Fqn),
 }
 
 #[derive(Debug)]
@@ -213,19 +213,19 @@ impl<'a> Ctx<'a> {
         if let Some(function_name_token) = call.nested_name() {
             let module_name_token = ident;
 
-            let module_name = Name(module_name_token.text().to_string());
-            let function_name = Name(function_name_token.text().to_string());
+            let fqn = Fqn {
+                module: Name(module_name_token.text().to_string()),
+                function: Name(function_name_token.text().to_string()),
+            };
 
-            match self.world_index.get_function(&module_name, &function_name) {
+            match self.world_index.get_function(&fqn) {
                 Ok(function) => {
-                    self.bodies
-                        .other_module_references
-                        .insert((module_name.clone(), function_name.clone()));
+                    self.bodies.other_module_references.insert(fqn.clone());
 
                     return self.lower_call(
                         call,
                         function,
-                        Path::OtherModule { module: module_name, name: function_name },
+                        Path::OtherModule(fqn),
                         function_name_token,
                     );
                 }
@@ -268,7 +268,7 @@ impl<'a> Ctx<'a> {
 
         let name = Name(name.to_string());
         if let Some(function) = self.index.get_function(&name) {
-            return self.lower_call(call, function, Path::ThisModule { name }, ident);
+            return self.lower_call(call, function, Path::ThisModule(name), ident);
         }
 
         self.diagnostics.push(LoweringDiagnostic {
@@ -312,8 +312,8 @@ impl<'a> Ctx<'a> {
 
         if expected != got {
             let name = match path {
-                Path::ThisModule { name } => name.0,
-                Path::OtherModule { name, .. } => name.0,
+                Path::ThisModule(function) => function.0,
+                Path::OtherModule(fqn) => fqn.function.0,
             };
 
             self.diagnostics.push(LoweringDiagnostic {
@@ -398,7 +398,7 @@ impl Bodies {
         self.expr_ranges[expr]
     }
 
-    pub fn other_module_references(&self) -> &HashSet<(Name, Name)> {
+    pub fn other_module_references(&self) -> &HashSet<Fqn> {
         &self.other_module_references
     }
 }
@@ -443,8 +443,8 @@ impl fmt::Debug for Bodies {
             other_module_references.sort_unstable();
 
             writeln!(f, "\nReferences to other modules:")?;
-            for (module, name) in &other_module_references {
-                writeln!(f, "- {}.{}", module.0, name.0)?;
+            for fqn in &other_module_references {
+                writeln!(f, "- {}.{}", fqn.module.0, fqn.function.0)?;
             }
         }
 
@@ -519,8 +519,8 @@ impl fmt::Debug for Bodies {
 
                 Expr::Call { path, args } => {
                     match path {
-                        Path::ThisModule { name } => write!(f, "{}", name.0)?,
-                        Path::OtherModule { module, name } => write!(f, "{}.{}", module.0, name.0)?,
+                        Path::ThisModule(function) => write!(f, "{}", function.0)?,
+                        Path::OtherModule(fqn) => write!(f, "{}.{}", fqn.module.0, fqn.function.0)?,
                     }
 
                     for (idx, arg) in args.iter().enumerate() {

@@ -4,14 +4,16 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct WorldIndex(HashMap<Name, Index>);
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Fqn {
+    pub module: Name,
+    pub function: Name,
+}
+
 impl WorldIndex {
-    pub fn get_function(
-        &self,
-        module: &Name,
-        function: &Name,
-    ) -> Result<&Function, GetFunctionError> {
-        match self.0.get(module) {
-            Some(index) => match index.get_function(function) {
+    pub fn get_function(&self, fqn: &Fqn) -> Result<&Function, GetFunctionError> {
+        match self.0.get(&fqn.module) {
+            Some(index) => match index.get_function(&fqn.function) {
                 Some(function) => Ok(function),
                 None => Err(GetFunctionError::UnknownFunction),
             },

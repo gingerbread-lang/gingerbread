@@ -4,17 +4,17 @@ use self::codegen::Ctx;
 use std::collections::HashMap;
 
 pub fn eval(
-    name: (hir::Name, hir::Name),
+    fqn: hir::Fqn,
     bodies_map: HashMap<hir::Name, hir::Bodies>,
     tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
-        let function = world_index.get_function(&name.0, &name.1).unwrap();
+        let function = world_index.get_function(&fqn).unwrap();
         function.return_ty
     };
 
-    let ctx = Ctx::new(bodies_map, tys_map, world_index, name);
+    let ctx = Ctx::new(bodies_map, tys_map, world_index, fqn);
 
     let mut store = wasmtime::Store::<()>::default();
     let module = wasmtime::Module::new(store.engine(), ctx.finish()).unwrap();
@@ -105,7 +105,10 @@ mod tests {
         }
 
         let result = eval(
-            (hir::Name("main".to_string()), hir::Name("main".to_string())),
+            hir::Fqn {
+                module: hir::Name("main".to_string()),
+                function: hir::Name("main".to_string()),
+            },
             bodies_map,
             tys_map,
             world_index,
