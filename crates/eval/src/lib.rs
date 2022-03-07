@@ -11,7 +11,7 @@ pub fn eval(
 ) -> Val {
     let entry_point_return_ty = {
         let function = world_index.get_function(&name.0, &name.1).unwrap();
-        function.return_ty.kind
+        function.return_ty
     };
 
     let ctx = Ctx::new(bodies_map, tys_map, world_index, name);
@@ -22,14 +22,14 @@ pub fn eval(
 
     let main = instance.get_func(&mut store, "main").unwrap();
 
-    let num_results = if entry_point_return_ty == hir::TyKind::Unit { 0 } else { 1 };
+    let num_results = if entry_point_return_ty == hir::Ty::Unit { 0 } else { 1 };
     let mut results = vec![wasmtime::Val::I32(0); num_results];
     main.call(&mut store, &[], &mut results).unwrap();
 
     match results.get(0).cloned() {
         Some(wasmtime::Val::I32(n)) => match entry_point_return_ty {
-            hir::TyKind::S32 => Val::S32(n),
-            hir::TyKind::String => {
+            hir::Ty::S32 => Val::S32(n),
+            hir::Ty::String => {
                 let mut len = [0; std::mem::size_of::<i32>()];
                 instance
                     .get_memory(&mut store, "memory")
@@ -52,7 +52,7 @@ pub fn eval(
         },
 
         None => {
-            assert_eq!(entry_point_return_ty, hir::TyKind::Unit);
+            assert_eq!(entry_point_return_ty, hir::Ty::Unit);
             Val::Nil
         }
         _ => unreachable!(),

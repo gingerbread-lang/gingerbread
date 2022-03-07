@@ -5,12 +5,12 @@ use text_size::TextRange;
 
 pub struct InferenceResult {
     signatures: HashMap<hir::Name, Signature>,
-    expr_tys: ArenaMap<Id<hir::Expr>, hir::TyKind>,
-    local_tys: ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
+    expr_tys: ArenaMap<Id<hir::Expr>, hir::Ty>,
+    local_tys: ArenaMap<Id<hir::LocalDef>, hir::Ty>,
 }
 
 impl std::ops::Index<Id<hir::Expr>> for InferenceResult {
-    type Output = hir::TyKind;
+    type Output = hir::Ty;
 
     fn index(&self, expr: Id<hir::Expr>) -> &Self::Output {
         &self.expr_tys[expr]
@@ -18,7 +18,7 @@ impl std::ops::Index<Id<hir::Expr>> for InferenceResult {
 }
 
 impl std::ops::Index<Id<hir::LocalDef>> for InferenceResult {
-    type Output = hir::TyKind;
+    type Output = hir::Ty;
 
     fn index(&self, local_def: Id<hir::LocalDef>) -> &Self::Output {
         &self.local_tys[local_def]
@@ -26,8 +26,8 @@ impl std::ops::Index<Id<hir::LocalDef>> for InferenceResult {
 }
 
 struct Signature {
-    return_ty: hir::TyKind,
-    param_tys: Vec<hir::TyKind>,
+    return_ty: hir::Ty,
+    param_tys: Vec<hir::Ty>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,7 +38,7 @@ pub struct TyDiagnostic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TyDiagnosticKind {
-    Mismatch { expected: hir::TyKind, found: hir::TyKind },
+    Mismatch { expected: hir::Ty, found: hir::Ty },
 }
 
 pub fn infer_all(
@@ -99,8 +99,8 @@ fn infer_impl(
     bodies: &hir::Bodies,
     index: &hir::Index,
     world_index: &hir::WorldIndex,
-    expr_tys: &mut ArenaMap<Id<hir::Expr>, hir::TyKind>,
-    local_tys: &mut ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
+    expr_tys: &mut ArenaMap<Id<hir::Expr>, hir::Ty>,
+    local_tys: &mut ArenaMap<Id<hir::LocalDef>, hir::Ty>,
     diagnostics: &mut Vec<TyDiagnostic>,
 ) -> Signature {
     let signature = get_signature(index.get_function(function_name).unwrap());
@@ -124,9 +124,9 @@ fn infer_impl(
 }
 
 struct Ctx<'a> {
-    expr_tys: &'a mut ArenaMap<Id<hir::Expr>, hir::TyKind>,
-    local_tys: &'a mut ArenaMap<Id<hir::LocalDef>, hir::TyKind>,
-    param_tys: &'a [hir::TyKind],
+    expr_tys: &'a mut ArenaMap<Id<hir::Expr>, hir::Ty>,
+    local_tys: &'a mut ArenaMap<Id<hir::LocalDef>, hir::Ty>,
+    param_tys: &'a [hir::Ty],
     bodies: &'a hir::Bodies,
     index: &'a hir::Index,
     world_index: &'a hir::WorldIndex,
@@ -147,19 +147,19 @@ impl Ctx<'_> {
         }
     }
 
-    fn infer_expr(&mut self, expr: Id<hir::Expr>) -> hir::TyKind {
+    fn infer_expr(&mut self, expr: Id<hir::Expr>) -> hir::Ty {
         let ty = match &self.bodies[expr] {
-            hir::Expr::Missing => hir::TyKind::Unknown,
-            hir::Expr::IntLiteral(_) => hir::TyKind::S32,
-            hir::Expr::StringLiteral(_) => hir::TyKind::String,
+            hir::Expr::Missing => hir::Ty::Unknown,
+            hir::Expr::IntLiteral(_) => hir::Ty::S32,
+            hir::Expr::StringLiteral(_) => hir::Ty::String,
             hir::Expr::Binary { lhs, rhs, .. } => {
                 let lhs_ty = self.infer_expr(*lhs);
                 let rhs_ty = self.infer_expr(*rhs);
 
-                self.expect_match(lhs_ty, hir::TyKind::S32, *lhs);
-                self.expect_match(rhs_ty, hir::TyKind::S32, *rhs);
+                self.expect_match(lhs_ty, hir::Ty::S32, *lhs);
+                self.expect_match(rhs_ty, hir::Ty::S32, *rhs);
 
-                hir::TyKind::S32
+                hir::Ty::S32
             }
             hir::Expr::Block { statements, tail_expr, .. } => {
                 for statement in statements {
@@ -168,7 +168,7 @@ impl Ctx<'_> {
 
                 match tail_expr {
                     Some(tail) => self.infer_expr(*tail),
-                    None => hir::TyKind::Unit,
+                    None => hir::Ty::Unit,
                 }
             }
             hir::Expr::Local(local_def) => self.local_tys[*local_def],
@@ -197,8 +197,8 @@ impl Ctx<'_> {
         ty
     }
 
-    fn expect_match(&mut self, found: hir::TyKind, expected: hir::TyKind, expr: Id<hir::Expr>) {
-        if found == hir::TyKind::Unknown || expected == hir::TyKind::Unknown {
+    fn expect_match(&mut self, found: hir::Ty, expected: hir::Ty, expr: Id<hir::Expr>) {
+        if found == hir::Ty::Unknown || expected == hir::Ty::Unknown {
             return;
         }
 
@@ -219,8 +219,8 @@ impl Ctx<'_> {
 }
 
 fn get_signature(function: &hir::Function) -> Signature {
-    let return_ty = function.return_ty.kind;
-    let param_tys: Vec<_> = function.params.iter().map(|param| param.ty.kind).collect();
+    let return_ty = function.return_ty;
+    let param_tys: Vec<_> = function.params.iter().map(|param| param.ty).collect();
 
     Signature { return_ty, param_tys }
 }
@@ -228,10 +228,10 @@ fn get_signature(function: &hir::Function) -> Signature {
 impl fmt::Debug for InferenceResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let display_ty = |ty| match ty {
-            hir::TyKind::Unknown => "<unknown>",
-            hir::TyKind::Unit => "unit",
-            hir::TyKind::S32 => "s32",
-            hir::TyKind::String => "string",
+            hir::Ty::Unknown => "<unknown>",
+            hir::Ty::Unit => "unit",
+            hir::Ty::S32 => "s32",
+            hir::Ty::String => "string",
         };
 
         for (name, signature) in &self.signatures {
@@ -480,10 +480,7 @@ mod tests {
                 2: s32
             "#]],
             [(
-                TyDiagnosticKind::Mismatch {
-                    expected: hir::TyKind::S32,
-                    found: hir::TyKind::String,
-                },
+                TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
                 33..38,
             )],
         );
@@ -520,10 +517,7 @@ mod tests {
                 0: s32
             "#]],
             [(
-                TyDiagnosticKind::Mismatch {
-                    expected: hir::TyKind::String,
-                    found: hir::TyKind::S32,
-                },
+                TyDiagnosticKind::Mismatch { expected: hir::Ty::String, found: hir::Ty::S32 },
                 34..36,
             )],
         );
@@ -598,17 +592,11 @@ mod tests {
             "#]],
             [
                 (
-                    TyDiagnosticKind::Mismatch {
-                        expected: hir::TyKind::S32,
-                        found: hir::TyKind::Unit,
-                    },
+                    TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::Unit },
                     43..45,
                 ),
                 (
-                    TyDiagnosticKind::Mismatch {
-                        expected: hir::TyKind::S32,
-                        found: hir::TyKind::String,
-                    },
+                    TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
                     47..50,
                 ),
             ],
@@ -660,10 +648,7 @@ mod tests {
                 l0: s32
             "#]],
             [(
-                TyDiagnosticKind::Mismatch {
-                    expected: hir::TyKind::S32,
-                    found: hir::TyKind::String,
-                },
+                TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
                 97..102,
             )],
         );

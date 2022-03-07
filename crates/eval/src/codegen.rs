@@ -79,19 +79,19 @@ impl Ctx {
         let params: Vec<_> = function
             .params
             .iter()
-            .filter_map(|param| match param.ty.kind {
-                hir::TyKind::Unknown => unreachable!(),
-                hir::TyKind::S32 => Some(ValType::I32),
-                hir::TyKind::String => todo!(),
-                hir::TyKind::Unit => None,
+            .filter_map(|param| match param.ty {
+                hir::Ty::Unknown => unreachable!(),
+                hir::Ty::S32 => Some(ValType::I32),
+                hir::Ty::String => todo!(),
+                hir::Ty::Unit => None,
             })
             .collect();
 
-        let results = match function.return_ty.kind {
-            hir::TyKind::Unknown => unreachable!(),
-            hir::TyKind::S32 => vec![ValType::I32],
-            hir::TyKind::String => vec![ValType::I32],
-            hir::TyKind::Unit => Vec::new(),
+        let results = match function.return_ty {
+            hir::Ty::Unknown => unreachable!(),
+            hir::Ty::S32 => vec![ValType::I32],
+            hir::Ty::String => vec![ValType::I32],
+            hir::Ty::Unit => Vec::new(),
         };
 
         self.type_section.function(params, results);
@@ -131,10 +131,10 @@ impl Ctx {
                 self.push(Instruction::LocalSet(idx));
 
                 let ty = match self.tys_map[module][local_def] {
-                    hir::TyKind::Unknown => unreachable!(),
-                    hir::TyKind::S32 => ValType::I32,
-                    hir::TyKind::String => ValType::I32,
-                    hir::TyKind::Unit => return,
+                    hir::Ty::Unknown => unreachable!(),
+                    hir::Ty::S32 => ValType::I32,
+                    hir::Ty::String => ValType::I32,
+                    hir::Ty::Unit => return,
                 };
                 self.local_tys.push((1, ty));
             }

@@ -32,14 +32,8 @@ pub struct Param {
     pub ty: Ty,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Ty {
-    pub kind: TyKind,
-    pub range: Option<TextRange>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TyKind {
+pub enum Ty {
     Unknown,
     S32,
     String,
@@ -74,7 +68,7 @@ pub fn index(root: &ast::Root, world_index: &WorldIndex) -> (Index, Vec<Indexing
 
                 let return_ty = match function.return_ty() {
                     Some(return_ty) => lower_ty(return_ty.ty(), world_index, &mut diagnostics),
-                    None => Ty { kind: TyKind::Unit, range: None },
+                    None => Ty::Unit,
                 };
 
                 let name_string_clone = name.0.clone();
@@ -103,12 +97,12 @@ fn lower_ty(
 ) -> Ty {
     let ident = match ty.and_then(|ty| ty.name()) {
         Some(ident) => ident,
-        None => return Ty { kind: TyKind::Unknown, range: None },
+        None => return Ty::Unknown,
     };
 
     let name = Name(ident.text().to_string());
     if let Some(kind) = world_index.get_ty(&name) {
-        return Ty { kind, range: Some(ident.range()) };
+        return kind;
     }
 
     diagnostics.push(IndexingDiagnostic {
@@ -116,7 +110,7 @@ fn lower_ty(
         range: ident.range(),
     });
 
-    Ty { kind: TyKind::Unknown, range: Some(ident.range()) }
+    Ty::Unknown
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -147,19 +141,14 @@ impl fmt::Debug for Index {
                         write!(f, ", ")?;
                     }
 
-                    write!(
-                        f,
-                        "{}: {}",
-                        param.name.as_ref().map_or("?", |name| &name.0),
-                        param.ty.kind
-                    )?;
+                    write!(f, "{}: {}", param.name.as_ref().map_or("?", |name| &name.0), param.ty)?;
                 }
 
                 write!(f, ")")?;
             }
 
-            if function.return_ty.kind != TyKind::Unit {
-                write!(f, ": {}", function.return_ty.kind)?;
+            if function.return_ty != Ty::Unit {
+                write!(f, ": {}", function.return_ty)?;
             }
 
             writeln!(f, ";")?;
@@ -169,7 +158,7 @@ impl fmt::Debug for Index {
     }
 }
 
-impl fmt::Display for TyKind {
+impl fmt::Display for Ty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unknown => write!(f, "?"),

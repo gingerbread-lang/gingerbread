@@ -505,7 +505,7 @@ mod tests {
     fn ty_mismatch() {
         check_ty(
             "1 + \"foo\"",
-            TyDiagnosticKind::Mismatch { expected: hir::TyKind::S32, found: hir::TyKind::String },
+            TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
             4..9,
             expect![[r#"
                 error at 1:5: expected `s32` but found `string`
