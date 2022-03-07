@@ -116,6 +116,15 @@ impl<'a> Ctx<'a> {
             None => return,
         };
 
+        // if we’ve already seen a function with this name,
+        // we ignore all other functions with that name
+        //
+        // we don’t have to worry about emitting a diagnostic here
+        // because indexing already handles this
+        if self.bodies.function_bodies.contains_key(&name) {
+            return;
+        }
+
         if let Some(param_list) = function.param_list() {
             for (idx, param) in param_list.params().enumerate() {
                 if let Some(ident) = param.name() {
@@ -1132,6 +1141,22 @@ mod tests {
                 },
                 44..47,
             )],
+        );
+    }
+
+    #[test]
+    fn functions_with_same_name() {
+        check(
+            r#"
+                #- main
+                fnc foo: s32 -> 10;
+                fnc foo: s32 -> 92;
+                fnc foo: string -> "bar";
+            "#,
+            expect![[r#"
+                fnc foo -> 10;
+            "#]],
+            [], // indexing already emits a diagnostic for this
         );
     }
 }
