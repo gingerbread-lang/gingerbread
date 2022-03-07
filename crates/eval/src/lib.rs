@@ -8,7 +8,17 @@ pub fn eval(
     bodies_map: HashMap<hir::Name, hir::Bodies>,
     tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
-) -> Option<wasmtime::Val> {
+) -> Val {
+    let entry_point_return_ty = {
+        let function = match world_index.get_function(&name.0, &name.1) {
+            hir::GetFunctionResult::Found(f) => f,
+            hir::GetFunctionResult::UnknownModule | hir::GetFunctionResult::UnknownFunction => {
+                unreachable!()
+            }
+        };
+        function.return_ty.kind
+    };
+
     let ctx = Ctx::new(bodies_map, tys_map, world_index, name);
 
     let mut store = wasmtime::Store::<()>::default();
@@ -17,25 +27,48 @@ pub fn eval(
 
     let main = instance.get_func(&mut store, "main").unwrap();
 
-    let mut results = vec![wasmtime::Val::I32(0); 1];
+    let num_results = if entry_point_return_ty == hir::TyKind::Unit { 0 } else { 1 };
+    let mut results = vec![wasmtime::Val::I32(0); num_results];
     main.call(&mut store, &[], &mut results).unwrap();
 
-    let result = results.get(0).cloned();
+    match results.get(0).cloned() {
+        Some(wasmtime::Val::I32(n)) => match entry_point_return_ty {
+            hir::TyKind::S32 => Val::S32(n),
+            hir::TyKind::String => {
+                let mut len = [0; std::mem::size_of::<i32>()];
+                instance
+                    .get_memory(&mut store, "memory")
+                    .unwrap()
+                    .read(&mut store, n as usize, &mut len)
+                    .unwrap();
 
-    match result {
-        Some(wasmtime::Val::I32(n)) => {
-            let mut buffer = [0; 16];
-            instance
-                .get_memory(&mut store, "memory")
-                .unwrap()
-                .read(store, n as usize, &mut buffer)
-                .unwrap();
-            dbg!(buffer);
+                let len = i32::from_le_bytes(len);
+                let len = len.try_into().unwrap();
+                let mut string = vec![0; len];
+                instance
+                    .get_memory(&mut store, "memory")
+                    .unwrap()
+                    .read(&mut store, n as usize + std::mem::size_of::<i32>(), &mut string)
+                    .unwrap();
+
+                Val::String(String::from_utf8(string).unwrap())
+            }
+            _ => unreachable!(),
+        },
+
+        None => {
+            assert_eq!(entry_point_return_ty, hir::TyKind::Unit);
+            Val::Nil
         }
         _ => unreachable!(),
     }
+}
 
-    result
+#[derive(Debug)]
+pub enum Val {
+    Nil,
+    S32(i32),
+    String(String),
 }
 
 #[cfg(test)]
@@ -86,18 +119,18 @@ mod tests {
         expect.assert_eq(&format!("{:?}", result));
     }
 
-    // #[test]
-    // fn empty() {
-    //     check(
-    //         [(
-    //             "main",
-    //             r#"
-    //                 fnc main -> {};
-    //             "#,
-    //         )],
-    //         expect![["None"]],
-    //     );
-    // }
+    #[test]
+    fn empty() {
+        check(
+            [(
+                "main",
+                r#"
+                    fnc main -> {};
+                "#,
+            )],
+            expect![["Nil"]],
+        );
+    }
 
     #[test]
     fn return_constant_s32() {
@@ -108,7 +141,7 @@ mod tests {
                     fnc main: s32 -> 10;
                 "#,
             )],
-            expect![["Some(I32(10))"]],
+            expect![["S32(10)"]],
         );
     }
 
@@ -121,7 +154,7 @@ mod tests {
                     fnc main: s32 -> 1 + 2 * 5;
                 "#,
             )],
-            expect![["Some(I32(11))"]],
+            expect![["S32(11)"]],
         );
     }
 
@@ -137,7 +170,7 @@ mod tests {
                     };
                 "#,
             )],
-            expect![["Some(I32(5))"]],
+            expect![["S32(5)"]],
         );
     }
 
@@ -162,7 +195,7 @@ mod tests {
                     };
                 "#,
             )],
-            expect![["Some(I32(65))"]],
+            expect![["S32(65)"]],
         );
     }
 
@@ -179,7 +212,7 @@ mod tests {
                     fnc nil -> {};
                 "#,
             )],
-            expect![["Some(I32(1))"]],
+            expect![["S32(1)"]],
         );
     }
 
@@ -193,7 +226,7 @@ mod tests {
                     fnc n: s32 -> 5;
                 "#,
             )],
-            expect![["Some(I32(5))"]],
+            expect![["S32(5)"]],
         );
     }
 
@@ -207,7 +240,7 @@ mod tests {
                     fnc add(x: s32, y: s32): s32 -> x + y;
                 "#,
             )],
-            expect![["Some(I32(30))"]],
+            expect![["S32(30)"]],
         );
     }
 
@@ -223,7 +256,7 @@ mod tests {
                     };
                 "#,
             )],
-            expect![["Some(I32(0))"]],
+            expect![["S32(0)"]],
         );
     }
 
@@ -236,7 +269,7 @@ mod tests {
                     fnc main: string -> "hello";
                 "#,
             )],
-            expect![["Some(I32(0))"]],
+            expect![[r#"String("hello")"#]],
         );
     }
 
@@ -255,7 +288,7 @@ mod tests {
                     };
                 "#,
             )],
-            expect![["Some(I32(6))"]],
+            expect![[r#"String("baz")"#]],
         );
     }
 }

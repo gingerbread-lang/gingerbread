@@ -156,8 +156,14 @@ impl Ctx {
 
             hir::Expr::StringLiteral(s) => {
                 let instruction = Instruction::I32Const(self.constant_idx);
-                self.constant_idx += s.len() as i32;
-                self.data_section.active(0, &instruction, s.into_bytes());
+
+                let len = s.len() as i32;
+                let mut bytes = len.to_le_bytes().to_vec();
+                bytes.append(&mut s.into_bytes());
+
+                self.constant_idx += bytes.len() as i32;
+
+                self.data_section.active(0, &instruction, bytes);
                 self.push(instruction);
             }
 
