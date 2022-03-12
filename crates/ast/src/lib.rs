@@ -1,44 +1,48 @@
 pub mod validation;
 
-use syntax::{SyntaxElement, SyntaxKind, SyntaxNode, SyntaxToken};
+use syntax::{SyntaxKind, SyntaxNode, SyntaxToken, SyntaxTree};
 use text_size::TextRange;
 
-pub trait AstNode: Sized {
-    fn cast(node: SyntaxNode) -> Option<Self>;
+pub trait AstNode: Copy + Sized {
+    fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self>;
 
-    fn syntax(&self) -> &SyntaxNode;
+    fn syntax(self) -> SyntaxNode;
 
-    fn range(&self) -> TextRange {
-        self.syntax().text_range()
+    fn range(self, tree: &SyntaxTree) -> TextRange {
+        self.syntax().range(tree)
     }
 }
 
 pub trait AstToken: Sized {
-    fn cast(token: SyntaxToken) -> Option<Self>;
+    fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self>;
 
-    fn syntax(&self) -> &SyntaxToken;
+    fn syntax(self) -> SyntaxToken;
 
-    fn text(&self) -> &str {
-        self.syntax().text()
+    fn text(self, tree: &SyntaxTree) -> &str {
+        self.syntax().text(tree)
     }
 
-    fn range(&self) -> TextRange {
-        self.syntax().text_range()
+    fn range(self, tree: &SyntaxTree) -> TextRange {
+        self.syntax().range(tree)
     }
 }
 
 macro_rules! def_ast_node {
     ($kind:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Clone, Copy)]
         pub struct $kind(SyntaxNode);
 
         impl AstNode for $kind {
-            fn cast(node: SyntaxNode) -> Option<Self> {
-                (node.kind() == SyntaxKind::$kind).then(|| Self(node))
+            fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
+                if node.kind(tree) == SyntaxKind::$kind {
+                    Some(Self(node))
+                } else {
+                    None
+                }
             }
 
-            fn syntax(&self) -> &SyntaxNode {
-                &self.0
+            fn syntax(self) -> SyntaxNode {
+                self.0
             }
         }
     };
@@ -46,16 +50,20 @@ macro_rules! def_ast_node {
 
 macro_rules! def_ast_token {
     ($kind:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        #[derive(Clone, Copy)]
         pub struct $kind(SyntaxToken);
 
         impl AstToken for $kind {
-            fn cast(token: SyntaxToken) -> Option<Self> {
-                (token.kind() == SyntaxKind::$kind).then(|| Self(token))
+            fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self> {
+                if token.kind(tree) == SyntaxKind::$kind {
+                    Some(Self(token))
+                } else {
+                    None
+                }
             }
 
-            fn syntax(&self) -> &SyntaxToken {
-                &self.0
+            fn syntax(self) -> SyntaxToken {
+                self.0
             }
         }
     };
@@ -64,33 +72,34 @@ macro_rules! def_ast_token {
 def_ast_node!(Root);
 
 impl Root {
-    pub fn defs(&self) -> impl Iterator<Item = Def> {
-        nodes(self)
+    pub fn defs(self, tree: &SyntaxTree) -> impl Iterator<Item = Def> + '_ {
+        nodes(self, tree)
     }
 
-    pub fn statements(&self) -> impl Iterator<Item = Statement> {
-        nodes(self)
+    pub fn statements(self, tree: &SyntaxTree) -> impl Iterator<Item = Statement> + '_ {
+        nodes(self, tree)
     }
 
-    pub fn tail_expr(&self) -> Option<Expr> {
-        node(self)
+    pub fn tail_expr(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum Def {
     Function(Function),
 }
 
 impl AstNode for Def {
-    fn cast(node: SyntaxNode) -> Option<Self> {
-        match node.kind() {
+    fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
+        match node.kind(tree) {
             SyntaxKind::Function => Some(Self::Function(Function(node))),
 
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn syntax(self) -> SyntaxNode {
         match self {
             Self::Function(function) => function.syntax(),
         }
@@ -100,39 +109,39 @@ impl AstNode for Def {
 def_ast_node!(Function);
 
 impl Function {
-    pub fn name(&self) -> Option<Ident> {
-        token(self)
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
     }
 
-    pub fn param_list(&self) -> Option<ParamList> {
-        node(self)
+    pub fn param_list(self, tree: &SyntaxTree) -> Option<ParamList> {
+        node(self, tree)
     }
 
-    pub fn return_ty(&self) -> Option<ReturnTy> {
-        node(self)
+    pub fn return_ty(self, tree: &SyntaxTree) -> Option<ReturnTy> {
+        node(self, tree)
     }
 
-    pub fn body(&self) -> Option<Expr> {
-        node(self)
+    pub fn body(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub enum Statement {
     LocalDef(LocalDef),
     ExprStatement(ExprStatement),
 }
 
 impl AstNode for Statement {
-    fn cast(node: SyntaxNode) -> Option<Self> {
-        match node.kind() {
+    fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
+        match node.kind(tree) {
             SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
             SyntaxKind::ExprStatement => Some(Self::ExprStatement(ExprStatement(node))),
             _ => None,
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn syntax(self) -> SyntaxNode {
         match self {
             Self::LocalDef(local_def) => local_def.syntax(),
             Self::ExprStatement(expr) => expr.syntax(),
@@ -143,60 +152,60 @@ impl AstNode for Statement {
 def_ast_node!(LocalDef);
 
 impl LocalDef {
-    pub fn name(&self) -> Option<Ident> {
-        token(self)
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
     }
 
-    pub fn value(&self) -> Option<Expr> {
-        node(self)
+    pub fn value(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(ParamList);
 
 impl ParamList {
-    pub fn params(&self) -> impl Iterator<Item = Param> {
-        nodes(self)
+    pub fn params(self, tree: &SyntaxTree) -> impl Iterator<Item = Param> + '_ {
+        nodes(self, tree)
     }
 }
 
 def_ast_node!(ReturnTy);
 
 impl ReturnTy {
-    pub fn ty(&self) -> Option<Ty> {
-        node(self)
+    pub fn ty(self, tree: &SyntaxTree) -> Option<Ty> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(Param);
 
 impl Param {
-    pub fn name(&self) -> Option<Ident> {
-        token(self)
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
     }
 
-    pub fn ty(&self) -> Option<Ty> {
-        node(self)
+    pub fn ty(self, tree: &SyntaxTree) -> Option<Ty> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(Ty);
 
 impl Ty {
-    pub fn name(&self) -> Option<Ident> {
-        token(self)
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
     }
 }
 
 def_ast_node!(ExprStatement);
 
 impl ExprStatement {
-    pub fn expr(&self) -> Option<Expr> {
-        node(self)
+    pub fn expr(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub enum Expr {
     Binary(BinaryExpr),
     Block(Block),
@@ -206,8 +215,8 @@ pub enum Expr {
 }
 
 impl AstNode for Expr {
-    fn cast(node: SyntaxNode) -> Option<Self> {
-        match node.kind() {
+    fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
+        match node.kind(tree) {
             SyntaxKind::BinaryExpr => Some(Self::Binary(BinaryExpr(node))),
             SyntaxKind::Block => Some(Self::Block(Block(node))),
             SyntaxKind::Call => Some(Self::Call(Call(node))),
@@ -217,7 +226,7 @@ impl AstNode for Expr {
         }
     }
 
-    fn syntax(&self) -> &SyntaxNode {
+    fn syntax(self) -> SyntaxNode {
         match self {
             Self::Binary(binary_expr) => binary_expr.syntax(),
             Self::Block(block) => block.syntax(),
@@ -231,84 +240,80 @@ impl AstNode for Expr {
 def_ast_node!(BinaryExpr);
 
 impl BinaryExpr {
-    pub fn lhs(&self) -> Option<Expr> {
-        node(self)
+    pub fn lhs(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 
-    pub fn rhs(&self) -> Option<Expr> {
-        nodes(self).nth(1)
+    pub fn rhs(self, tree: &SyntaxTree) -> Option<Expr> {
+        nodes(self, tree).nth(1)
     }
 
-    pub fn operator(&self) -> Option<BinaryOperator> {
-        token(self)
+    pub fn operator(self, tree: &SyntaxTree) -> Option<BinaryOperator> {
+        token(self, tree)
     }
 }
 
 def_ast_node!(Block);
 
 impl Block {
-    pub fn statements(&self) -> impl Iterator<Item = Statement> {
-        nodes(self)
+    pub fn statements(self, tree: &SyntaxTree) -> impl Iterator<Item = Statement> + '_ {
+        nodes(self, tree)
     }
 
-    pub fn tail_expr(&self) -> Option<Expr> {
-        node(self)
+    pub fn tail_expr(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(Call);
 
 impl Call {
-    pub fn top_level_name(&self) -> Option<Ident> {
-        token(self)
+    pub fn top_level_name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
     }
 
-    pub fn nested_name(&self) -> Option<Ident> {
-        self.syntax()
-            .children_with_tokens()
-            .filter_map(SyntaxElement::into_token)
-            .filter_map(Ident::cast)
-            .nth(1)
+    pub fn nested_name(self, tree: &SyntaxTree) -> Option<Ident> {
+        self.syntax().child_tokens(tree).filter_map(|t| Ident::cast(t, tree)).nth(1)
     }
 
-    pub fn arg_list(&self) -> Option<ArgList> {
-        node(self)
+    pub fn arg_list(self, tree: &SyntaxTree) -> Option<ArgList> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(ArgList);
 
 impl ArgList {
-    pub fn args(&self) -> impl Iterator<Item = Arg> {
-        nodes(self)
+    pub fn args(self, tree: &SyntaxTree) -> impl Iterator<Item = Arg> + '_ {
+        nodes(self, tree)
     }
 }
 
 def_ast_node!(Arg);
 
 impl Arg {
-    pub fn value(&self) -> Option<Expr> {
-        node(self)
+    pub fn value(self, tree: &SyntaxTree) -> Option<Expr> {
+        node(self, tree)
     }
 }
 
 def_ast_node!(IntLiteral);
 
 impl IntLiteral {
-    pub fn value(&self) -> Option<Int> {
-        token(self)
+    pub fn value(self, tree: &SyntaxTree) -> Option<Int> {
+        token(self, tree)
     }
 }
 
 def_ast_node!(StringLiteral);
 
 impl StringLiteral {
-    pub fn value(&self) -> Option<String> {
-        token(self)
+    pub fn value(self, tree: &SyntaxTree) -> Option<String> {
+        token(self, tree)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy)]
 pub enum BinaryOperator {
     Add(Plus),
     Sub(Hyphen),
@@ -317,8 +322,8 @@ pub enum BinaryOperator {
 }
 
 impl AstToken for BinaryOperator {
-    fn cast(token: SyntaxToken) -> Option<Self> {
-        match token.kind() {
+    fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self> {
+        match token.kind(tree) {
             SyntaxKind::Plus => Some(Self::Add(Plus(token))),
             SyntaxKind::Hyphen => Some(Self::Sub(Hyphen(token))),
             SyntaxKind::Asterisk => Some(Self::Mul(Asterisk(token))),
@@ -327,7 +332,7 @@ impl AstToken for BinaryOperator {
         }
     }
 
-    fn syntax(&self) -> &SyntaxToken {
+    fn syntax(self) -> SyntaxToken {
         match self {
             Self::Add(plus) => plus.syntax(),
             Self::Sub(hyphen) => hyphen.syntax(),
@@ -345,25 +350,30 @@ def_ast_token!(Ident);
 def_ast_token!(Int);
 def_ast_token!(String);
 
-fn nodes<Parent: AstNode, Child: AstNode>(node: &Parent) -> impl Iterator<Item = Child> {
-    node.syntax().children().filter_map(Child::cast)
+fn nodes<Parent: AstNode, Child: AstNode>(
+    node: Parent,
+    tree: &SyntaxTree,
+) -> impl Iterator<Item = Child> + '_ {
+    node.syntax().child_nodes(tree).filter_map(|n| Child::cast(n, tree))
 }
 
-fn node<Parent: AstNode, Child: AstNode>(node: &Parent) -> Option<Child> {
-    node.syntax().children().find_map(Child::cast)
+fn node<Parent: AstNode, Child: AstNode>(node: Parent, tree: &SyntaxTree) -> Option<Child> {
+    node.syntax().child_nodes(tree).find_map(|n| Child::cast(n, tree))
 }
 
-fn token<Node: AstNode, Token: AstToken>(node: &Node) -> Option<Token> {
-    node.syntax().children_with_tokens().filter_map(SyntaxElement::into_token).find_map(Token::cast)
+fn token<Node: AstNode, Token: AstToken>(node: Node, tree: &SyntaxTree) -> Option<Token> {
+    node.syntax().child_tokens(tree).find_map(|t| Token::cast(t, tree))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn parse(input: &str) -> Root {
-        let syntax = parser::parse_repl_line(&lexer::lex(input)).syntax_node();
-        Root::cast(syntax).unwrap()
+    fn parse(input: &str) -> (SyntaxTree, Root) {
+        let tree = parser::parse_repl_line(&lexer::lex(input)).into_syntax_tree();
+        let root = Root::cast(tree.root(), &tree).unwrap();
+
+        (tree, root)
     }
 
     #[test]
@@ -373,14 +383,14 @@ mod tests {
 
     #[test]
     fn get_statements() {
-        let root = parse("let a = b; a;");
-        assert_eq!(root.statements().count(), 2);
+        let (tree, root) = parse("let a = b; a;");
+        assert_eq!(root.statements(&tree).count(), 2);
     }
 
     #[test]
     fn inspect_statement_kind() {
-        let root = parse("let foo = bar; baz * quuz;");
-        let mut statements = root.statements();
+        let (tree, root) = parse("let foo = bar; baz * quuz;");
+        let mut statements = root.statements(&tree);
 
         assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
         assert!(matches!(statements.next(), Some(Statement::ExprStatement(_))));
@@ -389,191 +399,194 @@ mod tests {
 
     #[test]
     fn get_name_of_local_def() {
-        let root = parse("let a = 10;");
-        let statement = root.statements().next().unwrap();
+        let (tree, root) = parse("let a = 10;");
+        let statement = root.statements(&tree).next().unwrap();
 
         let local_def = match statement {
             Statement::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
-        assert_eq!(local_def.name().unwrap().text(), "a");
+        assert_eq!(local_def.name(&tree).unwrap().text(&tree), "a");
     }
 
     #[test]
     fn get_value_of_local_def() {
-        let root = parse("let foo = 5;");
-        let statement = root.statements().next().unwrap();
+        let (tree, root) = parse("let foo = 5;");
+        let statement = root.statements(&tree).next().unwrap();
 
         let local_def = match statement {
             Statement::LocalDef(local_def) => local_def,
             _ => unreachable!(),
         };
 
-        assert!(matches!(local_def.value(), Some(Expr::IntLiteral(_))));
+        assert!(matches!(local_def.value(&tree), Some(Expr::IntLiteral(_))));
     }
 
     #[test]
     fn get_lhs_and_rhs_of_binary_expr() {
-        let root = parse("foo * 2");
-        assert!(root.statements().next().is_none());
+        let (tree, root) = parse("foo * 2");
+        assert!(root.statements(&tree).next().is_none());
 
-        let binary_expr = match root.tail_expr() {
+        let binary_expr = match root.tail_expr(&tree) {
             Some(Expr::Binary(binary_expr)) => binary_expr,
             _ => unreachable!(),
         };
 
-        assert!(matches!(binary_expr.lhs(), Some(Expr::Call(_))));
-        assert!(matches!(binary_expr.rhs(), Some(Expr::IntLiteral(_))));
+        assert!(matches!(binary_expr.lhs(&tree), Some(Expr::Call(_))));
+        assert!(matches!(binary_expr.rhs(&tree), Some(Expr::IntLiteral(_))));
     }
 
     #[test]
     fn get_operator_of_binary_expr() {
-        let root = parse("a + b");
+        let (tree, root) = parse("a + b");
 
-        let binary_expr = match root.tail_expr() {
+        let binary_expr = match root.tail_expr(&tree) {
             Some(Expr::Binary(binary_expr)) => binary_expr,
             _ => unreachable!(),
         };
 
-        assert!(matches!(binary_expr.operator(), Some(BinaryOperator::Add(_))));
+        assert!(matches!(binary_expr.operator(&tree), Some(BinaryOperator::Add(_))));
     }
 
     #[test]
     fn get_name_of_call() {
-        let root = parse("idx");
+        let (tree, root) = parse("idx");
 
-        let call = match root.tail_expr() {
+        let call = match root.tail_expr(&tree) {
             Some(Expr::Call(call)) => call,
             _ => unreachable!(),
         };
 
-        assert_eq!(call.top_level_name().unwrap().text(), "idx");
+        assert_eq!(call.top_level_name(&tree).unwrap().text(&tree), "idx");
     }
 
     #[test]
     fn get_name_of_call_in_nested_module() {
-        let root = parse("foo.bar");
+        let (tree, root) = parse("foo.bar");
 
-        let call = match root.tail_expr() {
+        let call = match root.tail_expr(&tree) {
             Some(Expr::Call(call)) => call,
             _ => unreachable!(),
         };
 
-        assert_eq!(call.top_level_name().unwrap().text(), "foo");
-        assert_eq!(call.nested_name().unwrap().text(), "bar");
+        assert_eq!(call.top_level_name(&tree).unwrap().text(&tree), "foo");
+        assert_eq!(call.nested_name(&tree).unwrap().text(&tree), "bar");
     }
 
     #[test]
     fn get_args_of_call() {
-        let root = parse("mul 10, 20");
+        let (tree, root) = parse("mul 10, 20");
 
-        let call = match root.tail_expr() {
+        let call = match root.tail_expr(&tree) {
             Some(Expr::Call(call)) => call,
             _ => unreachable!(),
         };
 
-        let mut args = call.arg_list().unwrap().args();
+        let mut args = call.arg_list(&tree).unwrap().args(&tree);
 
-        assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "10");
-        assert_eq!(args.next().unwrap().value().unwrap().syntax().to_string(), "20");
+        assert_eq!(args.next().unwrap().value(&tree).unwrap().syntax().text(&tree), "10");
+        assert_eq!(args.next().unwrap().value(&tree).unwrap().syntax().text(&tree), "20");
         assert!(args.next().is_none());
     }
 
     #[test]
     fn get_value_of_int_literal() {
-        let root = parse("92");
+        let (tree, root) = parse("92");
 
-        let int_literal = match root.tail_expr() {
+        let int_literal = match root.tail_expr(&tree) {
             Some(Expr::IntLiteral(int_literal)) => int_literal,
             _ => unreachable!(),
         };
 
-        assert_eq!(int_literal.value().unwrap().text(), "92");
+        assert_eq!(int_literal.value(&tree).unwrap().text(&tree), "92");
     }
 
     #[test]
     fn get_value_of_string_literal() {
-        let root = parse("\"👀\"");
+        let (tree, root) = parse("\"👀\"");
 
-        let string_literal = match root.tail_expr() {
+        let string_literal = match root.tail_expr(&tree) {
             Some(Expr::StringLiteral(string_literal)) => string_literal,
             _ => unreachable!(),
         };
 
-        assert_eq!(string_literal.value().unwrap().text(), "\"👀\"");
+        assert_eq!(string_literal.value(&tree).unwrap().text(&tree), "\"👀\"");
     }
 
     #[test]
     fn get_block_statements_and_tail_expr() {
-        let root = parse("{ let a = 10; let b = a * {a - 1}; b + 5 }");
+        let (tree, root) = parse("{ let a = 10; let b = a * {a - 1}; b + 5 }");
 
-        let block = match root.tail_expr() {
+        let block = match root.tail_expr(&tree) {
             Some(Expr::Block(block)) => block,
             _ => unreachable!(),
         };
 
-        let mut statements = block.statements();
+        let mut statements = block.statements(&tree);
 
         assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
         assert!(matches!(statements.next(), Some(Statement::LocalDef(_))));
         assert!(statements.next().is_none());
 
-        assert!(matches!(block.tail_expr(), Some(Expr::Binary(_))));
+        assert!(matches!(block.tail_expr(&tree), Some(Expr::Binary(_))));
     }
 
     #[test]
     fn get_function_name() {
-        let root = parse("fnc a -> {};");
-        let def = root.defs().next().unwrap();
+        let (tree, root) = parse("fnc a -> {};");
+        let def = root.defs(&tree).next().unwrap();
 
         let Def::Function(function) = def;
 
-        assert_eq!(function.name().unwrap().text(), "a");
+        assert_eq!(function.name(&tree).unwrap().text(&tree), "a");
     }
 
     #[test]
     fn get_function_params() {
-        let root = parse("fnc add(x: s32, y: s32) -> {};");
-        let def = root.defs().next().unwrap();
+        let (tree, root) = parse("fnc add(x: s32, y: s32) -> {};");
+        let def = root.defs(&tree).next().unwrap();
 
         let Def::Function(function) = def;
 
-        let mut params = function.param_list().unwrap().params();
+        let mut params = function.param_list(&tree).unwrap().params(&tree);
 
         let param = params.next().unwrap();
-        assert_eq!(param.name().unwrap().text(), "x");
-        assert_eq!(param.ty().unwrap().name().unwrap().text(), "s32");
+        assert_eq!(param.name(&tree).unwrap().text(&tree), "x");
+        assert_eq!(param.ty(&tree).unwrap().name(&tree).unwrap().text(&tree), "s32");
 
         let param = params.next().unwrap();
-        assert_eq!(param.name().unwrap().text(), "y");
-        assert_eq!(param.ty().unwrap().name().unwrap().text(), "s32");
+        assert_eq!(param.name(&tree).unwrap().text(&tree), "y");
+        assert_eq!(param.ty(&tree).unwrap().name(&tree).unwrap().text(&tree), "s32");
 
         assert!(params.next().is_none());
     }
 
     #[test]
     fn get_function_return_ty() {
-        let root = parse("fnc four: s32 -> 4;");
-        let def = root.defs().next().unwrap();
+        let (tree, root) = parse("fnc four: s32 -> 4;");
+        let def = root.defs(&tree).next().unwrap();
 
         let Def::Function(function) = def;
 
-        assert_eq!(function.return_ty().unwrap().ty().unwrap().name().unwrap().text(), "s32");
+        assert_eq!(
+            function.return_ty(&tree).unwrap().ty(&tree).unwrap().name(&tree).unwrap().text(&tree),
+            "s32"
+        );
     }
 
     #[test]
     fn get_function_body() {
-        let root = parse("fnc nothing -> {};");
-        let def = root.defs().next().unwrap();
+        let (tree, root) = parse("fnc nothing -> {};");
+        let def = root.defs(&tree).next().unwrap();
 
         let Def::Function(function) = def;
 
-        let block = match function.body().unwrap() {
+        let block = match function.body(&tree).unwrap() {
             Expr::Block(block) => block,
             _ => unreachable!(),
         };
 
-        assert!(block.statements().next().is_none());
+        assert!(block.statements(&tree).next().is_none());
     }
 }

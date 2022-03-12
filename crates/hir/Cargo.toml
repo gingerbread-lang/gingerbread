@@ -7,6 +7,7 @@ version = "0.0.0"
 [dependencies]
 arena = {path = "../arena"}
 ast = {path = "../ast"}
+syntax = {path = "../syntax"}
 text-size = "1.1"
 
 [dev-dependencies]

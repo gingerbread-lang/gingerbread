@@ -240,13 +240,13 @@ impl AnalysisState {
         }
 
         let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let validation_errors = ast::validation::validate(&root);
+        let validation_errors = ast::validation::validate(root);
 
         for error in validation_errors {
             errors.push(Error::from_validation_error(error));
         }
 
-        let lower_result = hir_lower::lower_with_in_scope(&root, self.hir_in_scope.clone());
+        let lower_result = hir_lower::lower_with_in_scope(root, self.hir_in_scope.clone());
 
         for error in lower_result.errors {
             errors.push(Error::from_lower_error(error));

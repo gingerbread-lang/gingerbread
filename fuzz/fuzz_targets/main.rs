@@ -8,9 +8,10 @@ fuzz_target!(|s: &str| {
 
     let tokens = lexer::lex(s);
     let parse = parser::parse_repl_line(&tokens);
-    let root = ast::Root::cast(parse.syntax_node()).unwrap();
-    let _diagnostics = ast::validation::validate(&root);
-    let (index, _diagnostics) = hir::index(&root, &world_index);
-    let (bodies, _diagnostics) = hir::lower(&root, &index, &world_index);
+    let tree = parse.syntax_tree();
+    let root = ast::Root::cast(tree.root(), tree).unwrap();
+    let _diagnostics = ast::validation::validate(root, tree);
+    let (index, _diagnostics) = hir::index(root, tree, &world_index);
+    let (bodies, _diagnostics) = hir::lower(root, tree, &index, &world_index);
     let (_inference, _diagnostics) = hir_ty::infer_all(&bodies, &index, &world_index);
 });

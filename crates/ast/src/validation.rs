@@ -1,16 +1,17 @@
 use crate::{AstNode, Function};
+use syntax::SyntaxTree;
 use text_size::TextRange;
 
-pub fn validate(ast: &impl AstNode) -> Vec<ValidationDiagnostic> {
+pub fn validate(ast: impl AstNode, tree: &SyntaxTree) -> Vec<ValidationDiagnostic> {
     let mut diagnostics = Vec::new();
 
-    for node in ast.syntax().descendants() {
-        if let Some(function) = Function::cast(node) {
-            if let Some(param_list) = function.param_list() {
-                if param_list.params().next().is_none() {
+    for node in ast.syntax().descendant_nodes(tree) {
+        if let Some(function) = Function::cast(node, tree) {
+            if let Some(param_list) = function.param_list(tree) {
+                if param_list.params(tree).next().is_none() {
                     diagnostics.push(ValidationDiagnostic {
                         kind: ValidationDiagnosticKind::UnneededParens,
-                        range: param_list.range(),
+                        range: param_list.range(tree),
                     });
                 }
             }
@@ -49,10 +50,10 @@ mod validation_tests {
             })
             .collect();
 
-        let syntax = parser::parse_source_file(&lexer::lex(input)).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let tree = parser::parse_source_file(&lexer::lex(input)).into_syntax_tree();
+        let root = Root::cast(tree.root(), &tree).unwrap();
 
-        assert_eq!(validate(&root), diagnostics);
+        assert_eq!(validate(root, &tree), diagnostics);
     }
 
     fn check_repl_line<const LEN: usize>(
@@ -67,10 +68,10 @@ mod validation_tests {
             })
             .collect();
 
-        let syntax = parser::parse_repl_line(&lexer::lex(input)).syntax_node();
-        let root = Root::cast(syntax).unwrap();
+        let tree = parser::parse_repl_line(&lexer::lex(input)).into_syntax_tree();
+        let root = Root::cast(tree.root(), &tree).unwrap();
 
-        assert_eq!(validate(&root), diagnostics);
+        assert_eq!(validate(root, &tree), diagnostics);
     }
 
     #[test]

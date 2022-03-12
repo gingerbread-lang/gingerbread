@@ -59,7 +59,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
         self.skip_trivia();
         self.process_event(unsafe { *last });
 
-        Parse { syntax_node: self.builder.finish(), errors }
+        Parse { syntax_tree: self.builder.finish(), errors }
     }
 
     fn process_event(&mut self, event: Event) {
@@ -80,7 +80,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
 
     fn add_token(&mut self) {
         let Token { kind, text, .. } = self.current_token().unwrap();
-        self.builder.token(kind.into(), text);
+        self.builder.add_token(kind.into(), text);
         self.token_idx += 1;
     }
 

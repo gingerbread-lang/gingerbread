@@ -81,21 +81,22 @@ mod tests {
             let parse = parser::parse_source_file(&tokens);
             assert!(parse.errors().is_empty());
 
-            let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            assert!(ast::validation::validate(&root).is_empty());
+            let tree = parse.into_syntax_tree();
+            let root = ast::Root::cast(tree.root(), &tree).unwrap();
+            assert!(ast::validation::validate(root, &tree).is_empty());
 
-            let (index, d) = hir::index(&root, &world_index);
+            let (index, d) = hir::index(root, &tree, &world_index);
             assert!(d.is_empty());
 
             world_index.add_module(hir::Name(module.to_string()), index.clone());
-            analysis_results.insert(module, (root, index));
+            analysis_results.insert(module, (tree, root, index));
         }
 
         let mut bodies_map = HashMap::with_capacity(modules.len());
         let mut tys_map = HashMap::with_capacity(modules.len());
 
-        for (module, (root, index)) in analysis_results {
-            let (bodies, _) = hir::lower(&root, &index, &world_index);
+        for (module, (tree, root, index)) in analysis_results {
+            let (bodies, _) = hir::lower(root, &tree, &index, &world_index);
 
             let (inference, d) = hir_ty::infer_all(&bodies, &index, &world_index);
             assert!(d.is_empty());

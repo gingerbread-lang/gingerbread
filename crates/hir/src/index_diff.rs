@@ -59,9 +59,9 @@ mod tests {
     fn check(original: &str, changed: &str, expect: Expect) {
         let index_input = |input| {
             let tokens = lexer::lex(input);
-            let parse = parser::parse_source_file(&tokens);
-            let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = index(&root, &WorldIndex::default());
+            let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+            let root = ast::Root::cast(tree.root(), &tree).unwrap();
+            let (index, _) = index(root, &tree, &WorldIndex::default());
             index
         };
 

@@ -3,6 +3,7 @@ use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use syntax::SyntaxTree;
 use text_size::TextRange;
 
 pub struct Bodies {
@@ -67,13 +68,14 @@ pub enum LoweringDiagnosticKind {
 }
 
 pub fn lower(
-    root: &ast::Root,
+    root: ast::Root,
+    tree: &SyntaxTree,
     index: &Index,
     world_index: &WorldIndex,
 ) -> (Bodies, Vec<LoweringDiagnostic>) {
-    let mut ctx = Ctx::new(index, world_index);
+    let mut ctx = Ctx::new(index, world_index, tree);
 
-    for def in root.defs() {
+    for def in root.defs(tree) {
         match def {
             ast::Def::Function(function) => ctx.lower_function(function),
         }
@@ -86,13 +88,14 @@ struct Ctx<'a> {
     bodies: Bodies,
     index: &'a Index,
     world_index: &'a WorldIndex,
+    tree: &'a SyntaxTree,
     diagnostics: Vec<LoweringDiagnostic>,
     scopes: Vec<HashMap<String, Id<LocalDef>>>,
     params: HashMap<String, u32>,
 }
 
 impl<'a> Ctx<'a> {
-    fn new(index: &'a Index, world_index: &'a WorldIndex) -> Self {
+    fn new(index: &'a Index, world_index: &'a WorldIndex, tree: &'a SyntaxTree) -> Self {
         Self {
             bodies: Bodies {
                 local_defs: Arena::new(),
@@ -104,6 +107,7 @@ impl<'a> Ctx<'a> {
             },
             index,
             world_index,
+            tree,
             diagnostics: Vec::new(),
             scopes: vec![HashMap::new()],
             params: HashMap::new(),
@@ -111,8 +115,8 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_function(&mut self, function: ast::Function) {
-        let name = match function.name() {
-            Some(ident) => Name(ident.text().to_string()),
+        let name = match function.name(self.tree) {
+            Some(ident) => Name(ident.text(self.tree).to_string()),
             None => return,
         };
 
@@ -125,15 +129,15 @@ impl<'a> Ctx<'a> {
             return;
         }
 
-        if let Some(param_list) = function.param_list() {
-            for (idx, param) in param_list.params().enumerate() {
-                if let Some(ident) = param.name() {
-                    self.params.insert(ident.text().to_string(), idx as u32);
+        if let Some(param_list) = function.param_list(self.tree) {
+            for (idx, param) in param_list.params(self.tree).enumerate() {
+                if let Some(ident) = param.name(self.tree) {
+                    self.params.insert(ident.text(self.tree).to_string(), idx as u32);
                 }
             }
         }
 
-        let body = self.lower_expr(function.body());
+        let body = self.lower_expr(function.body(self.tree));
         self.params.clear();
         self.bodies.function_bodies.insert(name, body);
     }
@@ -142,18 +146,18 @@ impl<'a> Ctx<'a> {
         match statement {
             ast::Statement::LocalDef(local_def) => self.lower_local_def(local_def),
             ast::Statement::ExprStatement(expr_statement) => {
-                let expr = self.lower_expr(expr_statement.expr());
+                let expr = self.lower_expr(expr_statement.expr(self.tree));
                 Statement::Expr(expr)
             }
         }
     }
 
     fn lower_local_def(&mut self, local_def: ast::LocalDef) -> Statement {
-        let value = self.lower_expr(local_def.value());
+        let value = self.lower_expr(local_def.value(self.tree));
         let id = self.bodies.local_defs.alloc(LocalDef { value });
 
-        if let Some(ident) = local_def.name() {
-            self.insert_into_current_scope(ident.text().to_string(), id);
+        if let Some(ident) = local_def.name(self.tree) {
+            self.insert_into_current_scope(ident.text(self.tree).to_string(), id);
         }
 
         Statement::LocalDef(id)
@@ -165,7 +169,7 @@ impl<'a> Ctx<'a> {
             None => return self.bodies.exprs.alloc(Expr::Missing),
         };
 
-        let range = expr_ast.range();
+        let range = expr_ast.range(self.tree);
 
         let expr = match expr_ast {
             ast::Expr::Binary(binary_expr) => self.lower_binary_expr(binary_expr),
@@ -182,10 +186,10 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_binary_expr(&mut self, binary_expr: ast::BinaryExpr) -> Expr {
-        let lhs = self.lower_expr(binary_expr.lhs());
-        let rhs = self.lower_expr(binary_expr.rhs());
+        let lhs = self.lower_expr(binary_expr.lhs(self.tree));
+        let rhs = self.lower_expr(binary_expr.rhs(self.tree));
 
-        let operator = match binary_expr.operator() {
+        let operator = match binary_expr.operator(self.tree) {
             Some(ast::BinaryOperator::Add(_)) => BinaryOperator::Add,
             Some(ast::BinaryOperator::Sub(_)) => BinaryOperator::Sub,
             Some(ast::BinaryOperator::Mul(_)) => BinaryOperator::Mul,
@@ -201,12 +205,13 @@ impl<'a> Ctx<'a> {
 
         let mut statements = Vec::new();
 
-        for statement in block.statements() {
+        for statement in block.statements(self.tree) {
             let statement = self.lower_statement(statement);
             statements.push(self.bodies.statements.alloc(statement));
         }
 
-        let tail_expr = block.tail_expr().map(|tail_expr| self.lower_expr(Some(tail_expr)));
+        let tail_expr =
+            block.tail_expr(self.tree).map(|tail_expr| self.lower_expr(Some(tail_expr)));
 
         self.destroy_current_scope();
 
@@ -214,17 +219,17 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_local_or_call(&mut self, call: ast::Call) -> Expr {
-        let ident = match call.top_level_name() {
+        let ident = match call.top_level_name(self.tree) {
             Some(ident) => ident,
             None => return Expr::Missing,
         };
 
-        if let Some(function_name_token) = call.nested_name() {
+        if let Some(function_name_token) = call.nested_name(self.tree) {
             let module_name_token = ident;
 
             let fqn = Fqn {
-                module: Name(module_name_token.text().to_string()),
-                function: Name(function_name_token.text().to_string()),
+                module: Name(module_name_token.text(self.tree).to_string()),
+                function: Name(function_name_token.text(self.tree).to_string()),
             };
 
             match self.world_index.get_function(&fqn) {
@@ -242,9 +247,9 @@ impl<'a> Ctx<'a> {
                 Err(GetFunctionError::UnknownModule) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedModule {
-                            name: module_name_token.text().to_string(),
+                            name: module_name_token.text(self.tree).to_string(),
                         },
-                        range: module_name_token.range(),
+                        range: module_name_token.range(self.tree),
                     });
 
                     return Expr::Missing;
@@ -253,9 +258,9 @@ impl<'a> Ctx<'a> {
                 Err(GetFunctionError::UnknownFunction) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedLocal {
-                            name: function_name_token.text().to_string(),
+                            name: function_name_token.text(self.tree).to_string(),
                         },
-                        range: function_name_token.range(),
+                        range: function_name_token.range(self.tree),
                     });
 
                     return Expr::Missing;
@@ -263,15 +268,15 @@ impl<'a> Ctx<'a> {
             }
         }
 
-        let name = ident.text();
+        let name = ident.text(self.tree);
 
         if let Some(idx) = self.look_up_param(name) {
-            check_args_for_local(&call, &ident, name, &mut self.diagnostics);
+            check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
             return Expr::Param { idx };
         }
 
         if let Some(def) = self.look_up_in_current_scope(name) {
-            check_args_for_local(&call, &ident, name, &mut self.diagnostics);
+            check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
             return Expr::Local(def);
         }
 
@@ -281,23 +286,26 @@ impl<'a> Ctx<'a> {
         }
 
         self.diagnostics.push(LoweringDiagnostic {
-            kind: LoweringDiagnosticKind::UndefinedLocal { name: ident.text().to_string() },
-            range: ident.range(),
+            kind: LoweringDiagnosticKind::UndefinedLocal {
+                name: ident.text(self.tree).to_string(),
+            },
+            range: ident.range(self.tree),
         });
 
         return Expr::Missing;
 
         fn check_args_for_local(
-            call: &ast::Call,
-            ident: &ast::Ident,
+            call: ast::Call,
+            ident: ast::Ident,
+            tree: &SyntaxTree,
             name: &str,
             diagnostics: &mut Vec<LoweringDiagnostic>,
         ) {
-            if let Some(arg_list) = call.arg_list() {
-                if arg_list.args().count() != 0 {
+            if let Some(arg_list) = call.arg_list(tree) {
+                if arg_list.args(tree).count() != 0 {
                     diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::CalledLocal { name: name.to_string() },
-                        range: ident.range(),
+                        range: ident.range(tree),
                     });
                 }
             }
@@ -311,11 +319,11 @@ impl<'a> Ctx<'a> {
         path: Path,
         ident: ast::Ident,
     ) -> Expr {
-        let arg_list = call.arg_list();
+        let arg_list = call.arg_list(self.tree);
 
         let expected = function.params.len() as u32;
         let got = match &arg_list {
-            Some(al) => al.args().count() as u32,
+            Some(al) => al.args(self.tree).count() as u32,
             None => 0,
         };
 
@@ -327,7 +335,7 @@ impl<'a> Ctx<'a> {
 
             self.diagnostics.push(LoweringDiagnostic {
                 kind: LoweringDiagnosticKind::MismatchedArgCount { name, expected, got },
-                range: ident.range(),
+                range: ident.range(self.tree),
             });
 
             return Expr::Missing;
@@ -336,8 +344,8 @@ impl<'a> Ctx<'a> {
         let mut args = Vec::new();
 
         if let Some(arg_list) = arg_list {
-            for arg in arg_list.args() {
-                let expr = self.lower_expr(arg.value());
+            for arg in arg_list.args(self.tree) {
+                let expr = self.lower_expr(arg.value(self.tree));
                 args.push(expr);
             }
         }
@@ -346,7 +354,7 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_int_literal(&mut self, int_literal: ast::IntLiteral) -> Expr {
-        let value = int_literal.value().and_then(|int| int.text().parse().ok());
+        let value = int_literal.value(self.tree).and_then(|int| int.text(self.tree).parse().ok());
 
         if let Some(value) = value {
             return Expr::IntLiteral(value);
@@ -354,16 +362,16 @@ impl<'a> Ctx<'a> {
 
         self.diagnostics.push(LoweringDiagnostic {
             kind: LoweringDiagnosticKind::OutOfRangeIntLiteral,
-            range: int_literal.range(),
+            range: int_literal.range(self.tree),
         });
 
         Expr::Missing
     }
 
     fn lower_string_literal(&self, string_literal: ast::StringLiteral) -> Expr {
-        match string_literal.value() {
+        match string_literal.value(self.tree) {
             Some(string) => {
-                let text = string.text();
+                let text = string.text(self.tree);
 
                 // trim off quotes
                 Expr::StringLiteral(text[1..text.len() - 1].to_string())
@@ -590,19 +598,19 @@ mod tests {
             }
 
             let tokens = lexer::lex(text);
-            let parse = parser::parse_source_file(&tokens);
-            let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = index(&root, &WorldIndex::default());
+            let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+            let root = ast::Root::cast(tree.root(), &tree).unwrap();
+            let (index, _) = index(root, &tree, &WorldIndex::default());
 
             world_index.add_module(Name(name.to_string()), index);
         }
 
         let tokens = lexer::lex(modules["main"]);
-        let parse = parser::parse_source_file(&tokens);
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, _) = index(&root, &WorldIndex::default());
+        let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+        let root = ast::Root::cast(tree.root(), &tree).unwrap();
+        let (index, _) = index(root, &tree, &WorldIndex::default());
 
-        let (bodies, actual_diagnostics) = lower(&root, &index, &world_index);
+        let (bodies, actual_diagnostics) = lower(root, &tree, &index, &world_index);
 
         expect.assert_eq(&format!("{:?}", bodies));
 

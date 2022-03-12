@@ -285,18 +285,18 @@ mod tests {
             }
 
             let tokens = lexer::lex(text);
-            let parse = parser::parse_source_file(&tokens);
-            let root = ast::Root::cast(parse.syntax_node()).unwrap();
-            let (index, _) = hir::index(&root, &world_index);
+            let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+            let root = ast::Root::cast(tree.root(), &tree).unwrap();
+            let (index, _) = hir::index(root, &tree, &world_index);
 
             world_index.add_module(hir::Name(name.to_string()), index);
         }
 
         let tokens = lexer::lex(modules["main"]);
-        let parse = parser::parse_source_file(&tokens);
-        let root = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, _) = hir::index(&root, &world_index);
-        let (bodies, _) = hir::lower(&root, &index, &world_index);
+        let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+        let root = ast::Root::cast(tree.root(), &tree).unwrap();
+        let (index, _) = hir::index(root, &tree, &world_index);
+        let (bodies, _) = hir::lower(root, &tree, &index, &world_index);
 
         let (inference_result, actual_diagnostics) =
             infer(&hir::Name(function_name.to_string()), &bodies, &index, &world_index);

@@ -73,9 +73,10 @@ impl Analysis {
             let tokens = lexer::lex(&content);
             parser::parse_source_file(&tokens)
         };
-        let ast = ast::Root::cast(parse.syntax_node()).unwrap();
-        let (index, indexing_diagnostics) = hir::index(&ast, world_index);
-        let (bodies, lowering_diagnostics) = hir::lower(&ast, &index, world_index);
+        let tree = parse.syntax_tree();
+        let ast = ast::Root::cast(tree.root(), tree).unwrap();
+        let (index, indexing_diagnostics) = hir::index(ast, tree, world_index);
+        let (bodies, lowering_diagnostics) = hir::lower(ast, tree, &index, world_index);
         let (inference_results, ty_diagnostics) = hir_ty::infer_all(&bodies, &index, world_index);
 
         world_index.add_module(module_name.clone(), index.clone());
@@ -253,21 +254,23 @@ impl Analysis {
     fn reparse(&mut self) {
         let tokens = lexer::lex(&self.content);
         self.parse = parser::parse_source_file(&tokens);
-        self.ast = ast::Root::cast(self.parse.syntax_node()).unwrap();
+        let tree = self.parse.syntax_tree();
+        self.ast = ast::Root::cast(tree.root(), tree).unwrap();
     }
 
     fn validate(&mut self) {
-        self.validation_diagnostics = ast::validation::validate(&self.ast);
+        self.validation_diagnostics = ast::validation::validate(self.ast, self.parse.syntax_tree());
     }
 
     fn index(&mut self, world_index: &hir::WorldIndex) {
-        let (index, diagnostics) = hir::index(&self.ast, world_index);
+        let (index, diagnostics) = hir::index(self.ast, self.parse.syntax_tree(), world_index);
         self.index = index;
         self.indexing_diagnostics = diagnostics;
     }
 
     fn lower(&mut self, world_index: &hir::WorldIndex) {
-        let (bodies, diagnostics) = hir::lower(&self.ast, &self.index, world_index);
+        let (bodies, diagnostics) =
+            hir::lower(self.ast, self.parse.syntax_tree(), &self.index, world_index);
         self.bodies = bodies;
         self.lowering_diagnostics = diagnostics;
     }

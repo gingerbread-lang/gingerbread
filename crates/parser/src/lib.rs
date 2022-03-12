@@ -13,7 +13,7 @@ pub use self::error::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use self::parser::Parser;
 use self::sink::Sink;
 use std::fmt;
-use syntax::SyntaxNode;
+use syntax::SyntaxTree;
 use token::Token;
 
 pub fn parse_source_file(tokens: &[Token<'_>]) -> Parse {
@@ -27,13 +27,17 @@ pub fn parse_repl_line(tokens: &[Token<'_>]) -> Parse {
 }
 
 pub struct Parse {
-    syntax_node: SyntaxNode,
+    syntax_tree: SyntaxTree,
     errors: Vec<SyntaxError>,
 }
 
 impl Parse {
-    pub fn syntax_node(&self) -> SyntaxNode {
-        self.syntax_node.clone()
+    pub fn syntax_tree(&self) -> &SyntaxTree {
+        &self.syntax_tree
+    }
+
+    pub fn into_syntax_tree(self) -> SyntaxTree {
+        self.syntax_tree
     }
 
     pub fn errors(&self) -> &[SyntaxError] {
@@ -43,7 +47,7 @@ impl Parse {
 
 impl fmt::Debug for Parse {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let tree = format!("{:#?}", self.syntax_node());
+        let tree = format!("{:#?}", self.syntax_tree);
         write!(f, "{}", &tree[0..tree.len() - 1])?;
 
         for error in &self.errors {

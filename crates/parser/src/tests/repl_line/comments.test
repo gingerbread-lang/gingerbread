@@ -36,7 +36,7 @@ Root@0..107
       Int@55..56 "0"
     Semicolon@56..57 ";"
   Whitespace@57..58 " "
-  Comment@58..94 "# TODO: make value of ..."
+  Comment@58..94 "# TODO: make value of i configurable"
   Whitespace@94..96 "\n\n"
   BinaryExpr@96..105
     Call@96..97
