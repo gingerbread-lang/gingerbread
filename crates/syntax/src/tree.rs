@@ -15,17 +15,21 @@ pub struct SyntaxBuilder {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Event {
-    StartNode { kind: SyntaxKind, start: u32, finish_node_pos: Option<u32> },
+    StartNode { kind: SyntaxKind, start: u32, finish_node_pos: u32 },
     AddToken { kind: SyntaxKind, start: u32, end: u32 },
     FinishNode,
 }
+
+// the corresponding FinishNode could never be at index 0,
+// since that is always a StartNode for the root note.
+const FINISH_NODE_POS_PLACEHOLDER: u32 = 0;
 
 impl SyntaxBuilder {
     pub fn start_node(&mut self, kind: SyntaxKind) {
         self.start_node_idxs.push(self.events.len());
         self.push_event(Event::StartNode {
             kind,
-            finish_node_pos: None,
+            finish_node_pos: FINISH_NODE_POS_PLACEHOLDER,
             start: self.text.len() as u32,
         });
     }
@@ -46,8 +50,8 @@ impl SyntaxBuilder {
 
         match &mut self.events[start_node_idx] {
             Event::StartNode { finish_node_pos, .. } => {
-                assert!(finish_node_pos.is_none());
-                *finish_node_pos = Some(finish_node_idx);
+                assert_eq!(*finish_node_pos, FINISH_NODE_POS_PLACEHOLDER);
+                *finish_node_pos = finish_node_idx;
             }
             _ => unreachable!(),
         }
@@ -74,7 +78,8 @@ impl SyntaxTree {
     pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32) {
         match self.events[idx as usize] {
             Event::StartNode { kind, finish_node_pos, start } => {
-                (kind, finish_node_pos.unwrap(), start)
+                assert_ne!(finish_node_pos, FINISH_NODE_POS_PLACEHOLDER);
+                (kind, finish_node_pos, start)
             }
             _ => panic!(),
         }
@@ -172,7 +177,7 @@ mod tests {
                 b.finish_node();
             },
             [
-                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: Some(1), start: 0 },
+                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: 1, start: 0 },
                 Event::FinishNode,
             ],
             "",
@@ -188,7 +193,7 @@ mod tests {
                 b.finish_node();
             },
             [
-                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: Some(2), start: 0 },
+                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: 2, start: 0 },
                 Event::AddToken { kind: SyntaxKind::LetKw, start: 0, end: 3 },
                 Event::FinishNode,
             ],
