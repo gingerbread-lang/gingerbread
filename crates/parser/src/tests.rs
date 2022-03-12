@@ -2,7 +2,7 @@ use crate::Parse;
 use expect_test::expect_file;
 use std::ffi::OsStr;
 use std::{env, fs};
-use token::Token;
+use token::Tokens;
 
 #[test]
 fn source_file() {
@@ -14,7 +14,7 @@ fn repl_line() {
     run_parser_tests("repl_line", crate::parse_repl_line);
 }
 
-fn run_parser_tests(tests_dir: &str, parsing_fn: fn(&[Token], &str) -> Parse) {
+fn run_parser_tests(tests_dir: &str, parsing_fn: fn(&Tokens, &str) -> Parse) {
     let tests_dir = {
         let current_dir = env::current_dir().unwrap();
         current_dir.join(format!("src/tests/{}", tests_dir))

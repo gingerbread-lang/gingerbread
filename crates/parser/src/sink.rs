@@ -1,18 +1,18 @@
 use super::event::Event;
 use crate::{Parse, SyntaxError};
 use syntax::SyntaxBuilder;
-use token::{Token, TokenKind};
+use token::{TokenKind, Tokens};
 
 pub(crate) struct Sink<'tokens, 'input> {
     events: Vec<Event>,
-    tokens: &'tokens [Token],
+    tokens: &'tokens Tokens,
     token_idx: usize,
     input: &'input str,
     builder: SyntaxBuilder,
 }
 
 impl<'tokens, 'input> Sink<'tokens, 'input> {
-    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens [Token], input: &'input str) -> Self {
+    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens Tokens, input: &'input str) -> Self {
         Self { events, tokens, token_idx: 0, input, builder: SyntaxBuilder::default() }
     }
 
@@ -72,20 +72,17 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
     }
 
     fn skip_trivia(&mut self) {
-        while let Some(Token { kind: TokenKind::Whitespace | TokenKind::Comment, .. }) =
-            self.current_token()
+        while let Some(TokenKind::Whitespace | TokenKind::Comment) =
+            self.tokens.kinds.get(self.token_idx)
         {
             self.add_token();
         }
     }
 
     fn add_token(&mut self) {
-        let token = self.current_token().unwrap();
-        self.builder.add_token(token.kind.into(), &self.input[token.range]);
+        let kind = self.tokens.kinds[self.token_idx];
+        let range = self.tokens.ranges[self.token_idx];
+        self.builder.add_token(kind.into(), &self.input[range]);
         self.token_idx += 1;
-    }
-
-    fn current_token(&self) -> Option<Token> {
-        self.tokens.get(self.token_idx).copied()
     }
 }

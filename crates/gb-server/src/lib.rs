@@ -142,9 +142,9 @@ impl Analysis {
         let mut tokens = Vec::new();
         let mut prev_token_position = None;
 
-        for token in lexer::lex(&self.content) {
+        for (token_kind, token_range) in lexer::lex(&self.content).iter() {
             if matches!(
-                token.kind,
+                token_kind,
                 TokenKind::Eq
                     | TokenKind::Dot
                     | TokenKind::Colon
@@ -161,7 +161,7 @@ impl Analysis {
                 continue;
             }
 
-            let (line, column) = self.line_index.line_col(token.range.start());
+            let (line, column) = self.line_index.line_col(token_range.start());
 
             let (delta_line, delta_column) = match prev_token_position {
                 Some((prev_line, prev_column)) if prev_line == line => {
@@ -176,8 +176,8 @@ impl Analysis {
             tokens.push(SemanticToken {
                 delta_line: delta_line.0,
                 delta_start: delta_column.0,
-                length: u32::from(token.range.len()),
-                token_type: match token.kind {
+                length: u32::from(token_range.len()),
+                token_type: match token_kind {
                     TokenKind::LetKw | TokenKind::FncKw => 0,
                     TokenKind::Ident => 1,
                     TokenKind::Int => 2,

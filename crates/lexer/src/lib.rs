@@ -3,10 +3,17 @@ use std::convert::TryInto;
 use std::mem;
 use std::ops::Range as StdRange;
 use text_size::TextRange;
-use token::Token;
+use token::{TokenKind, Tokens};
 
-pub fn lex(text: &str) -> Vec<Token> {
-    Lexer { inner: LexerTokenKind::lexer(text) }.collect()
+pub fn lex(text: &str) -> Tokens {
+    let mut tokens = Tokens::default();
+
+    for (kind, range) in (Lexer { inner: LexerTokenKind::lexer(text) }) {
+        tokens.kinds.push(kind);
+        tokens.ranges.push(range);
+    }
+
+    tokens
 }
 
 struct Lexer<'a> {
@@ -14,7 +21,7 @@ struct Lexer<'a> {
 }
 
 impl Iterator for Lexer<'_> {
-    type Item = Token;
+    type Item = (TokenKind, TextRange);
 
     fn next(&mut self) -> Option<Self::Item> {
         let kind = self.inner.next()?;
@@ -25,7 +32,7 @@ impl Iterator for Lexer<'_> {
             TextRange::new(start, end)
         };
 
-        Some(Token { kind: unsafe { mem::transmute(kind) }, range })
+        Some((unsafe { mem::transmute::<LexerTokenKind, TokenKind>(kind) }, range))
     }
 }
 
@@ -106,10 +113,12 @@ mod tests {
     fn check(input: &str, expected_kind: TokenKind) {
         let tokens = lex(input);
 
-        assert_eq!(tokens[0].kind, expected_kind);
-        assert_eq!(tokens[0].range, TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
+        assert_eq!(tokens.kinds[0], expected_kind);
+        assert_eq!(tokens.ranges[0], TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
 
-        assert_eq!(tokens.len(), 1); // we should only get one token
+        // we should only get one token
+        assert_eq!(tokens.kinds.len(), 1);
+        assert_eq!(tokens.ranges.len(), 1);
     }
 
     #[test]
@@ -126,11 +135,14 @@ mod tests {
     fn comments_go_to_end_of_line() {
         assert_eq!(
             lex("# foo\n100"),
-            [
-                Token { kind: TokenKind::Comment, range: TextRange::new(0.into(), 5.into()) },
-                Token { kind: TokenKind::Whitespace, range: TextRange::new(5.into(), 6.into()) },
-                Token { kind: TokenKind::Int, range: TextRange::new(6.into(), 9.into()) },
-            ]
+            Tokens {
+                kinds: vec![TokenKind::Comment, TokenKind::Whitespace, TokenKind::Int],
+                ranges: vec![
+                    TextRange::new(0.into(), 5.into()),
+                    TextRange::new(5.into(), 6.into()),
+                    TextRange::new(6.into(), 9.into())
+                ]
+            }
         );
     }
 
@@ -183,10 +195,13 @@ mod tests {
     fn dont_lex_ident_starting_with_int() {
         assert_eq!(
             lex("92foo"),
-            [
-                Token { kind: TokenKind::Int, range: TextRange::new(0.into(), 2.into()) },
-                Token { kind: TokenKind::Ident, range: TextRange::new(2.into(), 5.into()) }
-            ]
+            Tokens {
+                kinds: vec![TokenKind::Int, TokenKind::Ident],
+                ranges: vec![
+                    TextRange::new(0.into(), 2.into()),
+                    TextRange::new(2.into(), 5.into())
+                ]
+            }
         );
     }
 
@@ -199,12 +214,20 @@ mod tests {
     fn dont_lex_multiline_string() {
         assert_eq!(
             lex("\"foo\nbar\""),
-            [
-                Token { kind: TokenKind::Error, range: TextRange::new(0.into(), 4.into()) },
-                Token { kind: TokenKind::Whitespace, range: TextRange::new(4.into(), 5.into()) },
-                Token { kind: TokenKind::Ident, range: TextRange::new(5.into(), 8.into()) },
-                Token { kind: TokenKind::Error, range: TextRange::new(8.into(), 9.into()) }
-            ]
+            Tokens {
+                kinds: vec![
+                    TokenKind::Error,
+                    TokenKind::Whitespace,
+                    TokenKind::Ident,
+                    TokenKind::Error
+                ],
+                ranges: vec![
+                    TextRange::new(0.into(), 4.into()),
+                    TextRange::new(4.into(), 5.into()),
+                    TextRange::new(5.into(), 8.into()),
+                    TextRange::new(8.into(), 9.into())
+                ]
+            }
         );
     }
 

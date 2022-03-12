@@ -8,7 +8,8 @@ use std::cell::Cell;
 use std::mem;
 use std::rc::Rc;
 use syntax::SyntaxKind;
-use token::{Token, TokenKind};
+use text_size::TextRange;
+use token::{TokenKind, Tokens};
 
 const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
     TokenKind::LetKw,
@@ -20,7 +21,7 @@ const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
 
 #[derive(Debug)]
 pub(crate) struct Parser<'tokens> {
-    tokens: &'tokens [Token],
+    tokens: &'tokens Tokens,
     token_idx: usize,
     events: Vec<Option<Event>>,
     errors: Vec<SyntaxError>,
@@ -28,8 +29,8 @@ pub(crate) struct Parser<'tokens> {
     expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
 }
 
-impl<'tokens, 'input> Parser<'tokens> {
-    pub(crate) fn new(tokens: &'tokens [Token]) -> Self {
+impl<'tokens> Parser<'tokens> {
+    pub(crate) fn new(tokens: &'tokens Tokens) -> Self {
         Self {
             tokens,
             token_idx: 0,
@@ -93,7 +94,7 @@ impl<'tokens, 'input> Parser<'tokens> {
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
 
         if self.at_eof() || self.at_set(recovery_set) {
-            let range = self.previous_token().range;
+            let range = self.previous_token_range();
             self.errors.push(SyntaxError {
                 expected_syntax,
                 kind: SyntaxErrorKind::Missing { offset: range.end() },
@@ -102,14 +103,11 @@ impl<'tokens, 'input> Parser<'tokens> {
             return None;
         }
 
-        // we can unwrap because we would have returned if we were at EOF
-        let current_token = self.current_token().unwrap();
-
         self.errors.push(SyntaxError {
             expected_syntax,
             kind: SyntaxErrorKind::Unexpected {
-                found: current_token.kind,
-                range: current_token.range,
+                found: self.tokens.kinds[self.token_idx],
+                range: self.tokens.ranges[self.token_idx],
             },
         });
 
@@ -144,7 +142,7 @@ impl<'tokens, 'input> Parser<'tokens> {
 
     pub(crate) fn at_eof(&mut self) -> bool {
         self.skip_trivia();
-        self.current_token().is_none()
+        self.token_idx >= self.tokens.kinds.len()
     }
 
     pub(crate) fn at_default_recovery_set(&mut self) -> bool {
@@ -167,15 +165,15 @@ impl<'tokens, 'input> Parser<'tokens> {
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
     }
 
-    fn previous_token(&mut self) -> Token {
+    fn previous_token_range(&mut self) -> TextRange {
         let mut previous_token_idx = self.token_idx - 1;
-        while let Some(Token { kind: TokenKind::Whitespace | TokenKind::Comment, .. }) =
-            self.tokens.get(previous_token_idx)
+        while let Some(TokenKind::Whitespace | TokenKind::Comment) =
+            self.tokens.kinds.get(previous_token_idx)
         {
             previous_token_idx -= 1;
         }
 
-        self.tokens[previous_token_idx]
+        self.tokens.ranges[previous_token_idx]
     }
 
     fn skip_trivia(&mut self) {
@@ -189,11 +187,7 @@ impl<'tokens, 'input> Parser<'tokens> {
     }
 
     fn peek(&self) -> Option<TokenKind> {
-        self.current_token().map(|token| token.kind)
-    }
-
-    fn current_token(&self) -> Option<Token> {
-        self.tokens.get(self.token_idx).copied()
+        self.tokens.kinds.get(self.token_idx).copied()
     }
 }
 
