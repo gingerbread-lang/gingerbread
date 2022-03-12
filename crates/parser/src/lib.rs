@@ -16,14 +16,14 @@ use std::fmt;
 use syntax::SyntaxTree;
 use token::Token;
 
-pub fn parse_source_file(tokens: &[Token<'_>]) -> Parse {
+pub fn parse_source_file(tokens: &[Token], input: &str) -> Parse {
     let (events, errors) = Parser::new(tokens).parse(grammar::source_file);
-    Sink::new(events, tokens).finish(errors)
+    Sink::new(events, tokens, input).finish(errors)
 }
 
-pub fn parse_repl_line(tokens: &[Token<'_>]) -> Parse {
+pub fn parse_repl_line(tokens: &[Token], input: &str) -> Parse {
     let (events, errors) = Parser::new(tokens).parse(grammar::repl_line);
-    Sink::new(events, tokens).finish(errors)
+    Sink::new(events, tokens, input).finish(errors)
 }
 
 pub struct Parse {

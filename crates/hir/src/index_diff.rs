@@ -59,7 +59,7 @@ mod tests {
     fn check(original: &str, changed: &str, expect: Expect) {
         let index_input = |input| {
             let tokens = lexer::lex(input);
-            let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+            let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
             let (index, _) = index(root, &tree, &WorldIndex::default());
             index

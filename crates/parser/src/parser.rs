@@ -19,8 +19,8 @@ const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
 ]);
 
 #[derive(Debug)]
-pub(crate) struct Parser<'tokens, 'input> {
-    tokens: &'tokens [Token<'input>],
+pub(crate) struct Parser<'tokens> {
+    tokens: &'tokens [Token],
     token_idx: usize,
     events: Vec<Option<Event>>,
     errors: Vec<SyntaxError>,
@@ -28,8 +28,8 @@ pub(crate) struct Parser<'tokens, 'input> {
     expected_syntax_tracking_state: Rc<Cell<ExpectedSyntaxTrackingState>>,
 }
 
-impl<'tokens, 'input> Parser<'tokens, 'input> {
-    pub(crate) fn new(tokens: &'tokens [Token<'input>]) -> Self {
+impl<'tokens, 'input> Parser<'tokens> {
+    pub(crate) fn new(tokens: &'tokens [Token]) -> Self {
         Self {
             tokens,
             token_idx: 0,
@@ -167,7 +167,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.expected_syntax_tracking_state.set(ExpectedSyntaxTrackingState::Unnamed);
     }
 
-    fn previous_token(&mut self) -> Token<'input> {
+    fn previous_token(&mut self) -> Token {
         let mut previous_token_idx = self.token_idx - 1;
         while let Some(Token { kind: TokenKind::Whitespace | TokenKind::Comment, .. }) =
             self.tokens.get(previous_token_idx)
@@ -192,7 +192,7 @@ impl<'tokens, 'input> Parser<'tokens, 'input> {
         self.current_token().map(|token| token.kind)
     }
 
-    fn current_token(&self) -> Option<Token<'input>> {
+    fn current_token(&self) -> Option<Token> {
         self.tokens.get(self.token_idx).copied()
     }
 }

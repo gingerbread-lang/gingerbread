@@ -2,21 +2,19 @@ use std::fmt;
 use text_size::TextRange;
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Token<'a> {
-    pub text: &'a str,
+pub struct Token {
     pub kind: TokenKind,
     pub range: TextRange,
 }
 
-impl fmt::Debug for Token<'_> {
+impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{:?}@{}..{} {:?}",
+            "{:?}@{}..{}",
             self.kind,
             u32::from(self.range.start()),
-            u32::from(self.range.end()),
-            self.text
+            u32::from(self.range.end())
         )
     }
 }

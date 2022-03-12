@@ -189,7 +189,7 @@ mod tests {
         expected_diagnostics: [(IndexingDiagnosticKind, std::ops::Range<u32>); N],
     ) {
         let tokens = lexer::lex(input);
-        let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+        let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
         let (index, actual_diagnostics) = index(root, &tree, &WorldIndex::default());
 

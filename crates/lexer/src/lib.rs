@@ -5,7 +5,7 @@ use std::ops::Range as StdRange;
 use text_size::TextRange;
 use token::Token;
 
-pub fn lex(text: &str) -> Vec<Token<'_>> {
+pub fn lex(text: &str) -> Vec<Token> {
     Lexer { inner: LexerTokenKind::lexer(text) }.collect()
 }
 
@@ -13,12 +13,11 @@ struct Lexer<'a> {
     inner: logos::Lexer<'a, LexerTokenKind>,
 }
 
-impl<'a> Iterator for Lexer<'a> {
-    type Item = Token<'a>;
+impl Iterator for Lexer<'_> {
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         let kind = self.inner.next()?;
-        let text = self.inner.slice();
         let range = {
             let StdRange { start, end } = self.inner.span();
             let start = start.try_into().unwrap();
@@ -26,7 +25,7 @@ impl<'a> Iterator for Lexer<'a> {
             TextRange::new(start, end)
         };
 
-        Some(Token { text, kind: unsafe { mem::transmute(kind) }, range })
+        Some(Token { kind: unsafe { mem::transmute(kind) }, range })
     }
 }
 
@@ -108,7 +107,7 @@ mod tests {
         let tokens = lex(input);
 
         assert_eq!(tokens[0].kind, expected_kind);
-        assert_eq!(tokens[0].text, input); // the token should span the entire input
+        assert_eq!(tokens[0].range, TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
 
         assert_eq!(tokens.len(), 1); // we should only get one token
     }
@@ -128,21 +127,9 @@ mod tests {
         assert_eq!(
             lex("# foo\n100"),
             [
-                Token {
-                    text: "# foo",
-                    kind: TokenKind::Comment,
-                    range: TextRange::new(0.into(), 5.into())
-                },
-                Token {
-                    text: "\n",
-                    kind: TokenKind::Whitespace,
-                    range: TextRange::new(5.into(), 6.into())
-                },
-                Token {
-                    text: "100",
-                    kind: TokenKind::Int,
-                    range: TextRange::new(6.into(), 9.into())
-                },
+                Token { kind: TokenKind::Comment, range: TextRange::new(0.into(), 5.into()) },
+                Token { kind: TokenKind::Whitespace, range: TextRange::new(5.into(), 6.into()) },
+                Token { kind: TokenKind::Int, range: TextRange::new(6.into(), 9.into()) },
             ]
         );
     }
@@ -197,16 +184,8 @@ mod tests {
         assert_eq!(
             lex("92foo"),
             [
-                Token {
-                    text: "92",
-                    kind: TokenKind::Int,
-                    range: TextRange::new(0.into(), 2.into())
-                },
-                Token {
-                    text: "foo",
-                    kind: TokenKind::Ident,
-                    range: TextRange::new(2.into(), 5.into())
-                }
+                Token { kind: TokenKind::Int, range: TextRange::new(0.into(), 2.into()) },
+                Token { kind: TokenKind::Ident, range: TextRange::new(2.into(), 5.into()) }
             ]
         );
     }
@@ -221,26 +200,10 @@ mod tests {
         assert_eq!(
             lex("\"foo\nbar\""),
             [
-                Token {
-                    text: "\"foo",
-                    kind: TokenKind::Error,
-                    range: TextRange::new(0.into(), 4.into())
-                },
-                Token {
-                    text: "\n",
-                    kind: TokenKind::Whitespace,
-                    range: TextRange::new(4.into(), 5.into())
-                },
-                Token {
-                    text: "bar",
-                    kind: TokenKind::Ident,
-                    range: TextRange::new(5.into(), 8.into())
-                },
-                Token {
-                    text: "\"",
-                    kind: TokenKind::Error,
-                    range: TextRange::new(8.into(), 9.into())
-                }
+                Token { kind: TokenKind::Error, range: TextRange::new(0.into(), 4.into()) },
+                Token { kind: TokenKind::Whitespace, range: TextRange::new(4.into(), 5.into()) },
+                Token { kind: TokenKind::Ident, range: TextRange::new(5.into(), 8.into()) },
+                Token { kind: TokenKind::Error, range: TextRange::new(8.into(), 9.into()) }
             ]
         );
     }

@@ -370,7 +370,7 @@ mod tests {
     use super::*;
 
     fn parse(input: &str) -> (SyntaxTree, Root) {
-        let tree = parser::parse_repl_line(&lexer::lex(input)).into_syntax_tree();
+        let tree = parser::parse_repl_line(&lexer::lex(input), input).into_syntax_tree();
         let root = Root::cast(tree.root(), &tree).unwrap();
 
         (tree, root)

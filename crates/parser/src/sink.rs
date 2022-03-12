@@ -5,14 +5,15 @@ use token::{Token, TokenKind};
 
 pub(crate) struct Sink<'tokens, 'input> {
     events: Vec<Event>,
-    tokens: &'tokens [Token<'input>],
+    tokens: &'tokens [Token],
     token_idx: usize,
+    input: &'input str,
     builder: SyntaxBuilder,
 }
 
 impl<'tokens, 'input> Sink<'tokens, 'input> {
-    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens [Token<'input>]) -> Self {
-        Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::default() }
+    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens [Token], input: &'input str) -> Self {
+        Self { events, tokens, token_idx: 0, input, builder: SyntaxBuilder::default() }
     }
 
     pub(crate) fn finish(mut self, errors: Vec<SyntaxError>) -> Parse {
@@ -79,12 +80,12 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
     }
 
     fn add_token(&mut self) {
-        let Token { kind, text, .. } = self.current_token().unwrap();
-        self.builder.add_token(kind.into(), text);
+        let token = self.current_token().unwrap();
+        self.builder.add_token(token.kind.into(), &self.input[token.range]);
         self.token_idx += 1;
     }
 
-    fn current_token(&self) -> Option<Token<'input>> {
+    fn current_token(&self) -> Option<Token> {
         self.tokens.get(self.token_idx).copied()
     }
 }

@@ -5,7 +5,7 @@ use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
-pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
+pub(super) fn parse_function(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::FncKw));
     let m = p.start();
     p.bump();
@@ -30,7 +30,7 @@ pub(super) fn parse_function(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::Function)
 }
 
-fn parse_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_param_list(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::LParen));
     let m = p.start();
     p.bump();
@@ -58,14 +58,14 @@ fn parse_param_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
 
     return m.complete(p, SyntaxKind::ParamList);
 
-    fn should_stop(p: &mut Parser<'_, '_>) -> bool {
+    fn should_stop(p: &mut Parser<'_>) -> bool {
         p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow]))
             || p.at_default_recovery_set()
             || p.at_eof()
     }
 }
 
-fn parse_return_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_return_ty(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Colon));
     let m = p.start();
     p.bump();
@@ -78,7 +78,7 @@ fn parse_return_ty(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::ReturnTy)
 }
 
-fn parse_param(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_param(p: &mut Parser<'_>) -> CompletedMarker {
     let m = p.start();
 
     {

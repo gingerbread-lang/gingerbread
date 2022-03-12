@@ -598,15 +598,16 @@ mod tests {
             }
 
             let tokens = lexer::lex(text);
-            let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+            let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
             let (index, _) = index(root, &tree, &WorldIndex::default());
 
             world_index.add_module(Name(name.to_string()), index);
         }
 
-        let tokens = lexer::lex(modules["main"]);
-        let tree = parser::parse_source_file(&tokens).into_syntax_tree();
+        let text = &modules["main"];
+        let tokens = lexer::lex(text);
+        let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
         let (index, _) = index(root, &tree, &WorldIndex::default());
 

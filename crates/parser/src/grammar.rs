@@ -10,7 +10,7 @@ use crate::token_set::TokenSet;
 use syntax::SyntaxKind;
 use token::TokenKind;
 
-pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
+pub(crate) fn source_file(p: &mut Parser<'_>) {
     let m = p.start();
 
     while !p.at_eof() {
@@ -20,7 +20,7 @@ pub(crate) fn source_file(p: &mut Parser<'_, '_>) {
     m.complete(p, SyntaxKind::Root);
 }
 
-pub(crate) fn repl_line(p: &mut Parser<'_, '_>) {
+pub(crate) fn repl_line(p: &mut Parser<'_>) {
     let m = p.start();
 
     while !p.at_eof() {

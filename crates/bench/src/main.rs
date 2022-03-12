@@ -37,7 +37,7 @@ fn main() {
 fn compile(input: &str) {
     let world_index = hir::WorldIndex::default();
     let tokens = lexer::lex(input);
-    let tree = parser::parse_repl_line(&tokens).into_syntax_tree();
+    let tree = parser::parse_repl_line(&tokens, input).into_syntax_tree();
     let root = ast::Root::cast(tree.root(), &tree).unwrap();
     let _diagnostics = ast::validation::validate(root, &tree);
     let (index, _diagnostics) = hir::index(root, &tree, &world_index);

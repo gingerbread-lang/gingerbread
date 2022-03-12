@@ -71,7 +71,7 @@ impl Analysis {
     fn new(content: String, module_name: hir::Name, world_index: &mut hir::WorldIndex) -> Self {
         let parse = {
             let tokens = lexer::lex(&content);
-            parser::parse_source_file(&tokens)
+            parser::parse_source_file(&tokens, &content)
         };
         let tree = parse.syntax_tree();
         let ast = ast::Root::cast(tree.root(), tree).unwrap();
@@ -253,7 +253,7 @@ impl Analysis {
 
     fn reparse(&mut self) {
         let tokens = lexer::lex(&self.content);
-        self.parse = parser::parse_source_file(&tokens);
+        self.parse = parser::parse_source_file(&tokens, &self.content);
         let tree = self.parse.syntax_tree();
         self.ast = ast::Root::cast(tree.root(), tree).unwrap();
     }

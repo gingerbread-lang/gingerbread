@@ -78,7 +78,7 @@ mod tests {
 
         for (module, text) in &modules {
             let tokens = lexer::lex(text);
-            let parse = parser::parse_source_file(&tokens);
+            let parse = parser::parse_source_file(&tokens, text);
             assert!(parse.errors().is_empty());
 
             let tree = parse.into_syntax_tree();

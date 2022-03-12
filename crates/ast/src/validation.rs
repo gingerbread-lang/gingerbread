@@ -50,7 +50,7 @@ mod validation_tests {
             })
             .collect();
 
-        let tree = parser::parse_source_file(&lexer::lex(input)).into_syntax_tree();
+        let tree = parser::parse_source_file(&lexer::lex(input), input).into_syntax_tree();
         let root = Root::cast(tree.root(), &tree).unwrap();
 
         assert_eq!(validate(root, &tree), diagnostics);
@@ -68,7 +68,7 @@ mod validation_tests {
             })
             .collect();
 
-        let tree = parser::parse_repl_line(&lexer::lex(input)).into_syntax_tree();
+        let tree = parser::parse_repl_line(&lexer::lex(input), input).into_syntax_tree();
         let root = Root::cast(tree.root(), &tree).unwrap();
 
         assert_eq!(validate(root, &tree), diagnostics);

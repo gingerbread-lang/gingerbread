@@ -14,7 +14,7 @@ fn repl_line() {
     run_parser_tests("repl_line", crate::parse_repl_line);
 }
 
-fn run_parser_tests(tests_dir: &str, parsing_fn: fn(&[Token<'_>]) -> Parse) {
+fn run_parser_tests(tests_dir: &str, parsing_fn: fn(&[Token], &str) -> Parse) {
     let tests_dir = {
         let current_dir = env::current_dir().unwrap();
         current_dir.join(format!("src/tests/{}", tests_dir))
@@ -35,7 +35,7 @@ fn run_parser_tests(tests_dir: &str, parsing_fn: fn(&[Token<'_>]) -> Parse) {
 
             let actual_parse = {
                 let tokens = lexer::lex(input);
-                parsing_fn(&tokens)
+                parsing_fn(&tokens, input)
             };
 
             let expected_test_content = format!("{}\n===\n{:?}\n", input, actual_parse);

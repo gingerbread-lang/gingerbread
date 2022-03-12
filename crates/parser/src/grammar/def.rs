@@ -7,7 +7,7 @@ use token::TokenKind;
 
 pub(super) const DEF_FIRST: TokenSet = TokenSet::new([TokenKind::FncKw]);
 
-pub(super) fn parse_def(p: &mut Parser<'_, '_>) -> Option<CompletedMarker> {
+pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("definition");
 
     if p.at(TokenKind::FncKw) {

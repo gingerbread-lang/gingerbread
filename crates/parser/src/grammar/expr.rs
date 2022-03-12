@@ -9,14 +9,14 @@ pub(super) const EXPR_FIRST: TokenSet =
     TokenSet::new([TokenKind::Ident, TokenKind::LBrace, TokenKind::Int, TokenKind::String]);
 
 pub(super) fn parse_expr(
-    p: &mut Parser<'_, '_>,
+    p: &mut Parser<'_>,
     expected_syntax_name: &'static str,
 ) -> Option<CompletedMarker> {
     parse_expr_with_recovery_set(p, TokenSet::default(), expected_syntax_name)
 }
 
 fn parse_expr_with_recovery_set(
-    p: &mut Parser<'_, '_>,
+    p: &mut Parser<'_>,
     recovery_set: TokenSet,
     expected_syntax_name: &'static str,
 ) -> Option<CompletedMarker> {
@@ -24,7 +24,7 @@ fn parse_expr_with_recovery_set(
 }
 
 fn parse_expr_bp(
-    p: &mut Parser<'_, '_>,
+    p: &mut Parser<'_>,
     min_bp: u8,
     recovery_set: TokenSet,
     expected_syntax_name: &'static str,
@@ -55,7 +55,7 @@ fn parse_expr_bp(
 }
 
 fn parse_lhs(
-    p: &mut Parser<'_, '_>,
+    p: &mut Parser<'_>,
     recovery_set: TokenSet,
     expected_syntax_name: &'static str,
 ) -> Option<CompletedMarker> {
@@ -76,7 +76,7 @@ fn parse_lhs(
     Some(completed_marker)
 }
 
-fn parse_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_call(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
     p.bump();
@@ -93,7 +93,7 @@ fn parse_call(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::Call)
 }
 
-fn parse_arg_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_arg_list(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at_set(EXPR_FIRST));
     let m = p.start();
 
@@ -110,7 +110,7 @@ fn parse_arg_list(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::ArgList)
 }
 
-fn parse_arg(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_arg(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at_set(EXPR_FIRST));
     let m = p.start();
 
@@ -119,7 +119,7 @@ fn parse_arg(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::Arg)
 }
 
-fn parse_block(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_block(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::LBrace));
     let m = p.start();
     p.bump();
@@ -133,14 +133,14 @@ fn parse_block(p: &mut Parser<'_, '_>) -> CompletedMarker {
     m.complete(p, SyntaxKind::Block)
 }
 
-fn parse_int_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_int_literal(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Int));
     let m = p.start();
     p.bump();
     m.complete(p, SyntaxKind::IntLiteral)
 }
 
-fn parse_string_literal(p: &mut Parser<'_, '_>) -> CompletedMarker {
+fn parse_string_literal(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::String));
     let m = p.start();
     p.bump();
