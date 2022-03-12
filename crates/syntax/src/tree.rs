@@ -1,6 +1,5 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
 
-#[derive(Default)]
 pub struct SyntaxTree {
     events: Vec<Event>,
     text: String,
