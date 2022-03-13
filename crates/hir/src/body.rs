@@ -81,6 +81,8 @@ pub fn lower(
         }
     }
 
+    ctx.bodies.shrink_to_fit();
+
     (ctx.bodies, ctx.diagnostics)
 }
 
@@ -417,6 +419,24 @@ impl Bodies {
 
     pub fn other_module_references(&self) -> &HashSet<Fqn> {
         &self.other_module_references
+    }
+
+    fn shrink_to_fit(&mut self) {
+        let Self {
+            local_defs,
+            statements,
+            exprs,
+            expr_ranges,
+            function_bodies,
+            other_module_references,
+        } = self;
+
+        local_defs.shrink_to_fit();
+        statements.shrink_to_fit();
+        exprs.shrink_to_fit();
+        expr_ranges.shrink_to_fit();
+        function_bodies.shrink_to_fit();
+        other_module_references.shrink_to_fit();
     }
 }
 

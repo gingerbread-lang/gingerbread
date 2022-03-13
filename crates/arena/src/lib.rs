@@ -45,6 +45,10 @@ impl<T> Arena<T> {
         id
     }
 
+    pub fn shrink_to_fit(&mut self) {
+        self.data.shrink_to_fit();
+    }
+
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = (Id<T>, &T)> + ExactSizeIterator + DoubleEndedIterator {

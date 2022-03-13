@@ -66,7 +66,10 @@ pub fn infer_all(
         );
     }
 
-    (InferenceResult { signatures, expr_tys, local_tys }, diagnostics)
+    let mut result = InferenceResult { signatures, expr_tys, local_tys };
+    result.shrink_to_fit();
+
+    (result, diagnostics)
 }
 
 pub fn infer(
@@ -91,7 +94,10 @@ pub fn infer(
     let mut signatures = HashMap::new();
     signatures.insert(function_name.clone(), signature);
 
-    (InferenceResult { signatures, expr_tys, local_tys }, diagnostics)
+    let mut result = InferenceResult { signatures, expr_tys, local_tys };
+    result.shrink_to_fit();
+
+    (result, diagnostics)
 }
 
 fn infer_impl(
@@ -221,6 +227,15 @@ fn get_signature(function: &hir::Function) -> Signature {
     let param_tys: Vec<_> = function.params.iter().map(|param| param.ty).collect();
 
     Signature { return_ty, param_tys }
+}
+
+impl InferenceResult {
+    fn shrink_to_fit(&mut self) {
+        let Self { signatures, expr_tys, local_tys } = self;
+        signatures.shrink_to_fit();
+        expr_tys.shrink_to_fit();
+        local_tys.shrink_to_fit();
+    }
 }
 
 impl fmt::Debug for InferenceResult {

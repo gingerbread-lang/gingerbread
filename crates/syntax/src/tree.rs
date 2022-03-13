@@ -66,7 +66,11 @@ impl SyntaxBuilder {
     }
 
     pub fn finish(self) -> SyntaxTree {
-        SyntaxTree { data: self.data, text: self.text }
+        let Self { mut data, mut text, start_node_idxs: _ } = self;
+        data.shrink_to_fit();
+        text.shrink_to_fit();
+
+        SyntaxTree { data, text }
     }
 }
 

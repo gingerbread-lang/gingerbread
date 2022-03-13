@@ -19,6 +19,11 @@ impl Index {
     pub fn functions(&self) -> impl Iterator<Item = &Name> {
         self.functions.keys()
     }
+
+    fn shrink_to_fit(&mut self) {
+        let Self { functions } = self;
+        functions.shrink_to_fit();
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,7 +99,10 @@ pub fn index(
         }
     }
 
-    (Index { functions }, diagnostics)
+    let mut index = Index { functions };
+    index.shrink_to_fit();
+
+    (index, diagnostics)
 }
 
 fn lower_ty(

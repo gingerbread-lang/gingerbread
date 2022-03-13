@@ -13,6 +13,9 @@ pub fn lex(text: &str) -> Tokens {
         tokens.ranges.push(range);
     }
 
+    tokens.kinds.shrink_to_fit();
+    tokens.ranges.shrink_to_fit();
+
     tokens
 }
 

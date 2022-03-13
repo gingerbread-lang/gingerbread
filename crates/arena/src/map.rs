@@ -39,6 +39,10 @@ impl<K, V> ArenaMap<Id<K>, V> {
         self.data.get_mut(id.raw as usize).and_then(|it| it.as_mut())
     }
 
+    pub fn shrink_to_fit(&mut self) {
+        self.data.shrink_to_fit();
+    }
+
     pub fn values(&self) -> impl Iterator<Item = &V> {
         self.data.iter().filter_map(|o| o.as_ref())
     }
