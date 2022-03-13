@@ -23,6 +23,8 @@ const FINISH_NODE_POS_PLACEHOLDER: u32 = 0;
 
 impl SyntaxBuilder {
     pub fn start_node(&mut self, kind: SyntaxKind) {
+        self.data.reserve(START_NODE_SIZE as usize);
+
         self.start_node_idxs.push(self.data.len());
         self.data.push(SyntaxKind::__Last as u8 + kind as u8 + 1);
         self.data.extend_from_slice(&FINISH_NODE_POS_PLACEHOLDER.to_le_bytes());
@@ -31,6 +33,8 @@ impl SyntaxBuilder {
     }
 
     pub fn add_token(&mut self, kind: SyntaxKind, text: &str) {
+        self.data.reserve(ADD_TOKEN_SIZE as usize);
+
         let start = self.text.len();
         let end = self.text.len() + text.len();
         self.text.push_str(text);
@@ -42,6 +46,8 @@ impl SyntaxBuilder {
     }
 
     pub fn finish_node(&mut self) {
+        self.data.reserve(FINISH_NODE_SIZE as usize);
+
         let start_node_idx = self.start_node_idxs.pop().unwrap();
         let finish_node_pos = self.data.len() as u32;
         self.data.push(u8::MAX);
