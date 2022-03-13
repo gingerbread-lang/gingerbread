@@ -1,5 +1,5 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
-use std::mem;
+use std::{mem, slice};
 use text_size::TextRange;
 
 pub struct SyntaxTree {
@@ -35,45 +35,57 @@ impl SyntaxBuilder {
             self.root = Some(self.data.len() as u32);
         }
 
-        self.data.reserve(START_NODE_SIZE as usize);
-
         self.start_node_idxs.push(self.data.len());
-        self.data.push(SyntaxKind::__Last as u8 + kind as u8 + 1);
-        self.data.extend_from_slice(&FINISH_NODE_POS_PLACEHOLDER.to_le_bytes());
-        self.data.extend_from_slice(&self.current_len.to_le_bytes());
-        self.data.extend_from_slice(&self.current_len.to_le_bytes());
+
+        self.data.reserve(START_NODE_SIZE as usize);
+        unsafe {
+            let ptr = self.data_end_ptr();
+            ptr.write(SyntaxKind::__Last as u8 + kind as u8 + 1);
+            (ptr.add(1) as *mut u32).write_unaligned(FINISH_NODE_POS_PLACEHOLDER.to_le());
+            (ptr.add(5) as *mut u32).write_unaligned(self.current_len.to_le());
+            (ptr.add(9) as *mut u32).write_unaligned(self.current_len.to_le());
+            self.data.set_len(self.data.len() + START_NODE_SIZE as usize);
+        }
     }
 
     pub fn add_token(&mut self, kind: SyntaxKind, range: TextRange) {
-        self.data.reserve(ADD_TOKEN_SIZE as usize);
-
         let start = u32::from(range.start());
         let end = u32::from(range.end());
         self.current_len = end;
 
-        self.data.push(kind as u8);
-        self.data.extend_from_slice(&start.to_le_bytes());
-        self.data.extend_from_slice(&end.to_le_bytes());
+        self.data.reserve(ADD_TOKEN_SIZE as usize);
+        unsafe {
+            let ptr = self.data_end_ptr();
+            ptr.write(kind as u8);
+            (ptr.add(1) as *mut u32).write_unaligned(start.to_le());
+            (ptr.add(5) as *mut u32).write_unaligned(end.to_le());
+            self.data.set_len(self.data.len() + ADD_TOKEN_SIZE as usize);
+        }
     }
 
     pub fn finish_node(&mut self) {
-        self.data.reserve(FINISH_NODE_SIZE as usize);
-
         let start_node_idx = self.start_node_idxs.pop().unwrap();
         let finish_node_pos = self.data.len() as u32;
-        self.data.push(u8::MAX);
 
-        debug_assert!(is_tag_start_node(self.data[start_node_idx]));
+        self.data.reserve(FINISH_NODE_SIZE as usize);
+        unsafe {
+            let ptr = self.data_end_ptr();
+            ptr.write(u8::MAX);
+            self.data.set_len(self.data.len() + FINISH_NODE_SIZE as usize);
+        }
 
-        let old_finish_node_pos = &mut self.data[start_node_idx + 1..start_node_idx + 5];
-        debug_assert_eq!(
-            u32::from_le_bytes((*old_finish_node_pos).try_into().unwrap()),
-            FINISH_NODE_POS_PLACEHOLDER
-        );
-        old_finish_node_pos.copy_from_slice(&finish_node_pos.to_le_bytes());
+        unsafe {
+            let ptr = self.data.as_mut_ptr().add(start_node_idx);
+            debug_assert!(is_tag_start_node(self.data[start_node_idx]));
 
-        let node_end = &mut self.data[start_node_idx + 9..start_node_idx + 13];
-        node_end.copy_from_slice(&self.current_len.to_le_bytes());
+            debug_assert_eq!(
+                (ptr.add(1) as *const u32).read_unaligned().to_le(),
+                FINISH_NODE_POS_PLACEHOLDER
+            );
+            (ptr.add(1) as *mut u32).write_unaligned(finish_node_pos.to_le());
+
+            (ptr.add(9) as *mut u32).write_unaligned(self.current_len.to_le());
+        }
     }
 
     pub fn finish(self) -> SyntaxTree {
@@ -81,6 +93,10 @@ impl SyntaxBuilder {
         data.shrink_to_fit();
 
         SyntaxTree { data, root: root.unwrap() }
+    }
+
+    fn data_end_ptr(&mut self) -> *mut u8 {
+        unsafe { self.data.as_mut_ptr().add(self.data.len()) }
     }
 }
 
@@ -90,52 +106,71 @@ impl SyntaxTree {
     }
 
     pub(crate) fn get_text(&self, start: u32, end: u32) -> &str {
-        if cfg!(debug_assertions) {
-            std::str::from_utf8(&self.data[start as usize..end as usize]).unwrap()
-        } else {
-            unsafe { std::str::from_utf8_unchecked(&self.data[start as usize..end as usize]) }
+        let start = start as usize;
+        let end = end as usize;
+
+        unsafe {
+            let slice = slice::from_raw_parts(self.data.as_ptr().add(start), end - start);
+
+            if cfg!(debug_assertions) {
+                std::str::from_utf8(slice).unwrap()
+            } else {
+                std::str::from_utf8_unchecked(slice)
+            }
         }
     }
 
     pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32, u32) {
         let idx = idx as usize;
-        let tag = self.data[idx];
-        let finish_node_pos = self.data[idx + 1..idx + 5].try_into().unwrap();
-        let start = self.data[idx + 5..idx + 9].try_into().unwrap();
-        let end = self.data[idx + 9..idx + 13].try_into().unwrap();
+        debug_assert!(idx + START_NODE_SIZE as usize <= self.data.len());
 
-        let kind = unsafe { mem::transmute::<u8, SyntaxKind>(tag - SyntaxKind::__Last as u8 - 1) };
+        unsafe {
+            let ptr = self.data.as_ptr().add(idx);
+            let tag = ptr.read();
+            let finish_node_pos = (ptr.add(1) as *const u32).read_unaligned().to_le();
+            let start = (ptr.add(5) as *const u32).read_unaligned().to_le();
+            let end = (ptr.add(9) as *const u32).read_unaligned().to_le();
 
-        (
-            kind,
-            u32::from_le_bytes(finish_node_pos),
-            u32::from_le_bytes(start),
-            u32::from_le_bytes(end),
-        )
+            debug_assert!(is_tag_start_node(tag));
+            let kind = mem::transmute::<u8, SyntaxKind>(tag - SyntaxKind::__Last as u8 - 1);
+
+            (kind, finish_node_pos, start, end)
+        }
     }
 
     pub(crate) fn get_add_token(&self, idx: u32) -> (SyntaxKind, u32, u32) {
         let idx = idx as usize;
-        let tag = self.data[idx];
-        let start = self.data[idx + 1..idx + 5].try_into().unwrap();
-        let end = self.data[idx + 5..idx + 9].try_into().unwrap();
+        debug_assert!(idx + ADD_TOKEN_SIZE as usize <= self.data.len());
 
-        assert!(is_tag_add_token(tag));
-        let kind = unsafe { mem::transmute::<u8, SyntaxKind>(tag) };
+        unsafe {
+            let ptr = self.data.as_ptr().add(idx);
+            let tag = ptr.read();
+            let start = (ptr.add(1) as *const u32).read_unaligned().to_le();
+            let end = (ptr.add(5) as *const u32).read_unaligned().to_le();
 
-        (kind, u32::from_le_bytes(start), u32::from_le_bytes(end))
+            debug_assert!(is_tag_add_token(tag));
+            let kind = mem::transmute::<u8, SyntaxKind>(tag);
+
+            (kind, start, end)
+        }
     }
 
     pub(crate) fn is_start_node(&self, idx: u32) -> bool {
-        is_tag_start_node(self.data[idx as usize])
+        let idx = idx as usize;
+        debug_assert!(idx < self.data.len());
+        is_tag_start_node(unsafe { *self.data.get_unchecked(idx) })
     }
 
     pub(crate) fn is_add_token(&self, idx: u32) -> bool {
-        is_tag_add_token(self.data[idx as usize])
+        let idx = idx as usize;
+        debug_assert!(idx < self.data.len());
+        is_tag_add_token(unsafe { *self.data.get_unchecked(idx) })
     }
 
     pub(crate) fn is_finish_node(&self, idx: u32) -> bool {
-        is_tag_finish_node(self.data[idx as usize])
+        let idx = idx as usize;
+        debug_assert!(idx < self.data.len());
+        is_tag_finish_node(unsafe { *self.data.get_unchecked(idx) })
     }
 }
 
