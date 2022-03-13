@@ -7,7 +7,7 @@ fuzz_target!(|s: &str| {
     let world_index = hir::WorldIndex::default();
 
     let tokens = lexer::lex(s);
-    let parse = parser::parse_repl_line(&tokens);
+    let parse = parser::parse_repl_line(&tokens, s);
     let tree = parse.syntax_tree();
     let root = ast::Root::cast(tree.root(), tree).unwrap();
     let _diagnostics = ast::validation::validate(root, tree);
