@@ -34,7 +34,7 @@ impl SyntaxBuilder {
         let start = self.text.len();
         let end = self.text.len() + text.len();
         self.text.push_str(text);
-        assert_eq!(&self.text[start..end], text);
+        debug_assert_eq!(&self.text[start..end], text);
 
         self.data.push(kind as u8);
         self.data.extend_from_slice(&(start as u32).to_le_bytes());
@@ -46,10 +46,10 @@ impl SyntaxBuilder {
         let finish_node_pos = self.data.len() as u32;
         self.data.push(u8::MAX);
 
-        assert!(is_tag_start_node(self.data[start_node_idx]));
+        debug_assert!(is_tag_start_node(self.data[start_node_idx]));
 
         let old_finish_node_pos = &mut self.data[start_node_idx + 1..start_node_idx + 5];
-        assert_eq!(
+        debug_assert_eq!(
             u32::from_le_bytes((*old_finish_node_pos).try_into().unwrap()),
             FINISH_NODE_POS_PLACEHOLDER
         );
