@@ -18,7 +18,7 @@ pub(crate) const START_NODE_SIZE: u32 = 1 + 4 + 4 + 4;
 pub(crate) const ADD_TOKEN_SIZE: u32 = 1 + 4 + 4;
 pub(crate) const FINISH_NODE_SIZE: u32 = 1;
 
-const FINISH_NODE_POS_PLACEHOLDER: u32 = 0;
+const FINISH_NODE_IDX_PLACEHOLDER: u32 = 0;
 
 impl SyntaxBuilder {
     pub fn new(text: &str) -> Self {
@@ -41,7 +41,7 @@ impl SyntaxBuilder {
         unsafe {
             let ptr = self.data_end_ptr();
             ptr.write(SyntaxKind::__Last as u8 + kind as u8 + 1);
-            (ptr.add(1) as *mut u32).write_unaligned(FINISH_NODE_POS_PLACEHOLDER.to_le());
+            (ptr.add(1) as *mut u32).write_unaligned(FINISH_NODE_IDX_PLACEHOLDER.to_le());
             (ptr.add(5) as *mut u32).write_unaligned(self.current_len.to_le());
             (ptr.add(9) as *mut u32).write_unaligned(self.current_len.to_le());
             self.data.set_len(self.data.len() + START_NODE_SIZE as usize);
@@ -65,7 +65,7 @@ impl SyntaxBuilder {
 
     pub fn finish_node(&mut self) {
         let start_node_idx = self.start_node_idxs.pop().unwrap();
-        let finish_node_pos = self.data.len() as u32;
+        let finish_node_idx = self.data.len() as u32;
 
         self.data.reserve(FINISH_NODE_SIZE as usize);
         unsafe {
@@ -80,9 +80,9 @@ impl SyntaxBuilder {
 
             debug_assert_eq!(
                 (ptr.add(1) as *const u32).read_unaligned().to_le(),
-                FINISH_NODE_POS_PLACEHOLDER
+                FINISH_NODE_IDX_PLACEHOLDER
             );
-            (ptr.add(1) as *mut u32).write_unaligned(finish_node_pos.to_le());
+            (ptr.add(1) as *mut u32).write_unaligned(finish_node_idx.to_le());
 
             (ptr.add(9) as *mut u32).write_unaligned(self.current_len.to_le());
         }
@@ -127,14 +127,14 @@ impl SyntaxTree {
         unsafe {
             let ptr = self.data.as_ptr().add(idx);
             let tag = ptr.read();
-            let finish_node_pos = (ptr.add(1) as *const u32).read_unaligned().to_le();
+            let finish_node_idx = (ptr.add(1) as *const u32).read_unaligned().to_le();
             let start = (ptr.add(5) as *const u32).read_unaligned().to_le();
             let end = (ptr.add(9) as *const u32).read_unaligned().to_le();
 
             debug_assert!(is_tag_start_node(tag));
             let kind = mem::transmute::<u8, SyntaxKind>(tag - SyntaxKind::__Last as u8 - 1);
 
-            (kind, finish_node_pos, start, end)
+            (kind, finish_node_idx, start, end)
         }
     }
 
