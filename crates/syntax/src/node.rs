@@ -198,18 +198,18 @@ mod tests {
             builder.start_node(SyntaxKind::BinaryExpr);
             {
                 builder.start_node(SyntaxKind::BinaryExpr);
-                builder.add_token(SyntaxKind::IntLiteral, 1);
-                builder.add_token(SyntaxKind::Asterisk, 1);
-                builder.add_token(SyntaxKind::IntLiteral, 1);
+                builder.add_token(SyntaxKind::IntLiteral, TextRange::new(0.into(), 1.into()));
+                builder.add_token(SyntaxKind::Asterisk, TextRange::new(1.into(), 2.into()));
+                builder.add_token(SyntaxKind::IntLiteral, TextRange::new(2.into(), 3.into()));
                 builder.finish_node();
             }
-            builder.add_token(SyntaxKind::Plus, 1);
-            builder.add_token(SyntaxKind::IntLiteral, 2);
+            builder.add_token(SyntaxKind::Plus, TextRange::new(3.into(), 4.into()));
+            builder.add_token(SyntaxKind::IntLiteral, TextRange::new(4.into(), 6.into()));
             builder.finish_node();
         }
         {
             builder.start_node(SyntaxKind::Call);
-            builder.add_token(SyntaxKind::Ident, 3);
+            builder.add_token(SyntaxKind::Ident, TextRange::new(6.into(), 9.into()));
             builder.finish_node();
         }
         builder.finish_node();

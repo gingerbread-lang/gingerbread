@@ -81,7 +81,7 @@ impl<'tokens> Sink<'tokens> {
     fn add_token(&mut self) {
         let kind = self.tokens.kinds[self.token_idx];
         let range = self.tokens.ranges[self.token_idx];
-        self.builder.add_token(kind.into(), range.len().into());
+        self.builder.add_token(kind.into(), range);
         self.token_idx += 1;
     }
 }

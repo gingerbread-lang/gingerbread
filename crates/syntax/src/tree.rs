@@ -1,5 +1,6 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
 use std::mem;
+use text_size::TextRange;
 
 pub struct SyntaxTree {
     data: Vec<u8>,
@@ -43,12 +44,12 @@ impl SyntaxBuilder {
         self.data.extend_from_slice(&self.current_len.to_le_bytes());
     }
 
-    pub fn add_token(&mut self, kind: SyntaxKind, len: u32) {
+    pub fn add_token(&mut self, kind: SyntaxKind, range: TextRange) {
         self.data.reserve(ADD_TOKEN_SIZE as usize);
 
-        let start = self.current_len;
-        self.current_len += len;
-        let end = self.current_len;
+        let start = u32::from(range.start());
+        let end = u32::from(range.end());
+        self.current_len = end;
 
         self.data.push(kind as u8);
         self.data.extend_from_slice(&start.to_le_bytes());
@@ -242,7 +243,7 @@ mod tests {
             "let",
             |b| {
                 b.start_node(SyntaxKind::Root);
-                b.add_token(SyntaxKind::LetKw, 3);
+                b.add_token(SyntaxKind::LetKw, TextRange::new(0.into(), 3.into()));
                 b.finish_node();
             },
             [
@@ -293,16 +294,16 @@ mod tests {
     fn debug_complex() {
         let mut builder = SyntaxBuilder::new("# foo\nfncbar->{};");
         builder.start_node(SyntaxKind::Root);
-        builder.add_token(SyntaxKind::Comment, 6);
+        builder.add_token(SyntaxKind::Comment, TextRange::new(0.into(), 6.into()));
         builder.start_node(SyntaxKind::Function);
-        builder.add_token(SyntaxKind::FncKw, 3);
-        builder.add_token(SyntaxKind::Ident, 3);
-        builder.add_token(SyntaxKind::Arrow, 2);
+        builder.add_token(SyntaxKind::FncKw, TextRange::new(6.into(), 9.into()));
+        builder.add_token(SyntaxKind::Ident, TextRange::new(9.into(), 12.into()));
+        builder.add_token(SyntaxKind::Arrow, TextRange::new(12.into(), 14.into()));
         builder.start_node(SyntaxKind::Block);
-        builder.add_token(SyntaxKind::LBrace, 1);
-        builder.add_token(SyntaxKind::RBrace, 1);
+        builder.add_token(SyntaxKind::LBrace, TextRange::new(14.into(), 15.into()));
+        builder.add_token(SyntaxKind::RBrace, TextRange::new(15.into(), 16.into()));
         builder.finish_node();
-        builder.add_token(SyntaxKind::Semicolon, 1);
+        builder.add_token(SyntaxKind::Semicolon, TextRange::new(16.into(), 17.into()));
         builder.finish_node();
         builder.finish_node();
 
