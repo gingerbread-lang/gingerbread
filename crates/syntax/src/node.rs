@@ -47,13 +47,9 @@ impl SyntaxNode {
         TextRange::new(start.into(), end.into())
     }
 
-    pub fn text(self, tree: &SyntaxTree) -> String {
-        let mut s = String::with_capacity(self.range(tree).len().into());
-        for token in self.descendant_tokens(tree) {
-            s.push_str(token.text(tree));
-        }
-
-        s
+    pub fn text(self, tree: &SyntaxTree) -> &str {
+        let (_, _, start, end) = tree.get_start_node(self.0);
+        tree.get_text(start, end)
     }
 }
 
