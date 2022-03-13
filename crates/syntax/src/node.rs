@@ -191,25 +191,25 @@ mod tests {
     use crate::SyntaxBuilder;
 
     fn example_tree() -> SyntaxTree {
-        let mut builder = SyntaxBuilder::default();
+        let mut builder = SyntaxBuilder::new("2*5+10foo");
 
         builder.start_node(SyntaxKind::Root);
         {
             builder.start_node(SyntaxKind::BinaryExpr);
             {
                 builder.start_node(SyntaxKind::BinaryExpr);
-                builder.add_token(SyntaxKind::IntLiteral, "2");
-                builder.add_token(SyntaxKind::Asterisk, "*");
-                builder.add_token(SyntaxKind::IntLiteral, "5");
+                builder.add_token(SyntaxKind::IntLiteral, 1);
+                builder.add_token(SyntaxKind::Asterisk, 1);
+                builder.add_token(SyntaxKind::IntLiteral, 1);
                 builder.finish_node();
             }
-            builder.add_token(SyntaxKind::Plus, "+");
-            builder.add_token(SyntaxKind::IntLiteral, "10");
+            builder.add_token(SyntaxKind::Plus, 1);
+            builder.add_token(SyntaxKind::IntLiteral, 2);
             builder.finish_node();
         }
         {
             builder.start_node(SyntaxKind::Call);
-            builder.add_token(SyntaxKind::Ident, "foo");
+            builder.add_token(SyntaxKind::Ident, 3);
             builder.finish_node();
         }
         builder.finish_node();

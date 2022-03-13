@@ -3,17 +3,16 @@ use crate::{Parse, SyntaxError};
 use syntax::SyntaxBuilder;
 use token::{TokenKind, Tokens};
 
-pub(crate) struct Sink<'tokens, 'input> {
+pub(crate) struct Sink<'tokens> {
     events: Vec<Event>,
     tokens: &'tokens Tokens,
     token_idx: usize,
-    input: &'input str,
     builder: SyntaxBuilder,
 }
 
-impl<'tokens, 'input> Sink<'tokens, 'input> {
-    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens Tokens, input: &'input str) -> Self {
-        Self { events, tokens, token_idx: 0, input, builder: SyntaxBuilder::default() }
+impl<'tokens> Sink<'tokens> {
+    pub(crate) fn new(events: Vec<Event>, tokens: &'tokens Tokens, input: &str) -> Self {
+        Self { events, tokens, token_idx: 0, builder: SyntaxBuilder::new(input) }
     }
 
     pub(crate) fn finish(mut self, errors: Vec<SyntaxError>) -> Parse {
@@ -82,7 +81,7 @@ impl<'tokens, 'input> Sink<'tokens, 'input> {
     fn add_token(&mut self) {
         let kind = self.tokens.kinds[self.token_idx];
         let range = self.tokens.ranges[self.token_idx];
-        self.builder.add_token(kind.into(), &self.input[range]);
+        self.builder.add_token(kind.into(), range.len().into());
         self.token_idx += 1;
     }
 }

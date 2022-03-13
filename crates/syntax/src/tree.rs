@@ -3,13 +3,13 @@ use std::mem;
 
 pub struct SyntaxTree {
     data: Vec<u8>,
-    text: String,
+    root: u32,
 }
 
-#[derive(Default)]
 pub struct SyntaxBuilder {
     data: Vec<u8>,
-    text: String,
+    root: Option<u32>,
+    current_len: u32,
     start_node_idxs: Vec<usize>,
 }
 
@@ -17,32 +17,42 @@ pub(crate) const START_NODE_SIZE: u32 = 1 + 4 + 4 + 4;
 pub(crate) const ADD_TOKEN_SIZE: u32 = 1 + 4 + 4;
 pub(crate) const FINISH_NODE_SIZE: u32 = 1;
 
-// the corresponding FinishNode could never be at index 0,
-// since that is always a StartNode for the root note.
 const FINISH_NODE_POS_PLACEHOLDER: u32 = 0;
 
 impl SyntaxBuilder {
+    pub fn new(text: &str) -> Self {
+        Self {
+            data: text.as_bytes().to_vec(),
+            root: None,
+            current_len: 0,
+            start_node_idxs: Vec::new(),
+        }
+    }
+
     pub fn start_node(&mut self, kind: SyntaxKind) {
+        if self.root.is_none() {
+            self.root = Some(self.data.len() as u32);
+        }
+
         self.data.reserve(START_NODE_SIZE as usize);
 
         self.start_node_idxs.push(self.data.len());
         self.data.push(SyntaxKind::__Last as u8 + kind as u8 + 1);
         self.data.extend_from_slice(&FINISH_NODE_POS_PLACEHOLDER.to_le_bytes());
-        self.data.extend_from_slice(&(self.text.len() as u32).to_le_bytes());
-        self.data.extend_from_slice(&(self.text.len() as u32).to_le_bytes());
+        self.data.extend_from_slice(&self.current_len.to_le_bytes());
+        self.data.extend_from_slice(&self.current_len.to_le_bytes());
     }
 
-    pub fn add_token(&mut self, kind: SyntaxKind, text: &str) {
+    pub fn add_token(&mut self, kind: SyntaxKind, len: u32) {
         self.data.reserve(ADD_TOKEN_SIZE as usize);
 
-        let start = self.text.len();
-        let end = self.text.len() + text.len();
-        self.text.push_str(text);
-        debug_assert_eq!(&self.text[start..end], text);
+        let start = self.current_len;
+        self.current_len += len;
+        let end = self.current_len;
 
         self.data.push(kind as u8);
-        self.data.extend_from_slice(&(start as u32).to_le_bytes());
-        self.data.extend_from_slice(&(end as u32).to_le_bytes());
+        self.data.extend_from_slice(&start.to_le_bytes());
+        self.data.extend_from_slice(&end.to_le_bytes());
     }
 
     pub fn finish_node(&mut self) {
@@ -62,25 +72,28 @@ impl SyntaxBuilder {
         old_finish_node_pos.copy_from_slice(&finish_node_pos.to_le_bytes());
 
         let node_end = &mut self.data[start_node_idx + 9..start_node_idx + 13];
-        node_end.copy_from_slice(&(self.text.len() as u32).to_le_bytes());
+        node_end.copy_from_slice(&self.current_len.to_le_bytes());
     }
 
     pub fn finish(self) -> SyntaxTree {
-        let Self { mut data, mut text, start_node_idxs: _ } = self;
+        let Self { mut data, root, current_len: _, start_node_idxs: _ } = self;
         data.shrink_to_fit();
-        text.shrink_to_fit();
 
-        SyntaxTree { data, text }
+        SyntaxTree { data, root: root.unwrap() }
     }
 }
 
 impl SyntaxTree {
     pub fn root(&self) -> SyntaxNode {
-        SyntaxNode(0)
+        SyntaxNode(self.root)
     }
 
     pub(crate) fn get_text(&self, start: u32, end: u32) -> &str {
-        &self.text[start as usize..end as usize]
+        if cfg!(debug_assertions) {
+            std::str::from_utf8(&self.data[start as usize..end as usize]).unwrap()
+        } else {
+            unsafe { std::str::from_utf8_unchecked(&self.data[start as usize..end as usize]) }
+        }
     }
 
     pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32, u32) {
@@ -128,16 +141,12 @@ impl SyntaxTree {
 impl std::fmt::Debug for SyntaxTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !f.alternate() {
-            return f
-                .debug_struct("SyntaxTree")
-                .field("events", &self.data)
-                .field("text", &self.text)
-                .finish();
+            return f.debug_struct("SyntaxTree").field("data", &self.data).finish();
         }
 
         let mut indentation_level = 0_usize;
 
-        let mut idx = 0;
+        let mut idx = self.root;
         while idx < self.data.len() as u32 {
             if self.is_finish_node(idx) {
                 indentation_level -= 1;
@@ -193,21 +202,17 @@ mod tests {
     use super::*;
     use expect_test::expect;
 
-    fn check<const N: usize>(f: impl Fn(&mut SyntaxBuilder), data: [u8; N], text: &str) {
-        let mut builder = SyntaxBuilder::default();
+    fn check<const N: usize>(input: &str, f: impl Fn(&mut SyntaxBuilder), data: [u8; N]) {
+        let mut builder = SyntaxBuilder::new(input);
         f(&mut builder);
         let tree = builder.finish();
-        assert_eq!((tree.data, tree.text), (data.to_vec(), text.to_string()));
-    }
-
-    #[test]
-    fn empty() {
-        check(|_| {}, [], "");
+        assert_eq!(tree.data, data);
     }
 
     #[test]
     fn just_root() {
         check(
+            "",
             |b| {
                 b.start_node(SyntaxKind::Root);
                 b.finish_node();
@@ -228,21 +233,24 @@ mod tests {
                 0,
                 255,
             ],
-            "",
         );
     }
 
     #[test]
     fn add_token() {
         check(
+            "let",
             |b| {
                 b.start_node(SyntaxKind::Root);
-                b.add_token(SyntaxKind::LetKw, "let");
+                b.add_token(SyntaxKind::LetKw, 3);
                 b.finish_node();
             },
             [
+                b"l"[0],
+                b"e"[0],
+                b"t"[0],
                 SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
-                22,
+                25,
                 0,
                 0,
                 0,
@@ -265,13 +273,12 @@ mod tests {
                 0,
                 255,
             ],
-            "let",
         );
     }
 
     #[test]
     fn debug_empty() {
-        let mut builder = SyntaxBuilder::default();
+        let mut builder = SyntaxBuilder::new("");
         builder.start_node(SyntaxKind::Root);
         builder.finish_node();
 
@@ -284,18 +291,18 @@ mod tests {
 
     #[test]
     fn debug_complex() {
-        let mut builder = SyntaxBuilder::default();
+        let mut builder = SyntaxBuilder::new("# foo\nfncbar->{};");
         builder.start_node(SyntaxKind::Root);
-        builder.add_token(SyntaxKind::Comment, "# foo\n");
+        builder.add_token(SyntaxKind::Comment, 6);
         builder.start_node(SyntaxKind::Function);
-        builder.add_token(SyntaxKind::FncKw, "fnc");
-        builder.add_token(SyntaxKind::Ident, "bar");
-        builder.add_token(SyntaxKind::Arrow, "->");
+        builder.add_token(SyntaxKind::FncKw, 3);
+        builder.add_token(SyntaxKind::Ident, 3);
+        builder.add_token(SyntaxKind::Arrow, 2);
         builder.start_node(SyntaxKind::Block);
-        builder.add_token(SyntaxKind::LBrace, "{");
-        builder.add_token(SyntaxKind::RBrace, "}");
+        builder.add_token(SyntaxKind::LBrace, 1);
+        builder.add_token(SyntaxKind::RBrace, 1);
         builder.finish_node();
-        builder.add_token(SyntaxKind::Semicolon, ";");
+        builder.add_token(SyntaxKind::Semicolon, 1);
         builder.finish_node();
         builder.finish_node();
 
