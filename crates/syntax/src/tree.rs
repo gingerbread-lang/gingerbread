@@ -1,23 +1,21 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
+use std::mem;
 
 pub struct SyntaxTree {
-    events: Vec<Event>,
+    data: Vec<u8>,
     text: String,
 }
 
 #[derive(Default)]
 pub struct SyntaxBuilder {
-    events: Vec<Event>,
+    data: Vec<u8>,
     text: String,
     start_node_idxs: Vec<usize>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum Event {
-    StartNode { kind: SyntaxKind, start: u32, finish_node_pos: u32 },
-    AddToken { kind: SyntaxKind, start: u32, end: u32 },
-    FinishNode,
-}
+pub(crate) const START_NODE_SIZE: u32 = 1 + 4 + 4 + 4;
+pub(crate) const ADD_TOKEN_SIZE: u32 = 1 + 4 + 4;
+pub(crate) const FINISH_NODE_SIZE: u32 = 1;
 
 // the corresponding FinishNode could never be at index 0,
 // since that is always a StartNode for the root note.
@@ -25,12 +23,11 @@ const FINISH_NODE_POS_PLACEHOLDER: u32 = 0;
 
 impl SyntaxBuilder {
     pub fn start_node(&mut self, kind: SyntaxKind) {
-        self.start_node_idxs.push(self.events.len());
-        self.push_event(Event::StartNode {
-            kind,
-            finish_node_pos: FINISH_NODE_POS_PLACEHOLDER,
-            start: self.text.len() as u32,
-        });
+        self.start_node_idxs.push(self.data.len());
+        self.data.push(SyntaxKind::__Last as u8 + kind as u8 + 1);
+        self.data.extend_from_slice(&FINISH_NODE_POS_PLACEHOLDER.to_le_bytes());
+        self.data.extend_from_slice(&(self.text.len() as u32).to_le_bytes());
+        self.data.extend_from_slice(&(self.text.len() as u32).to_le_bytes());
     }
 
     pub fn add_token(&mut self, kind: SyntaxKind, text: &str) {
@@ -39,29 +36,31 @@ impl SyntaxBuilder {
         self.text.push_str(text);
         assert_eq!(&self.text[start..end], text);
 
-        self.push_event(Event::AddToken { kind, start: start as u32, end: end as u32 });
+        self.data.push(kind as u8);
+        self.data.extend_from_slice(&(start as u32).to_le_bytes());
+        self.data.extend_from_slice(&(end as u32).to_le_bytes());
     }
 
     pub fn finish_node(&mut self) {
         let start_node_idx = self.start_node_idxs.pop().unwrap();
-        let finish_node_idx = self.events.len() as u32;
-        self.push_event(Event::FinishNode);
+        let finish_node_pos = self.data.len() as u32;
+        self.data.push(u8::MAX);
 
-        match &mut self.events[start_node_idx] {
-            Event::StartNode { finish_node_pos, .. } => {
-                assert_eq!(*finish_node_pos, FINISH_NODE_POS_PLACEHOLDER);
-                *finish_node_pos = finish_node_idx;
-            }
-            _ => unreachable!(),
-        }
+        assert!(is_tag_start_node(self.data[start_node_idx]));
+
+        let old_finish_node_pos = &mut self.data[start_node_idx + 1..start_node_idx + 5];
+        assert_eq!(
+            u32::from_le_bytes((*old_finish_node_pos).try_into().unwrap()),
+            FINISH_NODE_POS_PLACEHOLDER
+        );
+        old_finish_node_pos.copy_from_slice(&finish_node_pos.to_le_bytes());
+
+        let node_end = &mut self.data[start_node_idx + 9..start_node_idx + 13];
+        node_end.copy_from_slice(&(self.text.len() as u32).to_le_bytes());
     }
 
     pub fn finish(self) -> SyntaxTree {
-        SyntaxTree { events: self.events, text: self.text }
-    }
-
-    fn push_event(&mut self, event: Event) {
-        self.events.push(event);
+        SyntaxTree { data: self.data, text: self.text }
     }
 }
 
@@ -74,33 +73,45 @@ impl SyntaxTree {
         &self.text[start as usize..end as usize]
     }
 
-    pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32) {
-        match self.events[idx as usize] {
-            Event::StartNode { kind, finish_node_pos, start } => {
-                assert_ne!(finish_node_pos, FINISH_NODE_POS_PLACEHOLDER);
-                (kind, finish_node_pos, start)
-            }
-            _ => panic!(),
-        }
+    pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32, u32) {
+        let idx = idx as usize;
+        let tag = self.data[idx];
+        let finish_node_pos = self.data[idx + 1..idx + 5].try_into().unwrap();
+        let start = self.data[idx + 5..idx + 9].try_into().unwrap();
+        let end = self.data[idx + 9..idx + 13].try_into().unwrap();
+
+        let kind = unsafe { mem::transmute::<u8, SyntaxKind>(tag - SyntaxKind::__Last as u8 - 1) };
+
+        (
+            kind,
+            u32::from_le_bytes(finish_node_pos),
+            u32::from_le_bytes(start),
+            u32::from_le_bytes(end),
+        )
     }
 
     pub(crate) fn get_add_token(&self, idx: u32) -> (SyntaxKind, u32, u32) {
-        match self.events[idx as usize] {
-            Event::AddToken { kind, start, end } => (kind, start, end),
-            _ => panic!(),
-        }
+        let idx = idx as usize;
+        let tag = self.data[idx];
+        let start = self.data[idx + 1..idx + 5].try_into().unwrap();
+        let end = self.data[idx + 5..idx + 9].try_into().unwrap();
+
+        assert!(is_tag_add_token(tag));
+        let kind = unsafe { mem::transmute::<u8, SyntaxKind>(tag) };
+
+        (kind, u32::from_le_bytes(start), u32::from_le_bytes(end))
     }
 
     pub(crate) fn is_start_node(&self, idx: u32) -> bool {
-        matches!(self.events[idx as usize], Event::StartNode { .. })
+        is_tag_start_node(self.data[idx as usize])
     }
 
     pub(crate) fn is_add_token(&self, idx: u32) -> bool {
-        matches!(self.events[idx as usize], Event::AddToken { .. })
+        is_tag_add_token(self.data[idx as usize])
     }
 
     pub(crate) fn is_finish_node(&self, idx: u32) -> bool {
-        matches!(self.events[idx as usize], Event::FinishNode)
+        is_tag_finish_node(self.data[idx as usize])
     }
 }
 
@@ -109,16 +120,18 @@ impl std::fmt::Debug for SyntaxTree {
         if !f.alternate() {
             return f
                 .debug_struct("SyntaxTree")
-                .field("events", &self.events)
+                .field("events", &self.data)
                 .field("text", &self.text)
                 .finish();
         }
 
         let mut indentation_level = 0_usize;
 
-        for idx in 0..self.events.len() as u32 {
+        let mut idx = 0;
+        while idx < self.data.len() as u32 {
             if self.is_finish_node(idx) {
                 indentation_level -= 1;
+                idx += FINISH_NODE_SIZE;
                 continue;
             }
 
@@ -132,6 +145,7 @@ impl std::fmt::Debug for SyntaxTree {
                 let range = node.range(self);
                 writeln!(f, "{kind:?}@{range:?}")?;
                 indentation_level += 1;
+                idx += START_NODE_SIZE;
                 continue;
             }
 
@@ -141,6 +155,7 @@ impl std::fmt::Debug for SyntaxTree {
                 let text = token.text(self);
                 let range = token.range(self);
                 writeln!(f, "{kind:?}@{range:?} {text:?}")?;
+                idx += ADD_TOKEN_SIZE;
                 continue;
             }
 
@@ -151,16 +166,28 @@ impl std::fmt::Debug for SyntaxTree {
     }
 }
 
+fn is_tag_start_node(tag: u8) -> bool {
+    tag > SyntaxKind::__Last as u8 && tag != u8::MAX
+}
+
+fn is_tag_add_token(tag: u8) -> bool {
+    tag < SyntaxKind::__Last as u8
+}
+
+fn is_tag_finish_node(tag: u8) -> bool {
+    tag == u8::MAX
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use expect_test::expect;
 
-    fn check<const N: usize>(f: impl Fn(&mut SyntaxBuilder), events: [Event; N], text: &str) {
+    fn check<const N: usize>(f: impl Fn(&mut SyntaxBuilder), data: [u8; N], text: &str) {
         let mut builder = SyntaxBuilder::default();
         f(&mut builder);
         let tree = builder.finish();
-        assert_eq!((tree.events, tree.text), (events.to_vec(), text.to_string()));
+        assert_eq!((tree.data, tree.text), (data.to_vec(), text.to_string()));
     }
 
     #[test]
@@ -176,8 +203,20 @@ mod tests {
                 b.finish_node();
             },
             [
-                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: 1, start: 0 },
-                Event::FinishNode,
+                SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
+                13,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                255,
             ],
             "",
         );
@@ -192,9 +231,29 @@ mod tests {
                 b.finish_node();
             },
             [
-                Event::StartNode { kind: SyntaxKind::Root, finish_node_pos: 2, start: 0 },
-                Event::AddToken { kind: SyntaxKind::LetKw, start: 0, end: 3 },
-                Event::FinishNode,
+                SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
+                22,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                3,
+                0,
+                0,
+                0,
+                SyntaxKind::LetKw as u8,
+                0,
+                0,
+                0,
+                0,
+                3,
+                0,
+                0,
+                0,
+                255,
             ],
             "let",
         );

@@ -41,6 +41,8 @@ pub enum SyntaxKind {
     Param,
     ReturnTy,
     Ty,
+
+    __Last,
 }
 
 impl From<TokenKind> for SyntaxKind {

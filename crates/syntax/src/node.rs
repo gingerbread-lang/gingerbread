@@ -1,3 +1,4 @@
+use crate::tree::{ADD_TOKEN_SIZE, FINISH_NODE_SIZE, START_NODE_SIZE};
 use crate::{SyntaxKind, SyntaxToken, SyntaxTree};
 use text_size::TextRange;
 
@@ -10,47 +11,40 @@ impl SyntaxNode {
     }
 
     pub fn child_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
-        ChildNodes { pos: self.0 + 1, finish_pos: tree.get_start_node(self.0).1, tree }
+        ChildNodes {
+            pos: self.0 + START_NODE_SIZE,
+            finish_pos: tree.get_start_node(self.0).1,
+            tree,
+        }
     }
 
     pub fn child_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
-        ChildTokens { pos: self.0 + 1, finish_pos: tree.get_start_node(self.0).1, tree }
+        ChildTokens {
+            pos: self.0 + START_NODE_SIZE,
+            finish_pos: tree.get_start_node(self.0).1,
+            tree,
+        }
     }
 
     pub fn descendant_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
-        DescendantNodes { pos: self.0 + 1, finish_pos: tree.get_start_node(self.0).1, tree }
+        DescendantNodes {
+            pos: self.0 + START_NODE_SIZE,
+            finish_pos: tree.get_start_node(self.0).1,
+            tree,
+        }
     }
 
     pub fn descendant_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
-        DescendantTokens { pos: self.0 + 1, finish_pos: tree.get_start_node(self.0).1, tree }
+        DescendantTokens {
+            pos: self.0 + START_NODE_SIZE,
+            finish_pos: tree.get_start_node(self.0).1,
+            tree,
+        }
     }
 
     pub fn range(self, tree: &SyntaxTree) -> TextRange {
-        let (_, finish_node_pos, start) = tree.get_start_node(self.0);
-
-        let has_no_children = finish_node_pos == self.0 + 1;
-        if has_no_children {
-            return TextRange::empty(start.into());
-        }
-
-        let mut first_token_idx = self.0 + 1;
-
-        let first_token_range = loop {
-            if tree.is_add_token(first_token_idx) {
-                break SyntaxToken(first_token_idx).range(tree);
-            }
-            first_token_idx += 1;
-        };
-
-        let mut last_token_idx = finish_node_pos - 1;
-        let last_token_range = loop {
-            if tree.is_add_token(last_token_idx) {
-                break SyntaxToken(last_token_idx).range(tree);
-            }
-            last_token_idx -= 1;
-        };
-
-        TextRange::new(first_token_range.start(), last_token_range.end())
+        let (_, _, start, end) = tree.get_start_node(self.0);
+        TextRange::new(start.into(), end.into())
     }
 
     pub fn text(self, tree: &SyntaxTree) -> String {
@@ -73,21 +67,23 @@ impl Iterator for ChildNodes<'_> {
     type Item = SyntaxNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
+        while self.pos < self.finish_pos {
             if self.tree.is_start_node(self.pos) {
-                let (_, finish_node_pos, _) = self.tree.get_start_node(self.pos);
+                let (_, finish_node_pos, _, _) = self.tree.get_start_node(self.pos);
                 let node = SyntaxNode(self.pos);
-                self.pos = finish_node_pos + 1;
+                self.pos = finish_node_pos + FINISH_NODE_SIZE;
                 return Some(node);
             }
 
-            if self.pos == self.finish_pos {
-                return None;
+            if self.tree.is_add_token(self.pos) {
+                self.pos += ADD_TOKEN_SIZE;
+                continue;
             }
 
-            assert!(self.tree.is_add_token(self.pos));
-            self.pos += 1;
+            unreachable!()
         }
+
+        None
     }
 }
 
@@ -101,25 +97,23 @@ impl Iterator for ChildTokens<'_> {
     type Item = SyntaxToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
+        while self.pos < self.finish_pos {
             if self.tree.is_start_node(self.pos) {
-                let (_, finish_node_pos, _) = self.tree.get_start_node(self.pos);
-                self.pos = finish_node_pos + 1;
+                let (_, finish_node_pos, _, _) = self.tree.get_start_node(self.pos);
+                self.pos = finish_node_pos + FINISH_NODE_SIZE;
                 continue;
             }
 
             if self.tree.is_add_token(self.pos) {
                 let token = SyntaxToken(self.pos);
-                self.pos += 1;
+                self.pos += ADD_TOKEN_SIZE;
                 return Some(token);
-            }
-
-            if self.pos == self.finish_pos {
-                return None;
             }
 
             unreachable!()
         }
+
+        None
     }
 }
 
@@ -133,20 +127,27 @@ impl Iterator for DescendantNodes<'_> {
     type Item = SyntaxNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
+        while self.pos < self.finish_pos {
             if self.tree.is_start_node(self.pos) {
                 let node = SyntaxNode(self.pos);
-                self.pos += 1;
+                self.pos += START_NODE_SIZE;
                 return Some(node);
             }
 
-            if self.pos == self.finish_pos {
-                return None;
+            if self.tree.is_add_token(self.pos) {
+                self.pos += ADD_TOKEN_SIZE;
+                continue;
             }
 
-            assert!(self.tree.is_add_token(self.pos) || self.tree.is_finish_node(self.pos));
-            self.pos += 1;
+            if self.tree.is_finish_node(self.pos) {
+                self.pos += FINISH_NODE_SIZE;
+                continue;
+            }
+
+            unreachable!()
         }
+
+        None
     }
 }
 
@@ -160,20 +161,27 @@ impl Iterator for DescendantTokens<'_> {
     type Item = SyntaxToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
+        while self.pos < self.finish_pos {
             if self.tree.is_add_token(self.pos) {
                 let token = SyntaxToken(self.pos);
-                self.pos += 1;
+                self.pos += ADD_TOKEN_SIZE;
                 return Some(token);
             }
 
-            if self.pos == self.finish_pos {
-                return None;
+            if self.tree.is_start_node(self.pos) {
+                self.pos += START_NODE_SIZE;
+                continue;
             }
 
-            assert!(self.tree.is_start_node(self.pos) || self.tree.is_finish_node(self.pos));
-            self.pos += 1;
+            if self.tree.is_finish_node(self.pos) {
+                self.pos += FINISH_NODE_SIZE;
+                continue;
+            }
+
+            unreachable!()
         }
+
+        None
     }
 }
 
