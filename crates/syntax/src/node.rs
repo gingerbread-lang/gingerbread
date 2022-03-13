@@ -3,52 +3,54 @@ use crate::{SyntaxKind, SyntaxToken, SyntaxTree};
 use text_size::TextRange;
 
 #[derive(Debug, Clone, Copy)]
-pub struct SyntaxNode(pub(crate) u32);
+pub struct SyntaxNode {
+    pub(crate) idx: u32,
+}
 
 impl SyntaxNode {
     pub fn kind(self, tree: &SyntaxTree) -> SyntaxKind {
-        tree.get_start_node(self.0).0
+        tree.get_start_node(self.idx).0
     }
 
     pub fn child_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
         ChildNodes {
-            idx: self.0 + START_NODE_SIZE,
-            finish_idx: tree.get_start_node(self.0).1,
+            idx: self.idx + START_NODE_SIZE,
+            finish_idx: tree.get_start_node(self.idx).1,
             tree,
         }
     }
 
     pub fn child_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
         ChildTokens {
-            idx: self.0 + START_NODE_SIZE,
-            finish_idx: tree.get_start_node(self.0).1,
+            idx: self.idx + START_NODE_SIZE,
+            finish_idx: tree.get_start_node(self.idx).1,
             tree,
         }
     }
 
     pub fn descendant_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
         DescendantNodes {
-            idx: self.0 + START_NODE_SIZE,
-            finish_idx: tree.get_start_node(self.0).1,
+            idx: self.idx + START_NODE_SIZE,
+            finish_idx: tree.get_start_node(self.idx).1,
             tree,
         }
     }
 
     pub fn descendant_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
         DescendantTokens {
-            idx: self.0 + START_NODE_SIZE,
-            finish_idx: tree.get_start_node(self.0).1,
+            idx: self.idx + START_NODE_SIZE,
+            finish_idx: tree.get_start_node(self.idx).1,
             tree,
         }
     }
 
     pub fn range(self, tree: &SyntaxTree) -> TextRange {
-        let (_, _, start, end) = tree.get_start_node(self.0);
+        let (_, _, start, end) = tree.get_start_node(self.idx);
         TextRange::new(start.into(), end.into())
     }
 
     pub fn text(self, tree: &SyntaxTree) -> &str {
-        let (_, _, start, end) = tree.get_start_node(self.0);
+        let (_, _, start, end) = tree.get_start_node(self.idx);
         tree.get_text(start, end)
     }
 }
@@ -66,7 +68,7 @@ impl Iterator for ChildNodes<'_> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
                 let (_, finish_node_idx, _, _) = self.tree.get_start_node(self.idx);
-                let node = SyntaxNode(self.idx);
+                let node = SyntaxNode { idx: self.idx };
                 self.idx = finish_node_idx + FINISH_NODE_SIZE;
                 return Some(node);
             }
@@ -101,7 +103,7 @@ impl Iterator for ChildTokens<'_> {
             }
 
             if self.tree.is_add_token(self.idx) {
-                let token = SyntaxToken(self.idx);
+                let token = SyntaxToken { idx: self.idx };
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }
@@ -125,7 +127,7 @@ impl Iterator for DescendantNodes<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
-                let node = SyntaxNode(self.idx);
+                let node = SyntaxNode { idx: self.idx };
                 self.idx += START_NODE_SIZE;
                 return Some(node);
             }
@@ -159,7 +161,7 @@ impl Iterator for DescendantTokens<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_add_token(self.idx) {
-                let token = SyntaxToken(self.idx);
+                let token = SyntaxToken { idx: self.idx };
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }

@@ -102,7 +102,7 @@ impl SyntaxBuilder {
 
 impl SyntaxTree {
     pub fn root(&self) -> SyntaxNode {
-        SyntaxNode(self.root)
+        SyntaxNode { idx: self.root }
     }
 
     pub(crate) fn get_text(&self, start: u32, end: u32) -> &str {
@@ -195,7 +195,7 @@ impl std::fmt::Debug for SyntaxTree {
             }
 
             if self.is_start_node(idx) {
-                let node = SyntaxNode(idx);
+                let node = SyntaxNode { idx };
                 let kind = node.kind(self);
                 let range = node.range(self);
                 writeln!(f, "{kind:?}@{range:?}")?;
@@ -205,7 +205,7 @@ impl std::fmt::Debug for SyntaxTree {
             }
 
             if self.is_add_token(idx) {
-                let token = SyntaxToken(idx);
+                let token = SyntaxToken { idx };
                 let kind = token.kind(self);
                 let text = token.text(self);
                 let range = token.range(self);
