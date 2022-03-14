@@ -2,6 +2,7 @@ use ast::AstNode;
 use std::alloc::GlobalAlloc;
 use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 #[global_allocator]
 static GLOBAL: TrackingAlloc =
@@ -58,7 +59,11 @@ fn main() {
             }
         }
 
-        Some("long") => compile(&gen::gen(16 << 10 << 10), true), // 16 MiB
+        Some("long") => {
+            let input = gen::gen(16 << 10 << 10); // 16 MiB
+            compile(&input, true);
+            time(|| compile(&input, false));
+        }
 
         Some(_) => eprintln!("Unrecognized benchmark name"),
 
@@ -83,6 +88,18 @@ fn compile(input: &str, should_print: bool) {
     mem_usage("lowered", should_print);
     let (_inference, _diagnostics) = hir_ty::infer_all(&bodies, &index, &world_index);
     mem_usage("inferred", should_print);
+}
+
+fn time(f: impl Fn()) {
+    let mut times = [Duration::default(); 10];
+
+    for time in &mut times {
+        let now = Instant::now();
+        f();
+        *time = now.elapsed();
+    }
+
+    println!("took {:?}", times.iter().sum::<Duration>() / times.len() as u32);
 }
 
 fn mem_usage(stage: &str, should_print: bool) {
