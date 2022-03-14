@@ -106,8 +106,8 @@ impl<'tokens> Parser<'tokens> {
         self.errors.push(SyntaxError {
             expected_syntax,
             kind: SyntaxErrorKind::Unexpected {
-                found: self.tokens.kinds[self.token_idx],
-                range: self.tokens.ranges[self.token_idx],
+                found: self.tokens.kind(self.token_idx),
+                range: self.tokens.range(self.token_idx),
             },
         });
 
@@ -142,7 +142,7 @@ impl<'tokens> Parser<'tokens> {
 
     pub(crate) fn at_eof(&mut self) -> bool {
         self.skip_trivia();
-        self.token_idx >= self.tokens.kinds.len()
+        self.token_idx >= self.tokens.len()
     }
 
     pub(crate) fn at_default_recovery_set(&mut self) -> bool {
@@ -167,13 +167,12 @@ impl<'tokens> Parser<'tokens> {
 
     fn previous_token_range(&mut self) -> TextRange {
         let mut previous_token_idx = self.token_idx - 1;
-        while let Some(TokenKind::Whitespace | TokenKind::Comment) =
-            self.tokens.kinds.get(previous_token_idx)
+        while let TokenKind::Whitespace | TokenKind::Comment = self.tokens.kind(previous_token_idx)
         {
             previous_token_idx -= 1;
         }
 
-        self.tokens.ranges[previous_token_idx]
+        self.tokens.range(previous_token_idx)
     }
 
     fn skip_trivia(&mut self) {
@@ -187,7 +186,7 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn peek(&self) -> Option<TokenKind> {
-        self.tokens.kinds.get(self.token_idx).copied()
+        self.tokens.get_kind(self.token_idx)
     }
 }
 

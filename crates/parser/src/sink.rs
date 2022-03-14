@@ -72,15 +72,15 @@ impl<'tokens> Sink<'tokens> {
 
     fn skip_trivia(&mut self) {
         while let Some(TokenKind::Whitespace | TokenKind::Comment) =
-            self.tokens.kinds.get(self.token_idx)
+            self.tokens.get_kind(self.token_idx)
         {
             self.add_token();
         }
     }
 
     fn add_token(&mut self) {
-        let kind = self.tokens.kinds[self.token_idx];
-        let range = self.tokens.ranges[self.token_idx];
+        let kind = self.tokens.kind(self.token_idx);
+        let range = self.tokens.range(self.token_idx);
         self.builder.add_token(kind.into(), range);
         self.token_idx += 1;
     }

@@ -1,22 +1,24 @@
 use logos::Logos;
 use std::convert::TryInto;
 use std::mem;
-use std::ops::Range as StdRange;
-use text_size::TextRange;
+use text_size::TextSize;
 use token::{TokenKind, Tokens};
 
 pub fn lex(text: &str) -> Tokens {
-    let mut tokens = Tokens::default();
+    let mut kinds = Vec::new();
+    let mut starts = Vec::new();
 
-    for (kind, range) in (Lexer { inner: LexerTokenKind::lexer(text) }) {
-        tokens.kinds.push(kind);
-        tokens.ranges.push(range);
+    for (kind, start) in (Lexer { inner: LexerTokenKind::lexer(text) }) {
+        kinds.push(kind);
+        starts.push(start);
     }
 
-    tokens.kinds.shrink_to_fit();
-    tokens.ranges.shrink_to_fit();
+    starts.push((text.len() as u32).into());
 
-    tokens
+    kinds.shrink_to_fit();
+    starts.shrink_to_fit();
+
+    Tokens::new(kinds, starts)
 }
 
 struct Lexer<'a> {
@@ -24,18 +26,17 @@ struct Lexer<'a> {
 }
 
 impl Iterator for Lexer<'_> {
-    type Item = (TokenKind, TextRange);
+    type Item = (TokenKind, TextSize);
 
     fn next(&mut self) -> Option<Self::Item> {
         let kind = self.inner.next()?;
-        let range = {
-            let StdRange { start, end } = self.inner.span();
-            let start = start.try_into().unwrap();
-            let end = end.try_into().unwrap();
-            TextRange::new(start, end)
+        let start = {
+            let start = self.inner.span().start;
+            let start: u32 = start.try_into().unwrap();
+            start.into()
         };
 
-        Some((unsafe { mem::transmute::<LexerTokenKind, TokenKind>(kind) }, range))
+        Some((unsafe { mem::transmute::<LexerTokenKind, TokenKind>(kind) }, start))
     }
 }
 
@@ -111,17 +112,17 @@ enum LexerTokenKind {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use text_size::TextRange;
     use token::TokenKind;
 
     fn check(input: &str, expected_kind: TokenKind) {
         let tokens = lex(input);
 
-        assert_eq!(tokens.kinds[0], expected_kind);
-        assert_eq!(tokens.ranges[0], TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
+        assert_eq!(tokens.kind(0), expected_kind);
+        assert_eq!(tokens.range(0), TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
 
         // we should only get one token
-        assert_eq!(tokens.kinds.len(), 1);
-        assert_eq!(tokens.ranges.len(), 1);
+        assert_eq!(tokens.len(), 1);
     }
 
     #[test]
@@ -138,14 +139,10 @@ mod tests {
     fn comments_go_to_end_of_line() {
         assert_eq!(
             lex("# foo\n100"),
-            Tokens {
-                kinds: vec![TokenKind::Comment, TokenKind::Whitespace, TokenKind::Int],
-                ranges: vec![
-                    TextRange::new(0.into(), 5.into()),
-                    TextRange::new(5.into(), 6.into()),
-                    TextRange::new(6.into(), 9.into())
-                ]
-            }
+            Tokens::new(
+                vec![TokenKind::Comment, TokenKind::Whitespace, TokenKind::Int],
+                vec![0.into(), 5.into(), 6.into(), 9.into()]
+            )
         );
     }
 
@@ -198,13 +195,7 @@ mod tests {
     fn dont_lex_ident_starting_with_int() {
         assert_eq!(
             lex("92foo"),
-            Tokens {
-                kinds: vec![TokenKind::Int, TokenKind::Ident],
-                ranges: vec![
-                    TextRange::new(0.into(), 2.into()),
-                    TextRange::new(2.into(), 5.into())
-                ]
-            }
+            Tokens::new(vec![TokenKind::Int, TokenKind::Ident], vec![0.into(), 2.into(), 5.into()])
         );
     }
 
@@ -217,20 +208,10 @@ mod tests {
     fn dont_lex_multiline_string() {
         assert_eq!(
             lex("\"foo\nbar\""),
-            Tokens {
-                kinds: vec![
-                    TokenKind::Error,
-                    TokenKind::Whitespace,
-                    TokenKind::Ident,
-                    TokenKind::Error
-                ],
-                ranges: vec![
-                    TextRange::new(0.into(), 4.into()),
-                    TextRange::new(4.into(), 5.into()),
-                    TextRange::new(5.into(), 8.into()),
-                    TextRange::new(8.into(), 9.into())
-                ]
-            }
+            Tokens::new(
+                vec![TokenKind::Error, TokenKind::Whitespace, TokenKind::Ident, TokenKind::Error],
+                vec![0.into(), 4.into(), 5.into(), 8.into(), 9.into()]
+            )
         );
     }
 
