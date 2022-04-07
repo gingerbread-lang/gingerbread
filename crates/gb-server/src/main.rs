@@ -1,15 +1,13 @@
 use gb_server::GlobalState;
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::{
-    GotoDefinition, SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh,
-    Shutdown,
+    SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
 };
 use lsp_types::{
-    GotoDefinitionResponse, InitializeResult, Location, OneOf, Position, PublishDiagnosticsParams,
-    Range, SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    WorkDoneProgressOptions,
+    InitializeResult, PublishDiagnosticsParams, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
 };
 
 #[global_allocator]
@@ -26,7 +24,6 @@ fn main() -> anyhow::Result<()> {
             will_save_wait_until: None,
             save: None,
         })),
-        definition_provider: Some(OneOf::Left(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {
@@ -75,12 +72,6 @@ fn main() -> anyhow::Result<()> {
                     .on::<Shutdown, _>(|()| {
                         shutdown = true;
                         Ok(())
-                    })?
-                    .on::<GotoDefinition, _>(|params| {
-                        Ok(Some(GotoDefinitionResponse::Array(vec![Location {
-                            uri: params.text_document_position_params.text_document.uri,
-                            range: Range { start: Position::new(0, 0), end: Position::new(0, 2) },
-                        }])))
                     })?
                     .on::<SemanticTokensFullRequest, _>(|params| {
                         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
