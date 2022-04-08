@@ -15,6 +15,13 @@
         ],
         "configuration": "./language-configuration.json"
       }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "builtinType",
+        "description": "Style for builtin types",
+        "superType": "type"
+      }
     ]
   },
   "activationEvents": [

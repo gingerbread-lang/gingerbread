@@ -388,7 +388,7 @@ impl HighlightKind {
             Self::Param => SemanticTokenType::PARAMETER,
             Self::Function => SemanticTokenType::FUNCTION,
             Self::Module => SemanticTokenType::NAMESPACE,
-            Self::Ty => SemanticTokenType::TYPE,
+            Self::Ty => SemanticTokenType::new("builtinType"),
             Self::Number => SemanticTokenType::NUMBER,
             Self::String => SemanticTokenType::STRING,
             Self::Operator => SemanticTokenType::OPERATOR,
