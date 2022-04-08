@@ -238,6 +238,7 @@ impl Analysis {
                                 Some(hir::Symbol::Param) => HighlightKind::Param,
                                 Some(hir::Symbol::Function) => HighlightKind::Function,
                                 Some(hir::Symbol::Module) => HighlightKind::Module,
+                                None if self.index.is_ident_ty(ident) => HighlightKind::Ty,
                                 None => continue,
                             }
                         }
@@ -357,6 +358,7 @@ pub enum HighlightKind {
     Param,
     Function,
     Module,
+    Ty,
     Number,
     String,
     Operator,
@@ -386,6 +388,7 @@ impl HighlightKind {
             Self::Param => SemanticTokenType::PARAMETER,
             Self::Function => SemanticTokenType::FUNCTION,
             Self::Module => SemanticTokenType::NAMESPACE,
+            Self::Ty => SemanticTokenType::TYPE,
             Self::Number => SemanticTokenType::NUMBER,
             Self::String => SemanticTokenType::STRING,
             Self::Operator => SemanticTokenType::OPERATOR,

@@ -1,7 +1,7 @@
 use crate::WorldIndex;
 use ast::{AstNode, AstToken};
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use syntax::SyntaxTree;
 use text_size::TextRange;
@@ -9,6 +9,7 @@ use text_size::TextRange;
 #[derive(Clone)]
 pub struct Index {
     pub(crate) functions: HashMap<Name, Function>,
+    tys: HashSet<ast::Ident>,
 }
 
 impl Index {
@@ -20,9 +21,14 @@ impl Index {
         self.functions.keys()
     }
 
+    pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
+        self.tys.contains(&ident)
+    }
+
     fn shrink_to_fit(&mut self) {
-        let Self { functions } = self;
+        let Self { functions, tys } = self;
         functions.shrink_to_fit();
+        tys.shrink_to_fit();
     }
 }
 
@@ -55,6 +61,7 @@ pub fn index(
     world_index: &WorldIndex,
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
+    let mut tys = HashSet::new();
     let mut diagnostics = Vec::new();
 
     for def in root.defs(tree) {
@@ -70,7 +77,8 @@ pub fn index(
                 if let Some(param_list) = function.param_list(tree) {
                     for param in param_list.params(tree) {
                         let name = param.name(tree).map(|ident| Name(ident.text(tree).to_string()));
-                        let ty = lower_ty(param.ty(tree), tree, world_index, &mut diagnostics);
+                        let ty =
+                            lower_ty(param.ty(tree), tree, world_index, &mut tys, &mut diagnostics);
 
                         params.push(Param { name, ty })
                     }
@@ -78,7 +86,7 @@ pub fn index(
 
                 let return_ty = match function.return_ty(tree) {
                     Some(return_ty) => {
-                        lower_ty(return_ty.ty(tree), tree, world_index, &mut diagnostics)
+                        lower_ty(return_ty.ty(tree), tree, world_index, &mut tys, &mut diagnostics)
                     }
                     None => Ty::Unit,
                 };
@@ -99,7 +107,7 @@ pub fn index(
         }
     }
 
-    let mut index = Index { functions };
+    let mut index = Index { functions, tys };
     index.shrink_to_fit();
 
     (index, diagnostics)
@@ -109,6 +117,7 @@ fn lower_ty(
     ty: Option<ast::Ty>,
     tree: &SyntaxTree,
     world_index: &WorldIndex,
+    tys: &mut HashSet<ast::Ident>,
     diagnostics: &mut Vec<IndexingDiagnostic>,
 ) -> Ty {
     let ident = match ty.and_then(|ty| ty.name(tree)) {
@@ -118,6 +127,7 @@ fn lower_ty(
 
     let name = Name(ident.text(tree).to_string());
     if let Some(kind) = world_index.get_ty(&name) {
+        tys.insert(ident);
         return kind;
     }
 
