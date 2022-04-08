@@ -285,16 +285,16 @@ impl<'a> Ctx<'a> {
 
         let name = ident.text(self.tree);
 
-        if let Some(idx) = self.look_up_param(name) {
-            check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
-            self.bodies.symbol_map.insert(ident, Symbol::Param);
-            return Expr::Param { idx };
-        }
-
         if let Some(def) = self.look_up_in_current_scope(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
             self.bodies.symbol_map.insert(ident, Symbol::Local);
             return Expr::Local(def);
+        }
+
+        if let Some(idx) = self.look_up_param(name) {
+            check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
+            self.bodies.symbol_map.insert(ident, Symbol::Param);
+            return Expr::Param { idx };
         }
 
         let name = Name(name.to_string());
@@ -1002,7 +1002,7 @@ mod tests {
     }
 
     #[test]
-    fn locals_takes_precedence_over_functions() {
+    fn locals_take_precedence_over_functions() {
         check(
             r#"
                 fnc foo -> {};
@@ -1023,6 +1023,25 @@ mod tests {
                     let l1 = 1;
                     l0;
                     l1;
+                };
+            "#]],
+            [],
+        );
+    }
+
+    #[test]
+    fn locals_take_precedence_over_params() {
+        check(
+            r#"
+                fnc id(x: s32): s32 -> {
+                    let x = 3;
+                    x
+                };
+            "#,
+            expect![[r#"
+                fnc id -> {
+                    let l0 = 3;
+                    l0
                 };
             "#]],
             [],
