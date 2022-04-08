@@ -22,6 +22,43 @@
         "description": "Style for builtin types",
         "superType": "type"
       }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "gingerbread",
+        "scopes": {
+          "keyword": [
+            "keyword.other.gingerbread"
+          ],
+          "variable": [
+            "variable.other.gingerbread"
+          ],
+          "parameter": [
+            "entity.name.variable.parameter.gingerbread"
+          ],
+          "function": [
+            "entity.name.function.gingerbread"
+          ],
+          "namespace": [
+            "entity.name.type.namespace.gingerbread"
+          ],
+          "builtinType": [
+            "entity.name.type.builtin.gingerbread"
+          ],
+          "number": [
+            "constant.numeric.gingerbread"
+          ],
+          "string": [
+            "string.quoted.double.gingerbread"
+          ],
+          "operator": [
+            "keyword.operator.gingerbread"
+          ],
+          "comment": [
+            "comment.line.gingerbread"
+          ]
+        }
+      }
     ]
   },
   "activationEvents": [
