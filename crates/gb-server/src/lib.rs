@@ -3,10 +3,11 @@ use ast::AstNode;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SelectionRange, SemanticToken,
-    TextDocumentContentChangeEvent, Url,
+    SemanticTokenType, TextDocumentContentChangeEvent, Url,
 };
 use parser::Parse;
 use std::collections::HashMap;
+use std::mem;
 use syntax::SyntaxKind;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
@@ -195,23 +196,10 @@ impl Analysis {
         let mut prev_token_position = None;
 
         for (token_kind, token_range) in lexer::lex(&self.content).iter() {
-            if matches!(
-                token_kind,
-                TokenKind::Eq
-                    | TokenKind::Dot
-                    | TokenKind::Colon
-                    | TokenKind::Comma
-                    | TokenKind::Semicolon
-                    | TokenKind::Arrow
-                    | TokenKind::LParen
-                    | TokenKind::RParen
-                    | TokenKind::LBrace
-                    | TokenKind::RBrace
-                    | TokenKind::Whitespace
-                    | TokenKind::Error
-            ) {
-                continue;
-            }
+            let token_type = match highlight_token(token_kind) {
+                Some(hi) => hi as u32,
+                None => continue,
+            };
 
             let (line, column) = self.line_index.line_col(token_range.start());
 
@@ -229,29 +217,7 @@ impl Analysis {
                 delta_line: delta_line.0,
                 delta_start: delta_column.0,
                 length: u32::from(token_range.len()),
-                token_type: match token_kind {
-                    TokenKind::LetKw | TokenKind::FncKw => 0,
-                    TokenKind::Ident => 1,
-                    TokenKind::Int => 2,
-                    TokenKind::String => 3,
-                    TokenKind::Plus
-                    | TokenKind::Hyphen
-                    | TokenKind::Asterisk
-                    | TokenKind::Slash => 4,
-                    TokenKind::Comment => 5,
-                    TokenKind::Eq
-                    | TokenKind::Dot
-                    | TokenKind::Colon
-                    | TokenKind::Comma
-                    | TokenKind::Semicolon
-                    | TokenKind::Arrow
-                    | TokenKind::LParen
-                    | TokenKind::RParen
-                    | TokenKind::LBrace
-                    | TokenKind::RBrace
-                    | TokenKind::Whitespace
-                    | TokenKind::Error => unreachable!(),
-                },
+                token_type,
                 token_modifiers_bitset: 0,
             });
         }
@@ -331,6 +297,70 @@ impl Analysis {
         let (results, diagnostics) = hir_ty::infer_all(&self.bodies, &self.index, world_index);
         self.inference_result = results;
         self.ty_diagnostics = diagnostics;
+    }
+}
+
+fn highlight_token(kind: TokenKind) -> Option<HighlightKind> {
+    match kind {
+        TokenKind::LetKw | TokenKind::FncKw => Some(HighlightKind::Keyword),
+        TokenKind::Ident => Some(HighlightKind::Identifier),
+        TokenKind::Int => Some(HighlightKind::Number),
+        TokenKind::String => Some(HighlightKind::String),
+        TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
+            Some(HighlightKind::Operator)
+        }
+        TokenKind::Comment => Some(HighlightKind::Comment),
+        TokenKind::Eq
+        | TokenKind::Dot
+        | TokenKind::Colon
+        | TokenKind::Comma
+        | TokenKind::Semicolon
+        | TokenKind::Arrow
+        | TokenKind::LParen
+        | TokenKind::RParen
+        | TokenKind::LBrace
+        | TokenKind::RBrace
+        | TokenKind::Whitespace
+        | TokenKind::Error => None,
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum HighlightKind {
+    Keyword,
+    Identifier,
+    Number,
+    String,
+    Operator,
+    Comment,
+    __Last,
+}
+
+impl HighlightKind {
+    pub fn all_lsp() -> Vec<SemanticTokenType> {
+        Self::all().into_iter().map(Self::to_lsp).collect()
+    }
+
+    fn all() -> [Self; Self::__Last as usize] {
+        let mut values = [0; Self::__Last as usize];
+
+        for i in 0..Self::__Last as u8 {
+            values[i as usize] = i;
+        }
+
+        unsafe { mem::transmute(values) }
+    }
+
+    fn to_lsp(self) -> SemanticTokenType {
+        match self {
+            HighlightKind::Keyword => SemanticTokenType::KEYWORD,
+            HighlightKind::Identifier => SemanticTokenType::VARIABLE,
+            HighlightKind::Number => SemanticTokenType::NUMBER,
+            HighlightKind::String => SemanticTokenType::STRING,
+            HighlightKind::Operator => SemanticTokenType::OPERATOR,
+            HighlightKind::Comment => SemanticTokenType::COMMENT,
+            HighlightKind::__Last => unreachable!(),
+        }
     }
 }
 

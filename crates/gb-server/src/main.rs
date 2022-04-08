@@ -1,15 +1,14 @@
-use gb_server::GlobalState;
+use gb_server::{GlobalState, HighlightKind};
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::{
     SelectionRangeRequest, SemanticTokensFullRequest,
     SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
 };
 use lsp_types::{
-    InitializeResult, PublishDiagnosticsParams, SelectionRangeProviderCapability,
-    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
-    SemanticTokensOptions, SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
-    WorkDoneProgressOptions,
+    InitializeResult, PublishDiagnosticsParams, SelectionRangeProviderCapability, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
+    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
 };
 
 #[global_allocator]
@@ -30,14 +29,7 @@ fn main() -> anyhow::Result<()> {
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {
-                    token_types: vec![
-                        SemanticTokenType::KEYWORD,
-                        SemanticTokenType::VARIABLE,
-                        SemanticTokenType::NUMBER,
-                        SemanticTokenType::STRING,
-                        SemanticTokenType::OPERATOR,
-                        SemanticTokenType::COMMENT,
-                    ],
+                    token_types: HighlightKind::all_lsp(),
                     token_modifiers: Vec::new(),
                 },
 
