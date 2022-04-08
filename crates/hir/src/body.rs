@@ -13,6 +13,7 @@ pub struct Bodies {
     expr_ranges: ArenaMap<Id<Expr>, TextRange>,
     function_bodies: HashMap<Name, Id<Expr>>,
     other_module_references: HashSet<Fqn>,
+    symbol_map: HashMap<ast::Ident, Symbol>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +68,14 @@ pub enum LoweringDiagnosticKind {
     CalledLocal { name: String },
 }
 
+#[derive(Clone, Copy)]
+pub enum Symbol {
+    Local,
+    Param,
+    Function,
+    Module,
+}
+
 pub fn lower(
     root: ast::Root,
     tree: &SyntaxTree,
@@ -106,6 +115,7 @@ impl<'a> Ctx<'a> {
                 expr_ranges: ArenaMap::default(),
                 function_bodies: HashMap::new(),
                 other_module_references: HashSet::new(),
+                symbol_map: HashMap::new(),
             },
             index,
             world_index,
@@ -237,6 +247,8 @@ impl<'a> Ctx<'a> {
             match self.world_index.get_function(&fqn) {
                 Ok(function) => {
                     self.bodies.other_module_references.insert(fqn.clone());
+                    self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
+                    self.bodies.symbol_map.insert(function_name_token, Symbol::Function);
 
                     return self.lower_call(
                         call,
@@ -264,6 +276,7 @@ impl<'a> Ctx<'a> {
                         },
                         range: function_name_token.range(self.tree),
                     });
+                    self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
 
                     return Expr::Missing;
                 }
@@ -274,16 +287,19 @@ impl<'a> Ctx<'a> {
 
         if let Some(idx) = self.look_up_param(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
+            self.bodies.symbol_map.insert(ident, Symbol::Param);
             return Expr::Param { idx };
         }
 
         if let Some(def) = self.look_up_in_current_scope(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
+            self.bodies.symbol_map.insert(ident, Symbol::Local);
             return Expr::Local(def);
         }
 
         let name = Name(name.to_string());
         if let Some(function) = self.index.get_function(&name) {
+            self.bodies.symbol_map.insert(ident, Symbol::Function);
             return self.lower_call(call, function, Path::ThisModule(name), ident);
         }
 
@@ -421,6 +437,10 @@ impl Bodies {
         &self.other_module_references
     }
 
+    pub fn symbol(&self, ident: ast::Ident) -> Option<Symbol> {
+        self.symbol_map.get(&ident).copied()
+    }
+
     fn shrink_to_fit(&mut self) {
         let Self {
             local_defs,
@@ -429,6 +449,7 @@ impl Bodies {
             expr_ranges,
             function_bodies,
             other_module_references,
+            symbol_map: source_map,
         } = self;
 
         local_defs.shrink_to_fit();
@@ -437,6 +458,7 @@ impl Bodies {
         expr_ranges.shrink_to_fit();
         function_bodies.shrink_to_fit();
         other_module_references.shrink_to_fit();
+        source_map.shrink_to_fit();
     }
 }
 

@@ -1,5 +1,5 @@
 use ast::validation::ValidationDiagnostic;
-use ast::AstNode;
+use ast::{AstNode, AstToken};
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SelectionRange, SemanticToken,
@@ -231,7 +231,16 @@ impl Analysis {
                             modifiers |= HighlightModifier::Declaration;
                             HighlightKind::Function
                         }
-                        _ => continue,
+                        _ => {
+                            let ident = ast::Ident::cast(token, self.parse.syntax_tree()).unwrap();
+                            match self.bodies.symbol(ident) {
+                                Some(hir::Symbol::Local) => HighlightKind::Local,
+                                Some(hir::Symbol::Param) => HighlightKind::Param,
+                                Some(hir::Symbol::Function) => HighlightKind::Function,
+                                Some(hir::Symbol::Module) => HighlightKind::Module,
+                                None => continue,
+                            }
+                        }
                     },
 
                     _ => continue,
@@ -347,6 +356,7 @@ pub enum HighlightKind {
     Local,
     Param,
     Function,
+    Module,
     Number,
     String,
     Operator,
@@ -375,6 +385,7 @@ impl HighlightKind {
             Self::Local => SemanticTokenType::VARIABLE,
             Self::Param => SemanticTokenType::PARAMETER,
             Self::Function => SemanticTokenType::FUNCTION,
+            Self::Module => SemanticTokenType::NAMESPACE,
             Self::Number => SemanticTokenType::NUMBER,
             Self::String => SemanticTokenType::STRING,
             Self::Operator => SemanticTokenType::OPERATOR,
