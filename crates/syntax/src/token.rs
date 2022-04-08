@@ -1,7 +1,7 @@
 use crate::{SyntaxKind, SyntaxTree};
 use text_size::TextRange;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SyntaxToken {
     pub(crate) idx: u32,
 }

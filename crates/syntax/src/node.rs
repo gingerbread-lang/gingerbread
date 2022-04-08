@@ -2,7 +2,7 @@ use crate::tree::{ADD_TOKEN_SIZE, FINISH_NODE_SIZE, START_NODE_SIZE};
 use crate::{SyntaxKind, SyntaxToken, SyntaxTree};
 use text_size::TextRange;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SyntaxNode {
     pub(crate) idx: u32,
 }

@@ -29,7 +29,7 @@ pub trait AstToken: Sized {
 
 macro_rules! def_ast_node {
     ($kind:ident) => {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $kind(SyntaxNode);
 
         impl AstNode for $kind {
@@ -50,7 +50,7 @@ macro_rules! def_ast_node {
 
 macro_rules! def_ast_token {
     ($kind:ident) => {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, PartialEq, Eq, Hash)]
         pub struct $kind(SyntaxToken);
 
         impl AstToken for $kind {
@@ -85,7 +85,7 @@ impl Root {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Def {
     Function(Function),
 }
@@ -126,7 +126,7 @@ impl Function {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Statement {
     LocalDef(LocalDef),
     ExprStatement(ExprStatement),
@@ -205,7 +205,7 @@ impl ExprStatement {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Expr {
     Binary(BinaryExpr),
     Block(Block),
@@ -313,7 +313,7 @@ impl StringLiteral {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOperator {
     Add(Plus),
     Sub(Hyphen),
