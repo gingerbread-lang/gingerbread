@@ -1,4 +1,4 @@
-use gb_server::{GlobalState, HighlightKind};
+use gb_server::{GlobalState, HighlightKind, HighlightModifier};
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::{
     SelectionRangeRequest, SemanticTokensFullRequest,
@@ -30,7 +30,7 @@ fn main() -> anyhow::Result<()> {
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {
                     token_types: HighlightKind::all_lsp(),
-                    token_modifiers: Vec::new(),
+                    token_modifiers: HighlightModifier::all_lsp(),
                 },
 
                 full: Some(SemanticTokensFullOptions::Delta { delta: None }),

@@ -3,14 +3,14 @@ use ast::AstNode;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, Position, Range, SelectionRange, SemanticToken,
-    SemanticTokenType, TextDocumentContentChangeEvent, Url,
+    SemanticTokenModifier, SemanticTokenType, TextDocumentContentChangeEvent, Url,
 };
 use parser::Parse;
 use std::collections::HashMap;
 use std::mem;
-use syntax::SyntaxKind;
+use std::ops::BitOrAssign;
+use syntax::{SyntaxElement, SyntaxKind};
 use text_size::{TextRange, TextSize};
-use token::TokenKind;
 
 #[derive(Default)]
 pub struct GlobalState {
@@ -194,14 +194,55 @@ impl Analysis {
     fn highlight(&self) -> Vec<SemanticToken> {
         let mut tokens = Vec::new();
         let mut prev_token_position = None;
+        let mut last_parent_node_kind = SyntaxKind::Root;
 
-        for (token_kind, token_range) in lexer::lex(&self.content).iter() {
-            let token_type = match highlight_token(token_kind) {
-                Some(hi) => hi as u32,
-                None => continue,
+        for element in self.ast.syntax().descendants(self.parse.syntax_tree()) {
+            let token = match element {
+                SyntaxElement::Node(node) => {
+                    last_parent_node_kind = node.kind(self.parse.syntax_tree());
+                    continue;
+                }
+                SyntaxElement::Token(token) => token,
             };
 
-            let (line, column) = self.line_index.line_col(token_range.start());
+            let mut modifiers = HighlightModifiers(0);
+
+            let token_type = {
+                let hi = match token.kind(self.parse.syntax_tree()) {
+                    SyntaxKind::LetKw | SyntaxKind::FncKw => HighlightKind::Keyword,
+                    SyntaxKind::Int => HighlightKind::Number,
+                    SyntaxKind::String => HighlightKind::String,
+                    SyntaxKind::Plus
+                    | SyntaxKind::Hyphen
+                    | SyntaxKind::Asterisk
+                    | SyntaxKind::Slash => HighlightKind::Operator,
+                    SyntaxKind::Comment => HighlightKind::Comment,
+
+                    SyntaxKind::Ident => match last_parent_node_kind {
+                        SyntaxKind::LocalDef => {
+                            modifiers |= HighlightModifier::Declaration;
+                            HighlightKind::Local
+                        }
+                        SyntaxKind::Param => {
+                            modifiers |= HighlightModifier::Declaration;
+                            HighlightKind::Param
+                        }
+                        SyntaxKind::Function => {
+                            modifiers |= HighlightModifier::Declaration;
+                            HighlightKind::Function
+                        }
+                        _ => continue,
+                    },
+
+                    _ => continue,
+                };
+
+                hi as u32
+            };
+
+            let range = token.range(self.parse.syntax_tree());
+
+            let (line, column) = self.line_index.line_col(range.start());
 
             let (delta_line, delta_column) = match prev_token_position {
                 Some((prev_line, prev_column)) if prev_line == line => {
@@ -216,9 +257,9 @@ impl Analysis {
             tokens.push(SemanticToken {
                 delta_line: delta_line.0,
                 delta_start: delta_column.0,
-                length: u32::from(token_range.len()),
+                length: u32::from(range.len()),
                 token_type,
-                token_modifiers_bitset: 0,
+                token_modifiers_bitset: modifiers.0,
             });
         }
 
@@ -300,35 +341,12 @@ impl Analysis {
     }
 }
 
-fn highlight_token(kind: TokenKind) -> Option<HighlightKind> {
-    match kind {
-        TokenKind::LetKw | TokenKind::FncKw => Some(HighlightKind::Keyword),
-        TokenKind::Ident => Some(HighlightKind::Identifier),
-        TokenKind::Int => Some(HighlightKind::Number),
-        TokenKind::String => Some(HighlightKind::String),
-        TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
-            Some(HighlightKind::Operator)
-        }
-        TokenKind::Comment => Some(HighlightKind::Comment),
-        TokenKind::Eq
-        | TokenKind::Dot
-        | TokenKind::Colon
-        | TokenKind::Comma
-        | TokenKind::Semicolon
-        | TokenKind::Arrow
-        | TokenKind::LParen
-        | TokenKind::RParen
-        | TokenKind::LBrace
-        | TokenKind::RBrace
-        | TokenKind::Whitespace
-        | TokenKind::Error => None,
-    }
-}
-
 #[derive(Clone, Copy)]
 pub enum HighlightKind {
     Keyword,
-    Identifier,
+    Local,
+    Param,
+    Function,
     Number,
     String,
     Operator,
@@ -353,14 +371,57 @@ impl HighlightKind {
 
     fn to_lsp(self) -> SemanticTokenType {
         match self {
-            HighlightKind::Keyword => SemanticTokenType::KEYWORD,
-            HighlightKind::Identifier => SemanticTokenType::VARIABLE,
-            HighlightKind::Number => SemanticTokenType::NUMBER,
-            HighlightKind::String => SemanticTokenType::STRING,
-            HighlightKind::Operator => SemanticTokenType::OPERATOR,
-            HighlightKind::Comment => SemanticTokenType::COMMENT,
-            HighlightKind::__Last => unreachable!(),
+            Self::Keyword => SemanticTokenType::KEYWORD,
+            Self::Local => SemanticTokenType::VARIABLE,
+            Self::Param => SemanticTokenType::PARAMETER,
+            Self::Function => SemanticTokenType::FUNCTION,
+            Self::Number => SemanticTokenType::NUMBER,
+            Self::String => SemanticTokenType::STRING,
+            Self::Operator => SemanticTokenType::OPERATOR,
+            Self::Comment => SemanticTokenType::COMMENT,
+            Self::__Last => unreachable!(),
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub enum HighlightModifier {
+    Declaration,
+    __Last,
+}
+
+impl HighlightModifier {
+    pub fn all_lsp() -> Vec<SemanticTokenModifier> {
+        Self::all().into_iter().map(Self::to_lsp).collect()
+    }
+
+    fn all() -> [Self; Self::__Last as usize] {
+        let mut values = [0; Self::__Last as usize];
+
+        for i in 0..Self::__Last as u8 {
+            values[i as usize] = i;
+        }
+
+        unsafe { mem::transmute(values) }
+    }
+
+    fn to_lsp(self) -> SemanticTokenModifier {
+        match self {
+            Self::Declaration => SemanticTokenModifier::DECLARATION,
+            Self::__Last => unreachable!(),
+        }
+    }
+
+    fn mask(self) -> u32 {
+        1 << self as u32
+    }
+}
+
+pub struct HighlightModifiers(u32);
+
+impl BitOrAssign<HighlightModifier> for HighlightModifiers {
+    fn bitor_assign(&mut self, rhs: HighlightModifier) {
+        self.0 |= rhs.mask();
     }
 }
 
