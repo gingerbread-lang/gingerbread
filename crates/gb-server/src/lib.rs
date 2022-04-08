@@ -2,11 +2,12 @@ use ast::validation::ValidationDiagnostic;
 use ast::AstNode;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp_types::{
-    Diagnostic, DiagnosticSeverity, Position, Range, SemanticToken, TextDocumentContentChangeEvent,
-    Url,
+    Diagnostic, DiagnosticSeverity, Position, Range, SelectionRange, SemanticToken,
+    TextDocumentContentChangeEvent, Url,
 };
 use parser::Parse;
 use std::collections::HashMap;
+use syntax::SyntaxKind;
 use text_size::{TextRange, TextSize};
 use token::TokenKind;
 
@@ -56,6 +57,10 @@ impl GlobalState {
 
             analysis.recheck(&mut self.world_index);
         }
+    }
+
+    pub fn extend_selection(&mut self, uri: &Url, position: Position) -> SelectionRange {
+        self.analyses[uri].extend_selection(position)
     }
 
     pub fn highlight(&self, uri: &Url) -> Vec<SemanticToken> {
@@ -136,6 +141,53 @@ impl Analysis {
         world_index.update_module(&self.module_name, self.index.clone());
 
         self.infer(world_index);
+    }
+
+    fn extend_selection(&self, position: Position) -> SelectionRange {
+        let offset = convert_lsp_position(position, &self.line_index);
+
+        let mut ranges = vec![self.ast.range(self.parse.syntax_tree())];
+        let mut last_node = self.ast.syntax();
+
+        let mut push_range = |range| {
+            if ranges[ranges.len() - 1] != range {
+                ranges.push(range);
+            }
+        };
+
+        for node in self.ast.syntax().descendant_nodes(self.parse.syntax_tree()) {
+            let range = node.range(self.parse.syntax_tree());
+            if range.contains_inclusive(offset) {
+                last_node = node;
+                push_range(range);
+            }
+        }
+
+        for token in last_node.child_tokens(self.parse.syntax_tree()) {
+            let range = token.range(self.parse.syntax_tree());
+
+            if token.kind(self.parse.syntax_tree()) == SyntaxKind::Whitespace {
+                continue;
+            }
+
+            if range.contains_inclusive(offset) {
+                push_range(range);
+                break;
+            }
+        }
+
+        let root = ranges[0];
+        let mut range =
+            SelectionRange { range: convert_text_range(root, &self.line_index), parent: None };
+
+        for r in ranges.into_iter().skip(1) {
+            range = SelectionRange {
+                range: convert_text_range(r, &self.line_index),
+                parent: Some(Box::new(range)),
+            };
+        }
+
+        range
     }
 
     fn highlight(&self) -> Vec<SemanticToken> {

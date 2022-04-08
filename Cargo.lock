@@ -483,6 +483,7 @@ dependencies = [
  "lsp-types",
  "mimalloc",
  "parser",
+ "syntax",
  "text-size",
  "token",
 ]

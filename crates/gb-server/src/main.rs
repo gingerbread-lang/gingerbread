@@ -1,13 +1,15 @@
 use gb_server::GlobalState;
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::{
-    SemanticTokensFullRequest, SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
+    SelectionRangeRequest, SemanticTokensFullRequest,
+    SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
 };
 use lsp_types::{
-    InitializeResult, PublishDiagnosticsParams, SemanticTokenType, SemanticTokens,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
+    InitializeResult, PublishDiagnosticsParams, SelectionRangeProviderCapability,
+    SemanticTokenType, SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend,
+    SemanticTokensOptions, SemanticTokensResult, SemanticTokensServerCapabilities,
+    ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind, TextDocumentSyncOptions,
+    WorkDoneProgressOptions,
 };
 
 #[global_allocator]
@@ -24,6 +26,7 @@ fn main() -> anyhow::Result<()> {
             will_save_wait_until: None,
             save: None,
         })),
+        selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {
@@ -72,6 +75,18 @@ fn main() -> anyhow::Result<()> {
                     .on::<Shutdown, _>(|()| {
                         shutdown = true;
                         Ok(())
+                    })?
+                    .on::<SelectionRangeRequest, _>(|params| {
+                        Ok(Some(
+                            params
+                                .positions
+                                .into_iter()
+                                .map(|position| {
+                                    global_state
+                                        .extend_selection(&params.text_document.uri, position)
+                                })
+                                .collect(),
+                        ))
                     })?
                     .on::<SemanticTokensFullRequest, _>(|params| {
                         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {

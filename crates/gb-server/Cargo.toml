@@ -16,5 +16,6 @@ lsp = {path = "../lsp"}
 lsp-types = "0.91.1"
 mimalloc = {version = "0.1.27", default-features = false}
 parser = {path = "../parser"}
+syntax = {path = "../syntax"}
 text-size = "1.1"
 token = {path = "../token"}
