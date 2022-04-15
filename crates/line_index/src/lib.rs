@@ -2,7 +2,7 @@ use std::iter;
 use std::ops::{Index, Sub};
 use text_size::TextSize;
 
-#[derive(Debug, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct LineIndex {
     line_starts: Vec<TextSize>,
 }

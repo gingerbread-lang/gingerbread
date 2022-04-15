@@ -1,15 +1,6 @@
-use gb_server::{GlobalState, HighlightKind, HighlightModifier};
-use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument, PublishDiagnostics};
-use lsp_types::request::{
-    SelectionRangeRequest, SemanticTokensFullRequest,
-    SemanticTokensRefesh as SemanticTokensRefresh, Shutdown,
-};
-use lsp_types::{
-    InitializeResult, PublishDiagnosticsParams, SelectionRangeProviderCapability, SemanticTokens,
-    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensResult,
-    SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
-};
+use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
+use lsp_types::request::{SelectionRangeRequest, SemanticTokensFullRequest, Shutdown};
+use lsp_types::InitializeResult;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
@@ -17,32 +8,8 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 fn main() -> anyhow::Result<()> {
     let stdio_connection_storage = lsp::connection::ConnectionStorage::new();
 
-    let capabilities = ServerCapabilities {
-        text_document_sync: Some(TextDocumentSyncCapability::Options(TextDocumentSyncOptions {
-            open_close: Some(true),
-            change: Some(TextDocumentSyncKind::INCREMENTAL),
-            will_save: None,
-            will_save_wait_until: None,
-            save: None,
-        })),
-        selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
-        semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
-            SemanticTokensOptions {
-                legend: SemanticTokensLegend {
-                    token_types: HighlightKind::all_lsp(),
-                    token_modifiers: HighlightModifier::all_lsp(),
-                },
-
-                full: Some(SemanticTokensFullOptions::Delta { delta: None }),
-                range: None,
-                work_done_progress_options: WorkDoneProgressOptions { work_done_progress: None },
-            },
-        )),
-        ..Default::default()
-    };
-
     let connection = lsp::connection::Connection::new(&stdio_connection_storage, |_| {
-        InitializeResult { capabilities, server_info: None }
+        InitializeResult { capabilities: gb_server::capabilities(), server_info: None }
     })?;
 
     let mut connection = match connection {
@@ -50,7 +17,7 @@ fn main() -> anyhow::Result<()> {
         None => return Ok(()),
     };
 
-    let mut global_state = GlobalState::default();
+    let mut global_state = ide::GlobalState::default();
 
     loop {
         match connection.read_msg()? {
@@ -69,22 +36,10 @@ fn main() -> anyhow::Result<()> {
                         Ok(())
                     })?
                     .on::<SelectionRangeRequest, _>(|params| {
-                        Ok(Some(
-                            params
-                                .positions
-                                .into_iter()
-                                .map(|position| {
-                                    global_state
-                                        .extend_selection(&params.text_document.uri, position)
-                                })
-                                .collect(),
-                        ))
+                        Ok(Some(gb_server::selection_range(params, &mut global_state)))
                     })?
                     .on::<SemanticTokensFullRequest, _>(|params| {
-                        Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
-                            result_id: None,
-                            data: global_state.highlight(&params.text_document.uri),
-                        })))
+                        Ok(Some(gb_server::semantic_tokens(params, &mut global_state)))
                     })?
                     .finish()?;
 
@@ -104,34 +59,10 @@ fn main() -> anyhow::Result<()> {
                 connection
                     .not_handler(not)
                     .on::<DidOpenTextDocument, _>(|params| {
-                        global_state
-                            .open_file(params.text_document.uri.clone(), params.text_document.text);
-
-                        for (uri, diagnostics) in global_state.diagnostics() {
-                            connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-                                uri: uri.clone(),
-                                diagnostics,
-                                version: None,
-                            })?;
-                        }
-
-                        Ok(())
+                        gb_server::open_text_document(params, &mut global_state, &mut connection)
                     })?
                     .on::<DidChangeTextDocument, _>(|params| {
-                        global_state
-                            .apply_changes(&params.text_document.uri, params.content_changes);
-
-                        for (uri, diagnostics) in global_state.diagnostics() {
-                            connection.notify::<PublishDiagnostics>(PublishDiagnosticsParams {
-                                uri: uri.clone(),
-                                diagnostics,
-                                version: None,
-                            })?;
-                        }
-
-                        connection.make_request::<SemanticTokensRefresh>(())?;
-
-                        Ok(())
+                        gb_server::change_text_document(params, &mut global_state, &mut connection)
                     })?;
             }
         }

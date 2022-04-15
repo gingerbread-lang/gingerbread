@@ -473,19 +473,13 @@ name = "gb-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ast",
  "diagnostics",
- "hir",
- "hir_ty",
- "lexer",
+ "ide",
  "line_index",
  "lsp",
  "lsp-types",
  "mimalloc",
- "parser",
- "syntax",
  "text-size",
- "token",
 ]
 
 [[package]]
@@ -575,6 +569,22 @@ name = "humantime"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
+name = "ide"
+version = "0.0.0"
+dependencies = [
+ "ast",
+ "diagnostics",
+ "hir",
+ "hir_ty",
+ "lexer",
+ "line_index",
+ "parser",
+ "syntax",
+ "text-size",
+ "url",
+]
 
 [[package]]
 name = "idna"

@@ -1,0 +1,17 @@
+[package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "ide"
+version = "0.0.0"
+
+[dependencies]
+ast = {path = "../ast"}
+diagnostics = {path = "../diagnostics"}
+hir = {path = "../hir"}
+hir_ty = {path = "../hir_ty"}
+lexer = {path = "../lexer"}
+line_index = {path = "../line_index"}
+parser = {path = "../parser"}
+syntax = {path = "../syntax"}
+text-size = "1.1"
+url = "2.2"
