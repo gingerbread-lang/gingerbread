@@ -295,14 +295,30 @@ mod tests {
         }
     }
 
+    enum D {
+        U16(u16),
+        U32(u32),
+        Text(&'static str),
+    }
+
     fn check<const N: usize>(
         input: &str,
         f: impl Fn(&mut SyntaxBuilder<SyntaxKind>),
-        data: [u8; N],
+        data: [D; N],
     ) {
         let mut builder = SyntaxBuilder::new(input);
         f(&mut builder);
         let tree = builder.finish();
+
+        let data: Vec<_> = data
+            .into_iter()
+            .flat_map(|num| match num {
+                D::U16(n) => n.to_ne_bytes().to_vec(),
+                D::U32(n) => n.to_ne_bytes().to_vec(),
+                D::Text(s) => s.as_bytes().to_vec(),
+            })
+            .collect();
+
         assert_eq!(tree.data, data);
     }
 
@@ -315,26 +331,12 @@ mod tests {
                 b.finish_node();
             },
             [
-                4,
-                0,
-                0,
-                0,
-                SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
-                0,
-                18,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                255,
-                255,
+                D::U32(4),
+                D::U16(SyntaxKind::Root as u16 + SyntaxKind::__Last as u16 + 1),
+                D::U32(18),
+                D::U32(0),
+                D::U32(0),
+                D::U16(u16::MAX),
             ],
         );
     }
@@ -349,39 +351,16 @@ mod tests {
                 b.finish_node();
             },
             [
-                7,
-                0,
-                0,
-                0,
-                b"l"[0],
-                b"e"[0],
-                b"t"[0],
-                SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
-                0,
-                31,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                3,
-                0,
-                0,
-                0,
-                SyntaxKind::LetKw as u8,
-                0,
-                0,
-                0,
-                0,
-                0,
-                3,
-                0,
-                0,
-                0,
-                255,
-                255,
+                D::U32(7),
+                D::Text("let"),
+                D::U16(SyntaxKind::Root as u16 + SyntaxKind::__Last as u16 + 1),
+                D::U32(31),
+                D::U32(0),
+                D::U32(3),
+                D::U16(SyntaxKind::LetKw as u16),
+                D::U32(0),
+                D::U32(3),
+                D::U16(u16::MAX),
             ],
         );
     }
