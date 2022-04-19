@@ -62,7 +62,6 @@ fn main() {
         Some("long") => {
             let input = gen::gen(16 << 10 << 10); // 16 MiB
             compile(&input, true);
-            time(|| compile(&input, false));
         }
 
         Some(_) => eprintln!("Unrecognized benchmark name"),
@@ -72,38 +71,84 @@ fn main() {
 }
 
 fn compile(input: &str, should_print: bool) {
-    mem_usage("base", should_print);
+    let mut previous_mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
+
+    let tokens = stage("lex", || lexer::lex(input), &mut previous_mem_usage, should_print);
+
     let world_index = hir::WorldIndex::default();
-    let tokens = lexer::lex(input);
-    mem_usage("lexed", should_print);
-    let tree = parser::parse_repl_line(&tokens, input).into_syntax_tree();
-    mem_usage("parsed", should_print);
-    let root = ast::Root::cast(tree.root(), &tree).unwrap();
-    mem_usage("got ast", should_print);
-    let _diagnostics = ast::validation::validate(root, &tree);
-    mem_usage("validated", should_print);
-    let (index, _diagnostics) = hir::index(root, &tree, &world_index);
-    mem_usage("indexed", should_print);
-    let (bodies, _diagnostics) = hir::lower(root, &tree, &index, &world_index);
-    mem_usage("lowered", should_print);
-    let (_inference, _diagnostics) = hir_ty::infer_all(&bodies, &index, &world_index);
-    mem_usage("inferred", should_print);
+
+    let tree = stage(
+        "parse",
+        || parser::parse_repl_line(&tokens, input).into_syntax_tree(),
+        &mut previous_mem_usage,
+        should_print,
+    );
+
+    let root = stage(
+        "get ast",
+        || ast::Root::cast(tree.root(), &tree).unwrap(),
+        &mut previous_mem_usage,
+        should_print,
+    );
+
+    let _diagnostics = stage(
+        "validate",
+        || ast::validation::validate(root, &tree),
+        &mut previous_mem_usage,
+        should_print,
+    );
+
+    let (index, _diagnostics) = stage(
+        "index",
+        || hir::index(root, &tree, &world_index),
+        &mut previous_mem_usage,
+        should_print,
+    );
+
+    let (bodies, _diagnostics) = stage(
+        "lower",
+        || hir::lower(root, &tree, &index, &world_index),
+        &mut previous_mem_usage,
+        should_print,
+    );
+
+    let (_inference, _diagnostics) = stage(
+        "infer",
+        || hir_ty::infer_all(&bodies, &index, &world_index),
+        &mut previous_mem_usage,
+        should_print,
+    );
 }
 
-fn time(f: impl Fn()) {
-    let mut times = [Duration::default(); 10];
+fn stage<T>(
+    name: &str,
+    f: impl Fn() -> T,
+    previous_mem_usage: &mut usize,
+    should_print: bool,
+) -> T {
+    if !should_print {
+        return f();
+    }
+
+    print!("{name:10}");
+
+    let mut times = [Duration::default(); 20];
+    let mut result = None;
 
     for time in &mut times {
         let now = Instant::now();
-        f();
+        result = Some(f());
         *time = now.elapsed();
     }
 
-    println!("took {:?}", times.iter().sum::<Duration>() / times.len() as u32);
-}
+    print!("{:>15?}", times.iter().sum::<Duration>() / times.len() as u32);
 
-fn mem_usage(stage: &str, should_print: bool) {
-    if should_print {
-        println!("{stage:>20}: {}MB", GLOBAL.total_size.load(Ordering::SeqCst) / 1_000_000);
-    }
+    let mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
+    print!("{:5}MB", (mem_usage - *previous_mem_usage) / 1_000_000);
+    print!("{:5}MB", mem_usage / 1_000_000);
+    *previous_mem_usage = mem_usage;
+
+    println!();
+
+    result.unwrap()
 }
