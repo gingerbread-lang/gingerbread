@@ -13,9 +13,9 @@ pub struct SyntaxBuilder<K> {
     is_root_set: bool,
     current_len: u32,
     start_node_idxs: Vec<usize>,
-    phantom: PhantomData<K>,
     starts: u32,
     finishes: u32,
+    phantom: PhantomData<K>,
 }
 
 pub(crate) const START_NODE_SIZE: u32 = 2 + 4 + 4 + 4;
@@ -37,9 +37,9 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
             is_root_set: false,
             current_len: 0,
             start_node_idxs: Vec::new(),
-            phantom: PhantomData,
             starts: 0,
             finishes: 0,
+            phantom: PhantomData,
         }
     }
 
@@ -119,9 +119,9 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
             is_root_set: _,
             current_len: _,
             start_node_idxs: _,
-            phantom: _,
             starts,
             finishes,
+            phantom: _,
         } = self;
 
         assert_eq!(
