@@ -2,6 +2,7 @@ use std::mem;
 use token::TokenKind;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
+#[repr(u16)]
 pub enum SyntaxKind {
     LetKw,
     FncKw,
@@ -47,6 +48,6 @@ pub enum SyntaxKind {
 
 impl From<TokenKind> for SyntaxKind {
     fn from(token_kind: TokenKind) -> SyntaxKind {
-        unsafe { mem::transmute(token_kind) }
+        unsafe { mem::transmute(token_kind as u16) }
     }
 }
