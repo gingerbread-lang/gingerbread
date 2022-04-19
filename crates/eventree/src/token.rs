@@ -4,11 +4,15 @@ use text_size::TextRange;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SyntaxToken<K> {
-    pub(crate) idx: u32,
-    pub(crate) phantom: PhantomData<K>,
+    idx: u32,
+    phantom: PhantomData<K>,
 }
 
 impl<K: SyntaxKind> SyntaxToken<K> {
+    pub(crate) fn new(idx: u32) -> Self {
+        Self { idx, phantom: PhantomData }
+    }
+
     pub fn kind(self, tree: &SyntaxTree<K>) -> K {
         unsafe { tree.get_add_token(self.idx).0 }
     }

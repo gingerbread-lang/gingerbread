@@ -6,11 +6,15 @@ use text_size::TextRange;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SyntaxNode<K> {
-    pub(crate) idx: u32,
-    pub(crate) phantom: PhantomData<K>,
+    idx: u32,
+    phantom: PhantomData<K>,
 }
 
 impl<K: SyntaxKind> SyntaxNode<K> {
+    pub(crate) fn new(idx: u32) -> Self {
+        Self { idx, phantom: PhantomData }
+    }
+
     pub fn kind(self, tree: &SyntaxTree<K>) -> K {
         unsafe { tree.get_start_node(self.idx).0 }
     }
@@ -102,8 +106,7 @@ impl<K: SyntaxKind> Iterator for Children<'_, K> {
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let element =
-                    SyntaxElement::Token(SyntaxToken { idx: self.idx, phantom: PhantomData });
+                let element = SyntaxElement::Token(SyntaxToken::new(self.idx));
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -163,7 +166,7 @@ impl<K: SyntaxKind> Iterator for ChildTokens<'_, K> {
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let token = SyntaxToken { idx: self.idx, phantom: PhantomData };
+                let token = SyntaxToken::new(self.idx);
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }
@@ -194,8 +197,7 @@ impl<K: SyntaxKind> Iterator for Descendants<'_, K> {
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let element =
-                    SyntaxElement::Token(SyntaxToken { idx: self.idx, phantom: PhantomData });
+                let element = SyntaxElement::Token(SyntaxToken::new(self.idx));
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -258,7 +260,7 @@ impl<K: SyntaxKind> Iterator for DescendantTokens<'_, K> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let token = SyntaxToken { idx: self.idx, phantom: PhantomData };
+                let token = SyntaxToken::new(self.idx);
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }

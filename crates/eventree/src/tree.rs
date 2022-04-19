@@ -141,10 +141,11 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
 
 impl<K: SyntaxKind> SyntaxTree<K> {
     pub fn root(&self) -> SyntaxNode<K> {
-        SyntaxNode {
-            idx: unsafe { (self.data.as_ptr() as *const u32).read_unaligned() },
-            phantom: PhantomData,
-        }
+        SyntaxNode::new(self.root_idx())
+    }
+
+    pub(crate) fn root_idx(&self) -> u32 {
+        unsafe { (self.data.as_ptr() as *const u32).read_unaligned() }
     }
 
     pub(crate) unsafe fn get_text(&self, start: u32, end: u32) -> &str {
@@ -218,7 +219,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
 
         let mut indentation_level = 0_usize;
 
-        let mut idx = self.root().idx;
+        let mut idx = self.root_idx();
         while idx < self.data.len() as u32 {
             if unsafe { self.is_finish_node(idx) } {
                 indentation_level -= 1;
@@ -231,7 +232,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
             }
 
             if unsafe { self.is_start_node(idx) } {
-                let node = SyntaxNode { idx, phantom: PhantomData };
+                let node = SyntaxNode::new(idx);
                 let kind = node.kind(self);
                 let range = node.range(self);
                 writeln!(f, "{kind:?}@{range:?}")?;
@@ -241,7 +242,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
             }
 
             if unsafe { self.is_add_token(idx) } {
-                let token = SyntaxToken { idx, phantom: PhantomData };
+                let token = SyntaxToken::new(idx);
                 let kind = token.kind(self);
                 let text = token.text(self);
                 let range = token.range(self);
