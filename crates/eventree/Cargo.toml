@@ -1,9 +1,11 @@
 [package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-name = "syntax"
+name = "eventree"
 version = "0.0.0"
 
 [dependencies]
-eventree = {path = "../eventree"}
-token = {path = "../token"}
+text-size = "1.1"
+
+[dev-dependencies]
+expect-test = "1.1"

@@ -427,6 +427,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "eventree"
+version = "0.0.0"
+dependencies = [
+ "expect-test",
+ "text-size",
+]
+
+[[package]]
 name = "expect-test"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1145,8 +1153,7 @@ dependencies = [
 name = "syntax"
 version = "0.0.0"
 dependencies = [
- "expect-test",
- "text-size",
+ "eventree",
  "token",
 ]
 

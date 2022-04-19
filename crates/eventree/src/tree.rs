@@ -1,17 +1,20 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
-use std::{mem, slice};
+use std::marker::PhantomData;
+use std::slice;
 use text_size::TextRange;
 
-pub struct SyntaxTree {
+pub struct SyntaxTree<K> {
     data: Vec<u8>,
     root: u32,
+    phantom: PhantomData<K>,
 }
 
-pub struct SyntaxBuilder {
+pub struct SyntaxBuilder<K> {
     data: Vec<u8>,
     root: Option<u32>,
     current_len: u32,
     start_node_idxs: Vec<usize>,
+    phantom: PhantomData<K>,
 }
 
 pub(crate) const START_NODE_SIZE: u32 = 2 + 4 + 4 + 4;
@@ -20,17 +23,20 @@ pub(crate) const FINISH_NODE_SIZE: u32 = 2;
 
 const FINISH_NODE_IDX_PLACEHOLDER: u32 = 0;
 
-impl SyntaxBuilder {
+impl<K: SyntaxKind> SyntaxBuilder<K> {
     pub fn new(text: &str) -> Self {
+        debug_assert!(K::LAST < u16::MAX / 2);
+
         Self {
             data: text.as_bytes().to_vec(),
             root: None,
             current_len: 0,
             start_node_idxs: Vec::new(),
+            phantom: PhantomData,
         }
     }
 
-    pub fn start_node(&mut self, kind: SyntaxKind) {
+    pub fn start_node(&mut self, kind: K) {
         if self.root.is_none() {
             self.root = Some(self.data.len() as u32);
         }
@@ -40,8 +46,7 @@ impl SyntaxBuilder {
         self.data.reserve(START_NODE_SIZE as usize);
         unsafe {
             let ptr = self.data_end_ptr();
-            (ptr as *mut u16)
-                .write_unaligned((SyntaxKind::__Last as u16 + kind as u16 + 1).to_le());
+            (ptr as *mut u16).write_unaligned((K::LAST + kind.to_raw() + 1).to_le());
             (ptr.add(2) as *mut u32).write_unaligned(FINISH_NODE_IDX_PLACEHOLDER.to_le());
             (ptr.add(6) as *mut u32).write_unaligned(self.current_len.to_le());
             (ptr.add(10) as *mut u32).write_unaligned(self.current_len.to_le());
@@ -49,7 +54,7 @@ impl SyntaxBuilder {
         }
     }
 
-    pub fn add_token(&mut self, kind: SyntaxKind, range: TextRange) {
+    pub fn add_token(&mut self, kind: K, range: TextRange) {
         let start = u32::from(range.start());
         let end = u32::from(range.end());
         self.current_len = end;
@@ -57,7 +62,7 @@ impl SyntaxBuilder {
         self.data.reserve(ADD_TOKEN_SIZE as usize);
         unsafe {
             let ptr = self.data_end_ptr();
-            (ptr as *mut u16).write_unaligned((kind as u16).to_le());
+            (ptr as *mut u16).write_unaligned(kind.to_raw().to_le());
             (ptr.add(2) as *mut u32).write_unaligned(start.to_le());
             (ptr.add(6) as *mut u32).write_unaligned(end.to_le());
             self.data.set_len(self.data.len() + ADD_TOKEN_SIZE as usize);
@@ -77,7 +82,7 @@ impl SyntaxBuilder {
 
         unsafe {
             let ptr = self.data.as_mut_ptr().add(start_node_idx);
-            debug_assert!(is_tag_start_node((ptr as *const u16).read_unaligned().to_le()));
+            debug_assert!(is_tag_start_node::<K>((ptr as *const u16).read_unaligned().to_le()));
 
             debug_assert_eq!(
                 (ptr.add(2) as *const u32).read_unaligned().to_le(),
@@ -89,11 +94,11 @@ impl SyntaxBuilder {
         }
     }
 
-    pub fn finish(self) -> SyntaxTree {
-        let Self { mut data, root, current_len: _, start_node_idxs: _ } = self;
+    pub fn finish(self) -> SyntaxTree<K> {
+        let Self { mut data, root, current_len: _, start_node_idxs: _, phantom: _ } = self;
         data.shrink_to_fit();
 
-        SyntaxTree { data, root: root.unwrap() }
+        SyntaxTree { data, root: root.unwrap(), phantom: PhantomData }
     }
 
     fn data_end_ptr(&mut self) -> *mut u8 {
@@ -101,9 +106,9 @@ impl SyntaxBuilder {
     }
 }
 
-impl SyntaxTree {
-    pub fn root(&self) -> SyntaxNode {
-        SyntaxNode { idx: self.root }
+impl<K: SyntaxKind> SyntaxTree<K> {
+    pub fn root(&self) -> SyntaxNode<K> {
+        SyntaxNode { idx: self.root, phantom: PhantomData }
     }
 
     pub(crate) fn get_text(&self, start: u32, end: u32) -> &str {
@@ -121,7 +126,7 @@ impl SyntaxTree {
         }
     }
 
-    pub(crate) fn get_start_node(&self, idx: u32) -> (SyntaxKind, u32, u32, u32) {
+    pub(crate) fn get_start_node(&self, idx: u32) -> (K, u32, u32, u32) {
         let idx = idx as usize;
         debug_assert!(idx + START_NODE_SIZE as usize <= self.data.len());
 
@@ -132,14 +137,14 @@ impl SyntaxTree {
             let start = (ptr.add(6) as *const u32).read_unaligned().to_le();
             let end = (ptr.add(10) as *const u32).read_unaligned().to_le();
 
-            debug_assert!(is_tag_start_node(tag));
-            let kind = mem::transmute::<u16, SyntaxKind>(tag - SyntaxKind::__Last as u16 - 1);
+            debug_assert!(is_tag_start_node::<K>(tag));
+            let kind = K::from_raw(tag - K::LAST - 1);
 
             (kind, finish_node_idx, start, end)
         }
     }
 
-    pub(crate) fn get_add_token(&self, idx: u32) -> (SyntaxKind, u32, u32) {
+    pub(crate) fn get_add_token(&self, idx: u32) -> (K, u32, u32) {
         let idx = idx as usize;
         debug_assert!(idx + ADD_TOKEN_SIZE as usize <= self.data.len());
 
@@ -149,8 +154,8 @@ impl SyntaxTree {
             let start = (ptr.add(2) as *const u32).read_unaligned().to_le();
             let end = (ptr.add(6) as *const u32).read_unaligned().to_le();
 
-            debug_assert!(is_tag_add_token(tag));
-            let kind = mem::transmute::<u16, SyntaxKind>(tag);
+            debug_assert!(is_tag_add_token::<K>(tag));
+            let kind = K::from_raw(tag);
 
             (kind, start, end)
         }
@@ -159,7 +164,7 @@ impl SyntaxTree {
     pub(crate) fn is_start_node(&self, idx: u32) -> bool {
         let idx = idx as usize;
         debug_assert!(idx < self.data.len());
-        is_tag_start_node(
+        is_tag_start_node::<K>(
             unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() }.to_le(),
         )
     }
@@ -167,7 +172,7 @@ impl SyntaxTree {
     pub(crate) fn is_add_token(&self, idx: u32) -> bool {
         let idx = idx as usize;
         debug_assert!(idx < self.data.len());
-        is_tag_add_token(
+        is_tag_add_token::<K>(
             unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() }.to_le(),
         )
     }
@@ -181,7 +186,7 @@ impl SyntaxTree {
     }
 }
 
-impl std::fmt::Debug for SyntaxTree {
+impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !f.alternate() {
             return f.debug_struct("SyntaxTree").field("data", &self.data).finish();
@@ -202,7 +207,7 @@ impl std::fmt::Debug for SyntaxTree {
             }
 
             if self.is_start_node(idx) {
-                let node = SyntaxNode { idx };
+                let node = SyntaxNode { idx, phantom: PhantomData };
                 let kind = node.kind(self);
                 let range = node.range(self);
                 writeln!(f, "{kind:?}@{range:?}")?;
@@ -212,7 +217,7 @@ impl std::fmt::Debug for SyntaxTree {
             }
 
             if self.is_add_token(idx) {
-                let token = SyntaxToken { idx };
+                let token = SyntaxToken { idx, phantom: PhantomData };
                 let kind = token.kind(self);
                 let text = token.text(self);
                 let range = token.range(self);
@@ -228,12 +233,12 @@ impl std::fmt::Debug for SyntaxTree {
     }
 }
 
-fn is_tag_start_node(tag: u16) -> bool {
-    tag > SyntaxKind::__Last as u16 && tag != u16::MAX
+fn is_tag_start_node<K: SyntaxKind>(tag: u16) -> bool {
+    tag > K::LAST && tag != u16::MAX
 }
 
-fn is_tag_add_token(tag: u16) -> bool {
-    tag < SyntaxKind::__Last as u16
+fn is_tag_add_token<K: SyntaxKind>(tag: u16) -> bool {
+    tag < K::LAST
 }
 
 fn is_tag_finish_node(tag: u16) -> bool {
@@ -245,7 +250,40 @@ mod tests {
     use super::*;
     use expect_test::expect;
 
-    fn check<const N: usize>(input: &str, f: impl Fn(&mut SyntaxBuilder), data: [u8; N]) {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[repr(u16)]
+    enum SyntaxKind {
+        Root,
+        Arrow,
+        Block,
+        Comment,
+        FncKw,
+        Function,
+        Ident,
+        LBrace,
+        LetKw,
+        RBrace,
+        Semicolon,
+        __Last,
+    }
+
+    unsafe impl crate::SyntaxKind for SyntaxKind {
+        const LAST: u16 = Self::__Last as u16;
+
+        fn to_raw(self) -> u16 {
+            self as u16
+        }
+
+        unsafe fn from_raw(raw: u16) -> Self {
+            std::mem::transmute(raw)
+        }
+    }
+
+    fn check<const N: usize>(
+        input: &str,
+        f: impl Fn(&mut SyntaxBuilder<SyntaxKind>),
+        data: [u8; N],
+    ) {
         let mut builder = SyntaxBuilder::new(input);
         f(&mut builder);
         let tree = builder.finish();

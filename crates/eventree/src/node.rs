@@ -1,18 +1,21 @@
 use crate::tree::{ADD_TOKEN_SIZE, FINISH_NODE_SIZE, START_NODE_SIZE};
 use crate::{SyntaxElement, SyntaxKind, SyntaxToken, SyntaxTree};
+use std::hash::Hash;
+use std::marker::PhantomData;
 use text_size::TextRange;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct SyntaxNode {
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SyntaxNode<K> {
     pub(crate) idx: u32,
+    pub(crate) phantom: PhantomData<K>,
 }
 
-impl SyntaxNode {
-    pub fn kind(self, tree: &SyntaxTree) -> SyntaxKind {
+impl<K: SyntaxKind> SyntaxNode<K> {
+    pub fn kind(self, tree: &SyntaxTree<K>) -> K {
         tree.get_start_node(self.idx).0
     }
 
-    pub fn children(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxElement> + '_ {
+    pub fn children(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxElement<K>> + '_ {
         Children {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -20,7 +23,7 @@ impl SyntaxNode {
         }
     }
 
-    pub fn child_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
+    pub fn child_nodes(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxNode<K>> + '_ {
         ChildNodes {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -28,7 +31,7 @@ impl SyntaxNode {
         }
     }
 
-    pub fn child_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
+    pub fn child_tokens(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxToken<K>> + '_ {
         ChildTokens {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -36,7 +39,7 @@ impl SyntaxNode {
         }
     }
 
-    pub fn descendants(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxElement> + '_ {
+    pub fn descendants(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxElement<K>> + '_ {
         Descendants {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -44,7 +47,10 @@ impl SyntaxNode {
         }
     }
 
-    pub fn descendant_nodes(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxNode> + '_ {
+    pub fn descendant_nodes(
+        self,
+        tree: &SyntaxTree<K>,
+    ) -> impl Iterator<Item = SyntaxNode<K>> + '_ {
         DescendantNodes {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -52,7 +58,10 @@ impl SyntaxNode {
         }
     }
 
-    pub fn descendant_tokens(self, tree: &SyntaxTree) -> impl Iterator<Item = SyntaxToken> + '_ {
+    pub fn descendant_tokens(
+        self,
+        tree: &SyntaxTree<K>,
+    ) -> impl Iterator<Item = SyntaxToken<K>> + '_ {
         DescendantTokens {
             idx: self.idx + START_NODE_SIZE,
             finish_idx: tree.get_start_node(self.idx).1,
@@ -60,37 +69,39 @@ impl SyntaxNode {
         }
     }
 
-    pub fn range(self, tree: &SyntaxTree) -> TextRange {
+    pub fn range(self, tree: &SyntaxTree<K>) -> TextRange {
         let (_, _, start, end) = tree.get_start_node(self.idx);
         TextRange::new(start.into(), end.into())
     }
 
-    pub fn text(self, tree: &SyntaxTree) -> &str {
+    pub fn text(self, tree: &SyntaxTree<K>) -> &str {
         let (_, _, start, end) = tree.get_start_node(self.idx);
         tree.get_text(start, end)
     }
 }
 
-struct Children<'a> {
+struct Children<'a, K> {
     idx: u32,
     finish_idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for Children<'_> {
-    type Item = SyntaxElement;
+impl<K: SyntaxKind> Iterator for Children<'_, K> {
+    type Item = SyntaxElement<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
                 let (_, finish_node_idx, _, _) = self.tree.get_start_node(self.idx);
-                let element = SyntaxElement::Node(SyntaxNode { idx: self.idx });
+                let element =
+                    SyntaxElement::Node(SyntaxNode { idx: self.idx, phantom: PhantomData });
                 self.idx = finish_node_idx + FINISH_NODE_SIZE;
                 return Some(element);
             }
 
             if self.tree.is_add_token(self.idx) {
-                let element = SyntaxElement::Token(SyntaxToken { idx: self.idx });
+                let element =
+                    SyntaxElement::Token(SyntaxToken { idx: self.idx, phantom: PhantomData });
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -102,20 +113,20 @@ impl Iterator for Children<'_> {
     }
 }
 
-struct ChildNodes<'a> {
+struct ChildNodes<'a, K> {
     idx: u32,
     finish_idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for ChildNodes<'_> {
-    type Item = SyntaxNode;
+impl<K: SyntaxKind> Iterator for ChildNodes<'_, K> {
+    type Item = SyntaxNode<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
                 let (_, finish_node_idx, _, _) = self.tree.get_start_node(self.idx);
-                let node = SyntaxNode { idx: self.idx };
+                let node = SyntaxNode { idx: self.idx, phantom: PhantomData };
                 self.idx = finish_node_idx + FINISH_NODE_SIZE;
                 return Some(node);
             }
@@ -132,14 +143,14 @@ impl Iterator for ChildNodes<'_> {
     }
 }
 
-struct ChildTokens<'a> {
+struct ChildTokens<'a, K> {
     finish_idx: u32,
     idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for ChildTokens<'_> {
-    type Item = SyntaxToken;
+impl<K: SyntaxKind> Iterator for ChildTokens<'_, K> {
+    type Item = SyntaxToken<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
@@ -150,7 +161,7 @@ impl Iterator for ChildTokens<'_> {
             }
 
             if self.tree.is_add_token(self.idx) {
-                let token = SyntaxToken { idx: self.idx };
+                let token = SyntaxToken { idx: self.idx, phantom: PhantomData };
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }
@@ -162,25 +173,27 @@ impl Iterator for ChildTokens<'_> {
     }
 }
 
-struct Descendants<'a> {
+struct Descendants<'a, K> {
     finish_idx: u32,
     idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for Descendants<'_> {
-    type Item = SyntaxElement;
+impl<K: SyntaxKind> Iterator for Descendants<'_, K> {
+    type Item = SyntaxElement<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
-                let element = SyntaxElement::Node(SyntaxNode { idx: self.idx });
+                let element =
+                    SyntaxElement::Node(SyntaxNode { idx: self.idx, phantom: PhantomData });
                 self.idx += START_NODE_SIZE;
                 return Some(element);
             }
 
             if self.tree.is_add_token(self.idx) {
-                let element = SyntaxElement::Token(SyntaxToken { idx: self.idx });
+                let element =
+                    SyntaxElement::Token(SyntaxToken { idx: self.idx, phantom: PhantomData });
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -197,19 +210,19 @@ impl Iterator for Descendants<'_> {
     }
 }
 
-struct DescendantNodes<'a> {
+struct DescendantNodes<'a, K> {
     finish_idx: u32,
     idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for DescendantNodes<'_> {
-    type Item = SyntaxNode;
+impl<K: SyntaxKind> Iterator for DescendantNodes<'_, K> {
+    type Item = SyntaxNode<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_start_node(self.idx) {
-                let node = SyntaxNode { idx: self.idx };
+                let node = SyntaxNode { idx: self.idx, phantom: PhantomData };
                 self.idx += START_NODE_SIZE;
                 return Some(node);
             }
@@ -231,19 +244,19 @@ impl Iterator for DescendantNodes<'_> {
     }
 }
 
-struct DescendantTokens<'a> {
+struct DescendantTokens<'a, K> {
     finish_idx: u32,
     idx: u32,
-    tree: &'a SyntaxTree,
+    tree: &'a SyntaxTree<K>,
 }
 
-impl Iterator for DescendantTokens<'_> {
-    type Item = SyntaxToken;
+impl<K: SyntaxKind> Iterator for DescendantTokens<'_, K> {
+    type Item = SyntaxToken<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if self.tree.is_add_token(self.idx) {
-                let token = SyntaxToken { idx: self.idx };
+                let token = SyntaxToken { idx: self.idx, phantom: PhantomData };
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }
@@ -270,7 +283,32 @@ mod tests {
     use super::*;
     use crate::SyntaxBuilder;
 
-    fn example_tree() -> SyntaxTree {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    #[repr(u16)]
+    enum SyntaxKind {
+        Root,
+        Asterisk,
+        BinaryExpr,
+        Call,
+        Ident,
+        IntLiteral,
+        Plus,
+        __Last,
+    }
+
+    unsafe impl crate::SyntaxKind for SyntaxKind {
+        const LAST: u16 = Self::__Last as u16;
+
+        fn to_raw(self) -> u16 {
+            self as u16
+        }
+
+        unsafe fn from_raw(raw: u16) -> Self {
+            std::mem::transmute(raw)
+        }
+    }
+
+    fn example_tree() -> SyntaxTree<SyntaxKind> {
         let mut builder = SyntaxBuilder::new("2*5+10foo");
 
         builder.start_node(SyntaxKind::Root);
