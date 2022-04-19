@@ -5,13 +5,12 @@ use text_size::TextRange;
 
 pub struct SyntaxTree<K> {
     data: Vec<u8>,
-    root: u32,
     phantom: PhantomData<K>,
 }
 
 pub struct SyntaxBuilder<K> {
     data: Vec<u8>,
-    root: Option<u32>,
+    is_root_set: bool,
     current_len: u32,
     start_node_idxs: Vec<usize>,
     phantom: PhantomData<K>,
@@ -21,15 +20,19 @@ pub(crate) const START_NODE_SIZE: u32 = 2 + 4 + 4 + 4;
 pub(crate) const ADD_TOKEN_SIZE: u32 = 2 + 4 + 4;
 pub(crate) const FINISH_NODE_SIZE: u32 = 2;
 
+const ROOT_PLACEHOLDER: u32 = 0;
 const FINISH_NODE_IDX_PLACEHOLDER: u32 = 0;
 
 impl<K: SyntaxKind> SyntaxBuilder<K> {
     pub fn new(text: &str) -> Self {
         debug_assert!(K::LAST < u16::MAX / 2);
 
+        let mut data = ROOT_PLACEHOLDER.to_le_bytes().to_vec();
+        data.extend_from_slice(text.as_bytes());
+
         Self {
-            data: text.as_bytes().to_vec(),
-            root: None,
+            data,
+            is_root_set: false,
             current_len: 0,
             start_node_idxs: Vec::new(),
             phantom: PhantomData,
@@ -37,8 +40,17 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn start_node(&mut self, kind: K) {
-        if self.root.is_none() {
-            self.root = Some(self.data.len() as u32);
+        if !self.is_root_set {
+            unsafe {
+                debug_assert_eq!(
+                    (self.data.as_mut_ptr() as *mut u32).read_unaligned().to_le(),
+                    ROOT_PLACEHOLDER
+                );
+
+                (self.data.as_mut_ptr() as *mut u32)
+                    .write_unaligned((self.data.len() as u32).to_le());
+            }
+            self.is_root_set = true;
         }
 
         self.start_node_idxs.push(self.data.len());
@@ -95,10 +107,11 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn finish(self) -> SyntaxTree<K> {
-        let Self { mut data, root, current_len: _, start_node_idxs: _, phantom: _ } = self;
+        let Self { mut data, is_root_set: _, current_len: _, start_node_idxs: _, phantom: _ } =
+            self;
         data.shrink_to_fit();
 
-        SyntaxTree { data, root: root.unwrap(), phantom: PhantomData }
+        SyntaxTree { data, phantom: PhantomData }
     }
 
     fn data_end_ptr(&mut self) -> *mut u8 {
@@ -108,12 +121,15 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
 
 impl<K: SyntaxKind> SyntaxTree<K> {
     pub fn root(&self) -> SyntaxNode<K> {
-        SyntaxNode { idx: self.root, phantom: PhantomData }
+        SyntaxNode {
+            idx: unsafe { (self.data.as_ptr() as *const u32).read_unaligned() }.to_le(),
+            phantom: PhantomData,
+        }
     }
 
     pub(crate) fn get_text(&self, start: u32, end: u32) -> &str {
-        let start = start as usize;
-        let end = end as usize;
+        let start = start as usize + 4;
+        let end = end as usize + 4;
 
         unsafe {
             let slice = slice::from_raw_parts(self.data.as_ptr().add(start), end - start);
@@ -194,7 +210,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
 
         let mut indentation_level = 0_usize;
 
-        let mut idx = self.root;
+        let mut idx = self.root().idx;
         while idx < self.data.len() as u32 {
             if self.is_finish_node(idx) {
                 indentation_level -= 1;
@@ -299,9 +315,13 @@ mod tests {
                 b.finish_node();
             },
             [
+                4,
+                0,
+                0,
+                0,
                 SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
                 0,
-                14,
+                18,
                 0,
                 0,
                 0,
@@ -329,12 +349,16 @@ mod tests {
                 b.finish_node();
             },
             [
+                7,
+                0,
+                0,
+                0,
                 b"l"[0],
                 b"e"[0],
                 b"t"[0],
                 SyntaxKind::Root as u8 + SyntaxKind::__Last as u8 + 1,
                 0,
-                27,
+                31,
                 0,
                 0,
                 0,
