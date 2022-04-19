@@ -14,6 +14,8 @@ pub struct SyntaxBuilder<K> {
     current_len: u32,
     start_node_idxs: Vec<usize>,
     phantom: PhantomData<K>,
+    starts: u32,
+    finishes: u32,
 }
 
 pub(crate) const START_NODE_SIZE: u32 = 2 + 4 + 4 + 4;
@@ -36,10 +38,14 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
             current_len: 0,
             start_node_idxs: Vec::new(),
             phantom: PhantomData,
+            starts: 0,
+            finishes: 0,
         }
     }
 
     pub fn start_node(&mut self, kind: K) {
+        self.starts += 1;
+
         if !self.is_root_set {
             unsafe {
                 debug_assert_eq!(
@@ -81,6 +87,8 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn finish_node(&mut self) {
+        self.finishes += 1;
+
         let start_node_idx = self.start_node_idxs.pop().unwrap();
         let finish_node_idx = self.data.len() as u32;
 
@@ -106,8 +114,21 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn finish(self) -> SyntaxTree<K> {
-        let Self { mut data, is_root_set: _, current_len: _, start_node_idxs: _, phantom: _ } =
-            self;
+        let Self {
+            mut data,
+            is_root_set: _,
+            current_len: _,
+            start_node_idxs: _,
+            phantom: _,
+            starts,
+            finishes,
+        } = self;
+
+        assert_eq!(
+            starts, finishes,
+            "mismatched number of start_node and finish_node calls ({starts} and {finishes})"
+        );
+
         data.shrink_to_fit();
 
         SyntaxTree { data, phantom: PhantomData }
@@ -406,5 +427,42 @@ mod tests {
                 Semicolon@16..17 ";"
         "##]]
         .assert_eq(&format!("{tree:#?}"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_start_node() {
+        let mut builder = SyntaxBuilder::<SyntaxKind>::new("");
+        builder.finish_node();
+        builder.finish();
+    }
+
+    #[test]
+    #[should_panic]
+    fn no_finish_node() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.finish();
+    }
+
+    #[test]
+    #[should_panic]
+    fn finish_then_start_node() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.finish_node();
+        builder.start_node(SyntaxKind::Root);
+        builder.finish();
+    }
+
+    #[test]
+    #[should_panic]
+    fn mismatched_start_and_finish_node_calls() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.start_node(SyntaxKind::Function);
+        builder.start_node(SyntaxKind::Block);
+        builder.finish_node();
+        builder.finish_node();
+        builder.finish();
     }
 }
