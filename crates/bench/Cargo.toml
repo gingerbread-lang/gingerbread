@@ -9,6 +9,7 @@ ast = {path = "../ast"}
 gen = {path = "../gen"}
 hir = {path = "../hir"}
 hir_ty = {path = "../hir_ty"}
+interner = {path = "../interner"}
 lexer = {path = "../lexer"}
 mimalloc = {version = "0.1.27", default-features = false}
 parser = {path = "../parser"}

@@ -10,7 +10,7 @@ pub fn eval(
     world_index: hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
-        let function = world_index.get_function(&fqn).unwrap();
+        let function = world_index.get_function(fqn).unwrap();
         function.return_ty
     };
 
@@ -71,9 +71,11 @@ mod tests {
     use super::*;
     use ast::AstNode;
     use expect_test::{expect, Expect};
+    use interner::Interner;
 
     fn check<const N: usize>(modules: [(&str, &str); N], expect: Expect) {
         let mut analysis_results = HashMap::with_capacity(modules.len());
+        let mut interner = Interner::default();
         let mut world_index = hir::WorldIndex::default();
 
         for (module, text) in &modules {
@@ -85,10 +87,10 @@ mod tests {
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
             assert!(ast::validation::validate(root, &tree).is_empty());
 
-            let (index, d) = hir::index(root, &tree, &world_index);
+            let (index, d) = hir::index(root, &tree, &world_index, &mut interner);
             assert!(d.is_empty());
 
-            world_index.add_module(hir::Name(module.to_string()), index.clone());
+            world_index.add_module(hir::Name(interner.intern(module)), index.clone());
             analysis_results.insert(module, (tree, root, index));
         }
 
@@ -96,19 +98,19 @@ mod tests {
         let mut tys_map = HashMap::with_capacity(modules.len());
 
         for (module, (tree, root, index)) in analysis_results {
-            let (bodies, _) = hir::lower(root, &tree, &index, &world_index);
+            let (bodies, _) = hir::lower(root, &tree, &index, &world_index, &mut interner);
 
             let (inference, d) = hir_ty::infer_all(&bodies, &index, &world_index);
             assert!(d.is_empty());
 
-            bodies_map.insert(hir::Name(module.to_string()), bodies);
-            tys_map.insert(hir::Name(module.to_string()), inference);
+            bodies_map.insert(hir::Name(interner.intern(module)), bodies);
+            tys_map.insert(hir::Name(interner.intern(module)), inference);
         }
 
         let result = eval(
             hir::Fqn {
-                module: hir::Name("main".to_string()),
-                function: hir::Name("main".to_string()),
+                module: hir::Name(interner.intern("main")),
+                function: hir::Name(interner.intern("main")),
             },
             bodies_map,
             tys_map,

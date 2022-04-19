@@ -8,6 +8,7 @@ version = "0.0.0"
 ast = {path = "../ast"}
 hir = {path = "../hir"}
 hir_ty = {path = "../hir_ty"}
+interner = {path = "../interner"}
 line_index = {path = "../line_index"}
 parser = {path = "../parser"}
 text-size = "1.1"

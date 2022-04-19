@@ -1,4 +1,5 @@
 use ast::AstNode;
+use interner::Interner;
 use std::alloc::GlobalAlloc;
 use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -98,16 +99,18 @@ fn compile(input: &str, should_print: bool) {
         should_print,
     );
 
+    let mut interner = Interner::default();
+
     let (index, _diagnostics) = stage(
         "index",
-        || hir::index(root, &tree, &world_index),
+        || hir::index(root, &tree, &world_index, &mut interner),
         &mut previous_mem_usage,
         should_print,
     );
 
     let (bodies, _diagnostics) = stage(
         "lower",
-        || hir::lower(root, &tree, &index, &world_index),
+        || hir::lower(root, &tree, &index, &world_index, &mut interner),
         &mut previous_mem_usage,
         should_print,
     );
@@ -122,7 +125,7 @@ fn compile(input: &str, should_print: bool) {
 
 fn stage<T>(
     name: &str,
-    f: impl Fn() -> T,
+    mut f: impl FnMut() -> T,
     previous_mem_usage: &mut usize,
     should_print: bool,
 ) -> T {

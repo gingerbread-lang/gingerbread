@@ -1,6 +1,6 @@
 use arena::{ArenaMap, Id};
+use interner::Interner;
 use std::collections::HashMap;
-use std::fmt;
 use text_size::TextRange;
 
 pub struct InferenceResult {
@@ -53,7 +53,7 @@ pub fn infer_all(
 
     for function_name in index.functions() {
         signatures.insert(
-            function_name.clone(),
+            function_name,
             infer_impl(
                 function_name,
                 bodies,
@@ -73,7 +73,7 @@ pub fn infer_all(
 }
 
 pub fn infer(
-    function_name: &hir::Name,
+    function_name: hir::Name,
     bodies: &hir::Bodies,
     index: &hir::Index,
     world_index: &hir::WorldIndex,
@@ -92,7 +92,7 @@ pub fn infer(
     );
 
     let mut signatures = HashMap::new();
-    signatures.insert(function_name.clone(), signature);
+    signatures.insert(function_name, signature);
 
     let mut result = InferenceResult { signatures, expr_tys, local_tys };
     result.shrink_to_fit();
@@ -101,7 +101,7 @@ pub fn infer(
 }
 
 fn infer_impl(
-    function_name: &hir::Name,
+    function_name: hir::Name,
     bodies: &hir::Bodies,
     index: &hir::Index,
     world_index: &hir::WorldIndex,
@@ -180,7 +180,7 @@ impl Ctx<'_> {
             hir::Expr::Local(local_def) => self.local_tys[*local_def],
             hir::Expr::Param { idx } => self.param_tys[*idx as usize],
             hir::Expr::Call { path, args } => {
-                let function = match path {
+                let function = match *path {
                     hir::Path::ThisModule(function) => self.index.get_function(function).unwrap(),
                     hir::Path::OtherModule(fqn) => self.world_index.get_function(fqn).unwrap(),
                 };
@@ -238,8 +238,10 @@ impl InferenceResult {
     }
 }
 
-impl fmt::Debug for InferenceResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl InferenceResult {
+    pub fn debug(&self, interner: &Interner) -> String {
+        let mut s = String::new();
+
         let display_ty = |ty| match ty {
             hir::Ty::Unknown => "<unknown>",
             hir::Ty::Unit => "unit",
@@ -248,33 +250,33 @@ impl fmt::Debug for InferenceResult {
         };
 
         for (name, signature) in &self.signatures {
-            write!(f, "{}(", name.0)?;
+            s.push_str(&format!("{}(", interner.lookup(name.0)));
             for (idx, param_ty) in signature.param_tys.iter().enumerate() {
                 if idx != 0 {
-                    write!(f, ", ")?;
+                    s.push_str(", ");
                 }
-                write!(f, "{}", display_ty(*param_ty))?;
+                s.push_str(display_ty(*param_ty));
             }
-            write!(f, ")")?;
+            s.push(')');
 
-            writeln!(f, ": {}", display_ty(signature.return_ty))?;
+            s.push_str(&format!(": {}\n", display_ty(signature.return_ty)));
         }
 
-        writeln!(f)?;
+        s.push('\n');
         for (expr_id, ty) in self.expr_tys.iter() {
-            writeln!(f, "{}: {}", expr_id.to_raw(), display_ty(*ty))?;
+            s.push_str(&format!("{}: {}\n", expr_id.to_raw(), display_ty(*ty)));
         }
 
         if self.local_tys.is_empty() {
-            return Ok(());
+            return s;
         }
 
-        writeln!(f)?;
+        s.push('\n');
         for (local_def_id, ty) in self.local_tys.iter() {
-            writeln!(f, "l{}: {}", local_def_id.to_raw(), display_ty(*ty))?;
+            s.push_str(&format!("l{}: {}\n", local_def_id.to_raw(), display_ty(*ty)));
         }
 
-        Ok(())
+        s
     }
 }
 
@@ -283,6 +285,7 @@ mod tests {
     use super::*;
     use ast::AstNode;
     use expect_test::{expect, Expect};
+    use interner::Interner;
 
     #[track_caller]
     fn check<const N: usize>(
@@ -292,6 +295,7 @@ mod tests {
         expected_diagnostics: [(TyDiagnosticKind, std::ops::Range<u32>); N],
     ) {
         let modules = utils::split_multi_module_test_data(input);
+        let mut interner = Interner::default();
         let mut world_index = hir::WorldIndex::default();
 
         for (name, text) in &modules {
@@ -302,22 +306,22 @@ mod tests {
             let tokens = lexer::lex(text);
             let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = hir::index(root, &tree, &world_index);
+            let (index, _) = hir::index(root, &tree, &world_index, &mut interner);
 
-            world_index.add_module(hir::Name(name.to_string()), index);
+            world_index.add_module(hir::Name(interner.intern(name)), index);
         }
 
         let text = &modules["main"];
         let tokens = lexer::lex(text);
         let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, _) = hir::index(root, &tree, &world_index);
-        let (bodies, _) = hir::lower(root, &tree, &index, &world_index);
+        let (index, _) = hir::index(root, &tree, &world_index, &mut interner);
+        let (bodies, _) = hir::lower(root, &tree, &index, &world_index, &mut interner);
 
         let (inference_result, actual_diagnostics) =
-            infer(&hir::Name(function_name.to_string()), &bodies, &index, &world_index);
+            infer(hir::Name(interner.intern(function_name)), &bodies, &index, &world_index);
 
-        expect.assert_eq(&format!("{:?}", inference_result));
+        expect.assert_eq(&inference_result.debug(&interner));
 
         let expected_diagnostics: Vec<_> = expected_diagnostics
             .into_iter()

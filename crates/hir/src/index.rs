@@ -1,5 +1,6 @@
 use crate::WorldIndex;
 use ast::{AstNode, AstToken};
+use interner::{Interner, Key};
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -13,12 +14,12 @@ pub struct Index {
 }
 
 impl Index {
-    pub fn get_function(&self, name: &Name) -> Option<&Function> {
-        self.functions.get(name)
+    pub fn get_function(&self, name: Name) -> Option<&Function> {
+        self.functions.get(&name)
     }
 
-    pub fn functions(&self) -> impl Iterator<Item = &Name> {
-        self.functions.keys()
+    pub fn functions(&self) -> impl Iterator<Item = Name> + '_ {
+        self.functions.keys().copied()
     }
 
     pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
@@ -52,13 +53,14 @@ pub enum Ty {
     Unit,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Name(pub String);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Name(pub Key);
 
 pub fn index(
     root: ast::Root,
     tree: &SyntaxTree,
     world_index: &WorldIndex,
+    interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
     let mut tys = HashSet::new();
@@ -68,7 +70,7 @@ pub fn index(
         match def {
             ast::Def::Function(function) => {
                 let name = match function.name(tree) {
-                    Some(ident) => Name(ident.text(tree).to_string()),
+                    Some(ident) => Name(interner.intern(ident.text(tree))),
                     None => continue,
                 };
 
@@ -76,27 +78,37 @@ pub fn index(
 
                 if let Some(param_list) = function.param_list(tree) {
                     for param in param_list.params(tree) {
-                        let name = param.name(tree).map(|ident| Name(ident.text(tree).to_string()));
-                        let ty =
-                            lower_ty(param.ty(tree), tree, world_index, &mut tys, &mut diagnostics);
+                        let name =
+                            param.name(tree).map(|ident| Name(interner.intern(ident.text(tree))));
+
+                        let ty = lower_ty(
+                            param.ty(tree),
+                            tree,
+                            world_index,
+                            &mut tys,
+                            interner,
+                            &mut diagnostics,
+                        );
 
                         params.push(Param { name, ty })
                     }
                 }
 
                 let return_ty = match function.return_ty(tree) {
-                    Some(return_ty) => {
-                        lower_ty(return_ty.ty(tree), tree, world_index, &mut tys, &mut diagnostics)
-                    }
+                    Some(return_ty) => lower_ty(
+                        return_ty.ty(tree),
+                        tree,
+                        world_index,
+                        &mut tys,
+                        interner,
+                        &mut diagnostics,
+                    ),
                     None => Ty::Unit,
                 };
 
-                let name_string_clone = name.0.clone();
                 match functions.entry(name) {
                     Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
-                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined {
-                            name: name_string_clone,
-                        },
+                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
                         range: function.range(tree),
                     }),
                     Entry::Vacant(vacant_entry) => {
@@ -118,6 +130,7 @@ fn lower_ty(
     tree: &SyntaxTree,
     world_index: &WorldIndex,
     tys: &mut HashSet<ast::Ident>,
+    interner: &mut Interner,
     diagnostics: &mut Vec<IndexingDiagnostic>,
 ) -> Ty {
     let ident = match ty.and_then(|ty| ty.name(tree)) {
@@ -125,8 +138,8 @@ fn lower_ty(
         None => return Ty::Unknown,
     };
 
-    let name = Name(ident.text(tree).to_string());
-    if let Some(kind) = world_index.get_ty(&name) {
+    let name = Name(interner.intern(ident.text(tree)));
+    if let Some(kind) = world_index.get_ty(name) {
         tys.insert(ident);
         return kind;
     }
@@ -147,40 +160,46 @@ pub struct IndexingDiagnostic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndexingDiagnosticKind {
-    FunctionAlreadyDefined { name: String },
-    UndefinedTy { name: String },
+    FunctionAlreadyDefined { name: Key },
+    UndefinedTy { name: Key },
 }
 
-impl fmt::Debug for Index {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Index {
+    pub fn debug(&self, interner: &Interner) -> String {
+        let mut s = String::new();
+
         let mut functions: Vec<_> = self.functions.iter().collect();
-        functions.sort_unstable_by_key(|(name, _)| &name.0);
+        functions.sort_unstable_by_key(|(name, _)| *name);
 
         for (name, function) in functions {
-            write!(f, "fnc {}", name.0)?;
+            s.push_str(&format!("fnc {}", interner.lookup(name.0)));
 
             if !function.params.is_empty() {
-                write!(f, "(")?;
+                s.push('(');
 
                 for (idx, param) in function.params.iter().enumerate() {
                     if idx != 0 {
-                        write!(f, ", ")?;
+                        s.push_str(", ");
                     }
 
-                    write!(f, "{}: {}", param.name.as_ref().map_or("?", |name| &name.0), param.ty)?;
+                    s.push_str(&format!(
+                        "{}: {}",
+                        param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
+                        param.ty
+                    ));
                 }
 
-                write!(f, ")")?;
+                s.push(')');
             }
 
             if function.return_ty != Ty::Unit {
-                write!(f, ": {}", function.return_ty)?;
+                s.push_str(&format!(": {}", function.return_ty));
             }
 
-            writeln!(f, ";")?;
+            s.push_str(";\n");
         }
 
-        Ok(())
+        s
     }
 }
 
@@ -204,16 +223,19 @@ mod tests {
     fn check<const N: usize>(
         input: &str,
         expect: Expect,
-        expected_diagnostics: [(IndexingDiagnosticKind, std::ops::Range<u32>); N],
+        expected_diagnostics: impl Fn(
+            &mut Interner,
+        ) -> [(IndexingDiagnosticKind, std::ops::Range<u32>); N],
     ) {
+        let mut interner = Interner::default();
         let tokens = lexer::lex(input);
         let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, actual_diagnostics) = index(root, &tree, &WorldIndex::default());
+        let (index, actual_diagnostics) = index(root, &tree, &WorldIndex::default(), &mut interner);
 
-        expect.assert_eq(&format!("{:?}", index));
+        expect.assert_eq(&index.debug(&interner));
 
-        let expected_diagnostics: Vec<_> = expected_diagnostics
+        let expected_diagnostics: Vec<_> = expected_diagnostics(&mut interner)
             .into_iter()
             .map(|(kind, range)| IndexingDiagnostic {
                 kind,
@@ -226,7 +248,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        check("", expect![["\n"]], []);
+        check("", expect![["\n"]], |_| []);
     }
 
     #[test]
@@ -238,7 +260,7 @@ mod tests {
             expect![[r#"
                 fnc nil;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -251,7 +273,7 @@ mod tests {
             expect![[r#"
                 fnc foo(x: s32, y: s32);
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -266,13 +288,13 @@ mod tests {
                 fnc d -> {};
             "#,
             expect![[r#"
-                fnc a;
                 fnc b;
-                fnc c;
-                fnc d;
                 fnc e;
+                fnc c;
+                fnc a;
+                fnc d;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -283,7 +305,7 @@ mod tests {
                 fnc: s32 -> 10;
             "#,
             expect![["\n"]],
-            [],
+            |_| [],
         );
     }
 
@@ -296,7 +318,7 @@ mod tests {
             expect![[r#"
                 fnc hello(?: string): string;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -309,7 +331,7 @@ mod tests {
             expect![[r#"
                 fnc foo(x: ?);
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -322,7 +344,7 @@ mod tests {
             expect![[r#"
                 fnc five: s32;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -335,7 +357,7 @@ mod tests {
             expect![[r#"
                 fnc foo: ?;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -348,7 +370,7 @@ mod tests {
             expect![[r#"
                 fnc foo: ?;
             "#]],
-            [(IndexingDiagnosticKind::UndefinedTy { name: "bar".to_string() }, 26..29)],
+            |i| [(IndexingDiagnosticKind::UndefinedTy { name: i.intern("bar") }, 26..29)],
         );
     }
 
@@ -363,10 +385,18 @@ mod tests {
             expect![[r#"
                 fnc a;
             "#]],
-            [
-                (IndexingDiagnosticKind::FunctionAlreadyDefined { name: "a".to_string() }, 46..71),
-                (IndexingDiagnosticKind::FunctionAlreadyDefined { name: "a".to_string() }, 88..112),
-            ],
+            |i| {
+                [
+                    (
+                        IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("a") },
+                        46..71,
+                    ),
+                    (
+                        IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("a") },
+                        88..112,
+                    ),
+                ]
+            },
         );
     }
 }

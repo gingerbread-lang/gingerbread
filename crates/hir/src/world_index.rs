@@ -1,19 +1,20 @@
 use crate::{Function, Index, Name, Ty};
+use interner::Key;
 use std::collections::HashMap;
 
 #[derive(Default)]
 pub struct WorldIndex(HashMap<Name, Index>);
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fqn {
     pub module: Name,
     pub function: Name,
 }
 
 impl WorldIndex {
-    pub fn get_function(&self, fqn: &Fqn) -> Result<&Function, GetFunctionError> {
+    pub fn get_function(&self, fqn: Fqn) -> Result<&Function, GetFunctionError> {
         match self.0.get(&fqn.module) {
-            Some(index) => match index.get_function(&fqn.function) {
+            Some(index) => match index.get_function(fqn.function) {
                 Some(function) => Ok(function),
                 None => Err(GetFunctionError::UnknownFunction),
             },
@@ -21,11 +22,13 @@ impl WorldIndex {
         }
     }
 
-    pub fn get_ty(&self, name: &Name) -> Option<Ty> {
-        match name.0.as_str() {
-            "s32" => Some(Ty::S32),
-            "string" => Some(Ty::String),
-            _ => None,
+    pub fn get_ty(&self, name: Name) -> Option<Ty> {
+        if name.0 == Key::s32() {
+            Some(Ty::S32)
+        } else if name.0 == Key::string() {
+            Some(Ty::String)
+        } else {
+            None
         }
     }
 
@@ -33,8 +36,8 @@ impl WorldIndex {
         assert!(self.0.insert(module, index).is_none());
     }
 
-    pub fn update_module(&mut self, module: &Name, index: Index) {
-        *self.0.get_mut(module).unwrap() = index;
+    pub fn update_module(&mut self, module: Name, index: Index) {
+        *self.0.get_mut(&module).unwrap() = index;
     }
 }
 

@@ -1,6 +1,7 @@
 use ast::validation::ValidationDiagnostic;
 use ast::{AstNode, AstToken};
 use diagnostics::Diagnostic;
+use interner::Interner;
 use line_index::LineIndex;
 use parser::Parse;
 use std::collections::HashMap;
@@ -12,6 +13,7 @@ use url::Url;
 
 #[derive(Default)]
 pub struct GlobalState {
+    interner: Interner,
     world_index: hir::WorldIndex,
     analyses: HashMap<Url, Analysis>,
 }
@@ -36,25 +38,33 @@ impl GlobalState {
         let filename = uri.path_segments().unwrap().next_back().unwrap();
         let module_name = filename.find('.').map_or(filename, |dot| &filename[..dot]);
 
-        let analysis =
-            Analysis::new(content, hir::Name(module_name.to_string()), &mut self.world_index);
+        let analysis = Analysis::new(
+            content,
+            hir::Name(self.interner.intern(module_name)),
+            &mut self.interner,
+            &mut self.world_index,
+        );
 
         for analysis in self.analyses.values_mut() {
-            analysis.recheck(&mut self.world_index);
+            analysis.recheck(&mut self.world_index, &mut self.interner);
         }
 
         self.analyses.insert(uri, analysis);
     }
 
     pub fn update_contents(&mut self, uri: &Url, f: impl FnOnce(&mut String, &LineIndex)) {
-        self.analyses.get_mut(uri).unwrap().update_contents(f, &mut self.world_index);
+        self.analyses.get_mut(uri).unwrap().update_contents(
+            f,
+            &mut self.interner,
+            &mut self.world_index,
+        );
 
         for (analysis_uri, analysis) in &mut self.analyses {
             if analysis_uri == uri {
                 continue;
             }
 
-            analysis.recheck(&mut self.world_index);
+            analysis.recheck(&mut self.world_index, &mut self.interner);
         }
     }
 
@@ -73,21 +83,30 @@ impl GlobalState {
     pub fn line_index(&self, uri: &Url) -> &LineIndex {
         &self.analyses[uri].line_index
     }
+
+    pub fn interner(&self) -> &Interner {
+        &self.interner
+    }
 }
 
 impl Analysis {
-    fn new(content: String, module_name: hir::Name, world_index: &mut hir::WorldIndex) -> Self {
+    fn new(
+        content: String,
+        module_name: hir::Name,
+        interner: &mut Interner,
+        world_index: &mut hir::WorldIndex,
+    ) -> Self {
         let parse = {
             let tokens = lexer::lex(&content);
             parser::parse_source_file(&tokens, &content)
         };
         let tree = parse.syntax_tree();
         let ast = ast::Root::cast(tree.root(), tree).unwrap();
-        let (index, indexing_diagnostics) = hir::index(ast, tree, world_index);
-        let (bodies, lowering_diagnostics) = hir::lower(ast, tree, &index, world_index);
+        let (index, indexing_diagnostics) = hir::index(ast, tree, world_index, interner);
+        let (bodies, lowering_diagnostics) = hir::lower(ast, tree, &index, world_index, interner);
         let (inference_result, ty_diagnostics) = hir_ty::infer_all(&bodies, &index, world_index);
 
-        world_index.add_module(module_name.clone(), index.clone());
+        world_index.add_module(module_name, index.clone());
 
         let mut analysis = Self {
             content,
@@ -113,19 +132,20 @@ impl Analysis {
     fn update_contents(
         &mut self,
         f: impl FnOnce(&mut String, &LineIndex),
+        interner: &mut Interner,
         world_index: &mut hir::WorldIndex,
     ) {
         f(&mut self.content, &self.line_index);
         self.update_line_index();
         self.reparse();
         self.validate();
-        self.index(world_index);
-        self.recheck(world_index);
+        self.index(world_index, interner);
+        self.recheck(world_index, interner);
     }
 
-    fn recheck(&mut self, world_index: &mut hir::WorldIndex) {
-        self.lower(world_index);
-        world_index.update_module(&self.module_name, self.index.clone());
+    fn recheck(&mut self, world_index: &mut hir::WorldIndex, interner: &mut Interner) {
+        self.lower(world_index, interner);
+        world_index.update_module(self.module_name, self.index.clone());
 
         self.infer(world_index);
     }
@@ -268,15 +288,16 @@ impl Analysis {
         self.validation_diagnostics = ast::validation::validate(self.ast, self.parse.syntax_tree());
     }
 
-    fn index(&mut self, world_index: &hir::WorldIndex) {
-        let (index, diagnostics) = hir::index(self.ast, self.parse.syntax_tree(), world_index);
+    fn index(&mut self, world_index: &hir::WorldIndex, interner: &mut Interner) {
+        let (index, diagnostics) =
+            hir::index(self.ast, self.parse.syntax_tree(), world_index, interner);
         self.index = index;
         self.indexing_diagnostics = diagnostics;
     }
 
-    fn lower(&mut self, world_index: &hir::WorldIndex) {
+    fn lower(&mut self, world_index: &hir::WorldIndex, interner: &mut Interner) {
         let (bodies, diagnostics) =
-            hir::lower(self.ast, self.parse.syntax_tree(), &self.index, world_index);
+            hir::lower(self.ast, self.parse.syntax_tree(), &self.index, world_index, interner);
         self.bodies = bodies;
         self.lowering_diagnostics = diagnostics;
     }

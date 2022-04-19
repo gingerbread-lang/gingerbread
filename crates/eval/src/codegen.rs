@@ -74,7 +74,7 @@ impl Ctx {
     }
 
     fn compile_function(&mut self, fqn: hir::Fqn) {
-        let function = self.world_index.get_function(&fqn).unwrap();
+        let function = self.world_index.get_function(fqn).unwrap();
 
         let params: Vec<_> = function
             .params
@@ -98,7 +98,7 @@ impl Ctx {
 
         self.function_section.function(self.function_idx);
 
-        self.compile_expr(&fqn.module, self.bodies_map[&fqn.module].function_body(&fqn.function));
+        self.compile_expr(fqn.module, self.bodies_map[&fqn.module].function_body(fqn.function));
         self.push(Instruction::End);
 
         let mut f = Function::new(self.local_tys.drain(..));
@@ -117,8 +117,8 @@ impl Ctx {
         }
     }
 
-    fn compile_statement(&mut self, module: &hir::Name, statement: Id<hir::Statement>) {
-        match self.bodies_map[module][statement] {
+    fn compile_statement(&mut self, module: hir::Name, statement: Id<hir::Statement>) {
+        match self.bodies_map[&module][statement] {
             hir::Statement::Expr(expr) => self.compile_expr(module, expr),
             hir::Statement::LocalDef(local_def) => {
                 let idx = self.local_idx;
@@ -126,11 +126,11 @@ impl Ctx {
 
                 self.local_idxs.insert(local_def, idx);
 
-                let value = self.bodies_map[module][local_def].value;
+                let value = self.bodies_map[&module][local_def].value;
                 self.compile_expr(module, value);
                 self.push(Instruction::LocalSet(idx));
 
-                let ty = match self.tys_map[module][local_def] {
+                let ty = match self.tys_map[&module][local_def] {
                     hir::Ty::Unknown => unreachable!(),
                     hir::Ty::S32 => ValType::I32,
                     hir::Ty::String => ValType::I32,
@@ -141,8 +141,8 @@ impl Ctx {
         }
     }
 
-    fn compile_expr(&mut self, module: &hir::Name, expr: Id<hir::Expr>) {
-        match self.bodies_map[module][expr].clone() {
+    fn compile_expr(&mut self, module: hir::Name, expr: Id<hir::Expr>) {
+        match self.bodies_map[&module][expr].clone() {
             hir::Expr::Missing => unreachable!(),
 
             hir::Expr::IntLiteral(n) => {
@@ -194,13 +194,11 @@ impl Ctx {
 
             hir::Expr::Call { path, args } => {
                 let fqn = match path {
-                    hir::Path::ThisModule(function) => {
-                        hir::Fqn { module: module.clone(), function }
-                    }
+                    hir::Path::ThisModule(function) => hir::Fqn { module, function },
                     hir::Path::OtherModule(fqn) => fqn,
                 };
 
-                self.functions_to_compile.push(fqn.clone());
+                self.functions_to_compile.push(fqn);
                 self.function_idxs.insert(fqn, self.function_idx);
                 self.function_idx += 1;
 

@@ -141,7 +141,7 @@ fn publish_all_diagnostics(
                     code: None,
                     code_description: None,
                     source: Some("gb".to_string()),
-                    message: diagnostic.message(),
+                    message: diagnostic.message(global_state.interner()),
                     related_information: None,
                     tags: None,
                     data: None,

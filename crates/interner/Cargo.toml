@@ -1,0 +1,8 @@
+[package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "interner"
+version = "0.0.0"
+
+[dependencies]
+lasso = "0.6.0"

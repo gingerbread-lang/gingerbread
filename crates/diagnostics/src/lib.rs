@@ -1,6 +1,7 @@
 use ast::validation::{ValidationDiagnostic, ValidationDiagnosticKind};
 use hir::{IndexingDiagnostic, IndexingDiagnosticKind, LoweringDiagnostic, LoweringDiagnosticKind};
 use hir_ty::{TyDiagnostic, TyDiagnosticKind};
+use interner::Interner;
 use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::TryInto;
@@ -43,7 +44,7 @@ impl Diagnostic {
         Self(Repr::Ty(diagnostic))
     }
 
-    pub fn display(&self, input: &str, line_index: &LineIndex) -> Vec<String> {
+    pub fn display(&self, input: &str, interner: &Interner, line_index: &LineIndex) -> Vec<String> {
         let range = self.range();
 
         let (start_line, start_col) = line_index.line_col(range.start());
@@ -62,7 +63,7 @@ impl Diagnostic {
             severity,
             start_line.0 + 1,
             start_col.0 + 1,
-            self.message()
+            self.message(interner)
         )];
 
         input_snippet(input, start_line, start_col, end_line, end_col, range, &mut lines);
@@ -95,12 +96,12 @@ impl Diagnostic {
         }
     }
 
-    pub fn message(&self) -> String {
+    pub fn message(&self, interner: &Interner) -> String {
         match &self.0 {
             Repr::Syntax(e) => syntax_error_message(e),
             Repr::Validation(d) => validation_diagnostic_message(d),
-            Repr::Indexing(d) => indexing_diagnostic_message(d),
-            Repr::Lowering(d) => lowering_diagnostic_message(d),
+            Repr::Indexing(d) => indexing_diagnostic_message(d, interner),
+            Repr::Lowering(d) => lowering_diagnostic_message(d, interner),
             Repr::Ty(d) => ty_diagnostic_message(d),
         }
     }
@@ -182,25 +183,34 @@ fn validation_diagnostic_message(d: &ValidationDiagnostic) -> String {
     }
 }
 
-fn indexing_diagnostic_message(d: &IndexingDiagnostic) -> String {
+fn indexing_diagnostic_message(d: &IndexingDiagnostic, interner: &Interner) -> String {
     match &d.kind {
         IndexingDiagnosticKind::FunctionAlreadyDefined { name } => {
-            format!("function `{}` already defined", name)
+            format!("function `{}` already defined", interner.lookup(*name))
         }
-        IndexingDiagnosticKind::UndefinedTy { name } => format!("undefined type `{}`", name),
+        IndexingDiagnosticKind::UndefinedTy { name } => {
+            format!("undefined type `{}`", interner.lookup(*name))
+        }
     }
 }
 
-fn lowering_diagnostic_message(d: &LoweringDiagnostic) -> String {
+fn lowering_diagnostic_message(d: &LoweringDiagnostic, interner: &Interner) -> String {
     match &d.kind {
         LoweringDiagnosticKind::OutOfRangeIntLiteral => "integer literal out of range".to_string(),
-        LoweringDiagnosticKind::UndefinedLocal { name } => format!("undefined variable `{}`", name),
-        LoweringDiagnosticKind::UndefinedModule { name } => format!("undefined module `{}`", name),
+        LoweringDiagnosticKind::UndefinedLocal { name } => {
+            format!("undefined variable `{}`", interner.lookup(*name))
+        }
+        LoweringDiagnosticKind::UndefinedModule { name } => {
+            format!("undefined module `{}`", interner.lookup(*name))
+        }
         LoweringDiagnosticKind::MismatchedArgCount { name, expected, got } => {
-            format!("`{}` expected {} arguments, but got {}", name, expected, got)
+            format!("`{}` expected {} arguments, but got {}", interner.lookup(*name), expected, got)
         }
         LoweringDiagnosticKind::CalledLocal { name } => {
-            format!("tried to call `{}`, which is a variable, not a function", name)
+            format!(
+                "tried to call `{}`, which is a variable, not a function",
+                interner.lookup(*name)
+            )
         }
     }
 }
@@ -257,7 +267,7 @@ mod tests {
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &Interner::default(), &LineIndex::new(input)).join("\n")
         ));
     }
 
@@ -274,41 +284,43 @@ mod tests {
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &Interner::default(), &LineIndex::new(input)).join("\n")
         ));
     }
 
     fn check_indexing(
         input: &str,
-        kind: IndexingDiagnosticKind,
+        kind: impl Fn(&mut Interner) -> IndexingDiagnosticKind,
         range: StdRange<u32>,
         formatted: Expect,
     ) {
+        let mut interner = Interner::default();
         let diagnostic = Diagnostic::from_indexing(IndexingDiagnostic {
-            kind,
+            kind: kind(&mut interner),
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &interner, &LineIndex::new(input)).join("\n")
         ));
     }
 
     fn check_lowering(
         input: &str,
-        kind: LoweringDiagnosticKind,
+        kind: impl Fn(&mut Interner) -> LoweringDiagnosticKind,
         range: StdRange<u32>,
         formatted: Expect,
     ) {
+        let mut interner = Interner::default();
         let diagnostic = Diagnostic::from_lowering(LoweringDiagnostic {
-            kind,
+            kind: kind(&mut interner),
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &interner, &LineIndex::new(input)).join("\n")
         ));
     }
 
@@ -320,7 +332,7 @@ mod tests {
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &Interner::default(), &LineIndex::new(input)).join("\n")
         ));
     }
 
@@ -403,7 +415,7 @@ mod tests {
     fn indexing_function_already_defined() {
         check_indexing(
             "fnc do_thing -> {};",
-            IndexingDiagnosticKind::FunctionAlreadyDefined { name: "do_thing".to_string() },
+            |i| IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("do_thing") },
             0..19,
             expect![[r#"
                 error at 1:1: function `do_thing` already defined
@@ -417,7 +429,7 @@ mod tests {
     fn indexing_function_undefined_ty() {
         check_indexing(
             "fnc header: sring -> \"=====\";",
-            IndexingDiagnosticKind::UndefinedTy { name: "sring".to_string() },
+            |i| IndexingDiagnosticKind::UndefinedTy { name: i.intern("sring") },
             12..17,
             expect![[r#"
                 error at 1:13: undefined type `sring`
@@ -431,7 +443,7 @@ mod tests {
     fn lowering_out_of_range_int_literal() {
         check_lowering(
             "1000000000000000;",
-            LoweringDiagnosticKind::OutOfRangeIntLiteral,
+            |_| LoweringDiagnosticKind::OutOfRangeIntLiteral,
             0..16,
             expect![[r#"
                 error at 1:1: integer literal out of range
@@ -445,7 +457,7 @@ mod tests {
     fn lowering_undefined_local() {
         check_lowering(
             "foo + 1;",
-            LoweringDiagnosticKind::UndefinedLocal { name: "foo".to_string() },
+            |i| LoweringDiagnosticKind::UndefinedLocal { name: i.intern("foo") },
             0..3,
             expect![[r#"
                 error at 1:1: undefined variable `foo`
@@ -459,7 +471,7 @@ mod tests {
     fn lowering_undefined_module() {
         check_lowering(
             "io.print \"10\";",
-            LoweringDiagnosticKind::UndefinedModule { name: "io".to_string() },
+            |i| LoweringDiagnosticKind::UndefinedModule { name: i.intern("io") },
             0..2,
             expect![[r#"
                 error at 1:1: undefined module `io`
@@ -473,8 +485,8 @@ mod tests {
     fn lowering_mismatched_arg_count() {
         check_lowering(
             "add 1, 2, 3",
-            LoweringDiagnosticKind::MismatchedArgCount {
-                name: "add".to_string(),
+            |i| LoweringDiagnosticKind::MismatchedArgCount {
+                name: i.intern("add"),
                 expected: 2,
                 got: 3,
             },
@@ -491,7 +503,7 @@ mod tests {
     fn lowering_called_local() {
         check_lowering(
             "frobnicate a, b",
-            LoweringDiagnosticKind::CalledLocal { name: "frobnicate".to_string() },
+            |i| LoweringDiagnosticKind::CalledLocal { name: i.intern("frobnicate") },
             0..10,
             expect![[r#"
                 error at 1:1: tried to call `frobnicate`, which is a variable, not a function

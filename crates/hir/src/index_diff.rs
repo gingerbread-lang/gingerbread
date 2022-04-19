@@ -1,11 +1,11 @@
 use crate::{Index, Name};
+use interner::Interner;
 use std::collections::HashSet;
-use std::fmt;
 
 pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
     let mut deleted_or_changed = HashSet::new();
 
-    for (name, old_function) in &old_index.functions {
+    for (&name, old_function) in &old_index.functions {
         match new_index.get_function(name) {
             // the function is in both the old and new indexes, and has not been changed
             Some(new_function) if old_function == new_function => {}
@@ -14,7 +14,7 @@ pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
             // or
             // the function is only in the old index (it has been deleted)
             Some(_) | None => {
-                deleted_or_changed.insert(name.clone());
+                deleted_or_changed.insert(name);
             }
         }
     }
@@ -30,22 +30,22 @@ impl Diff {
     pub fn deleted_or_changed(&self) -> &HashSet<Name> {
         &self.deleted_or_changed
     }
-}
 
-impl fmt::Debug for Diff {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    pub fn debug(&self, interner: &Interner) -> String {
+        let mut s = String::new();
+
         let mut deleted_or_changed: Vec<_> = self.deleted_or_changed.iter().collect();
         deleted_or_changed.sort_unstable();
 
         for (idx, function) in deleted_or_changed.iter().enumerate() {
             if idx != 0 {
-                write!(f, ", ")?;
+                s.push_str(", ");
             }
 
-            write!(f, "{}", function.0)?;
+            s.push_str(interner.lookup(function.0));
         }
 
-        Ok(())
+        s
     }
 }
 
@@ -57,18 +57,20 @@ mod tests {
     use expect_test::{expect, Expect};
 
     fn check(original: &str, changed: &str, expect: Expect) {
-        let index_input = |input| {
+        let mut interner = Interner::default();
+
+        let mut index_input = |input| {
             let tokens = lexer::lex(input);
             let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = index(root, &tree, &WorldIndex::default());
+            let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
             index
         };
 
         let old = index_input(original);
         let new = index_input(changed);
 
-        expect.assert_eq(&format!("{:?}", diff(&old, &new)))
+        expect.assert_eq(&diff(&old, &new).debug(&interner))
     }
 
     #[test]
@@ -103,7 +105,7 @@ mod tests {
             r#"
                 fnc a -> {};
             "#,
-            expect![["b, c, d"]],
+            expect![["b, d, c"]],
         );
     }
 
@@ -118,7 +120,7 @@ mod tests {
                 fnc foo -> {};
                 fnc bar(x: string): string -> x;
             "#,
-            expect![["bar, foo"]],
+            expect![["foo, bar"]],
         );
     }
 

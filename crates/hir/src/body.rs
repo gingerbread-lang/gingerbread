@@ -1,8 +1,8 @@
 use crate::{Fqn, Function, GetFunctionError, Index, Name, WorldIndex};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
+use interner::{Interner, Key};
 use std::collections::{HashMap, HashSet};
-use std::fmt;
 use syntax::SyntaxTree;
 use text_size::TextRange;
 
@@ -62,10 +62,10 @@ pub struct LoweringDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoweringDiagnosticKind {
     OutOfRangeIntLiteral,
-    UndefinedLocal { name: String },
-    UndefinedModule { name: String },
-    MismatchedArgCount { name: String, expected: u32, got: u32 },
-    CalledLocal { name: String },
+    UndefinedLocal { name: Key },
+    UndefinedModule { name: Key },
+    MismatchedArgCount { name: Key, expected: u32, got: u32 },
+    CalledLocal { name: Key },
 }
 
 #[derive(Clone, Copy)]
@@ -81,8 +81,9 @@ pub fn lower(
     tree: &SyntaxTree,
     index: &Index,
     world_index: &WorldIndex,
+    interner: &mut Interner,
 ) -> (Bodies, Vec<LoweringDiagnostic>) {
-    let mut ctx = Ctx::new(index, world_index, tree);
+    let mut ctx = Ctx::new(index, world_index, interner, tree);
 
     for def in root.defs(tree) {
         match def {
@@ -99,14 +100,20 @@ struct Ctx<'a> {
     bodies: Bodies,
     index: &'a Index,
     world_index: &'a WorldIndex,
+    interner: &'a mut Interner,
     tree: &'a SyntaxTree,
     diagnostics: Vec<LoweringDiagnostic>,
-    scopes: Vec<HashMap<String, Id<LocalDef>>>,
-    params: HashMap<String, u32>,
+    scopes: Vec<HashMap<Key, Id<LocalDef>>>,
+    params: HashMap<Key, u32>,
 }
 
 impl<'a> Ctx<'a> {
-    fn new(index: &'a Index, world_index: &'a WorldIndex, tree: &'a SyntaxTree) -> Self {
+    fn new(
+        index: &'a Index,
+        world_index: &'a WorldIndex,
+        interner: &'a mut Interner,
+        tree: &'a SyntaxTree,
+    ) -> Self {
         Self {
             bodies: Bodies {
                 local_defs: Arena::new(),
@@ -119,6 +126,7 @@ impl<'a> Ctx<'a> {
             },
             index,
             world_index,
+            interner,
             tree,
             diagnostics: Vec::new(),
             scopes: vec![HashMap::new()],
@@ -128,7 +136,7 @@ impl<'a> Ctx<'a> {
 
     fn lower_function(&mut self, function: ast::Function) {
         let name = match function.name(self.tree) {
-            Some(ident) => Name(ident.text(self.tree).to_string()),
+            Some(ident) => Name(self.interner.intern(ident.text(self.tree))),
             None => return,
         };
 
@@ -144,7 +152,7 @@ impl<'a> Ctx<'a> {
         if let Some(param_list) = function.param_list(self.tree) {
             for (idx, param) in param_list.params(self.tree).enumerate() {
                 if let Some(ident) = param.name(self.tree) {
-                    self.params.insert(ident.text(self.tree).to_string(), idx as u32);
+                    self.params.insert(self.interner.intern(ident.text(self.tree)), idx as u32);
                 }
             }
         }
@@ -169,7 +177,8 @@ impl<'a> Ctx<'a> {
         let id = self.bodies.local_defs.alloc(LocalDef { value });
 
         if let Some(ident) = local_def.name(self.tree) {
-            self.insert_into_current_scope(ident.text(self.tree).to_string(), id);
+            let name = self.interner.intern(ident.text(self.tree));
+            self.insert_into_current_scope(name, id);
         }
 
         Statement::LocalDef(id)
@@ -239,14 +248,14 @@ impl<'a> Ctx<'a> {
         if let Some(function_name_token) = call.nested_name(self.tree) {
             let module_name_token = ident;
 
-            let fqn = Fqn {
-                module: Name(module_name_token.text(self.tree).to_string()),
-                function: Name(function_name_token.text(self.tree).to_string()),
-            };
+            let module_name = self.interner.intern(module_name_token.text(self.tree));
+            let function_name = self.interner.intern(function_name_token.text(self.tree));
 
-            match self.world_index.get_function(&fqn) {
+            let fqn = Fqn { module: Name(module_name), function: Name(function_name) };
+
+            match self.world_index.get_function(fqn) {
                 Ok(function) => {
-                    self.bodies.other_module_references.insert(fqn.clone());
+                    self.bodies.other_module_references.insert(fqn);
                     self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
                     self.bodies.symbol_map.insert(function_name_token, Symbol::Function);
 
@@ -260,9 +269,7 @@ impl<'a> Ctx<'a> {
 
                 Err(GetFunctionError::UnknownModule) => {
                     self.diagnostics.push(LoweringDiagnostic {
-                        kind: LoweringDiagnosticKind::UndefinedModule {
-                            name: module_name_token.text(self.tree).to_string(),
-                        },
+                        kind: LoweringDiagnosticKind::UndefinedModule { name: module_name },
                         range: module_name_token.range(self.tree),
                     });
 
@@ -271,9 +278,7 @@ impl<'a> Ctx<'a> {
 
                 Err(GetFunctionError::UnknownFunction) => {
                     self.diagnostics.push(LoweringDiagnostic {
-                        kind: LoweringDiagnosticKind::UndefinedLocal {
-                            name: function_name_token.text(self.tree).to_string(),
-                        },
+                        kind: LoweringDiagnosticKind::UndefinedLocal { name: function_name },
                         range: function_name_token.range(self.tree),
                     });
                     self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
@@ -283,7 +288,7 @@ impl<'a> Ctx<'a> {
             }
         }
 
-        let name = ident.text(self.tree);
+        let name = self.interner.intern(ident.text(self.tree));
 
         if let Some(def) = self.look_up_in_current_scope(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
@@ -297,16 +302,14 @@ impl<'a> Ctx<'a> {
             return Expr::Param { idx };
         }
 
-        let name = Name(name.to_string());
-        if let Some(function) = self.index.get_function(&name) {
+        let name = Name(name);
+        if let Some(function) = self.index.get_function(name) {
             self.bodies.symbol_map.insert(ident, Symbol::Function);
             return self.lower_call(call, function, Path::ThisModule(name), ident);
         }
 
         self.diagnostics.push(LoweringDiagnostic {
-            kind: LoweringDiagnosticKind::UndefinedLocal {
-                name: ident.text(self.tree).to_string(),
-            },
+            kind: LoweringDiagnosticKind::UndefinedLocal { name: name.0 },
             range: ident.range(self.tree),
         });
 
@@ -316,13 +319,13 @@ impl<'a> Ctx<'a> {
             call: ast::Call,
             ident: ast::Ident,
             tree: &SyntaxTree,
-            name: &str,
+            name: Key,
             diagnostics: &mut Vec<LoweringDiagnostic>,
         ) {
             if let Some(arg_list) = call.arg_list(tree) {
                 if arg_list.args(tree).count() != 0 {
                     diagnostics.push(LoweringDiagnostic {
-                        kind: LoweringDiagnosticKind::CalledLocal { name: name.to_string() },
+                        kind: LoweringDiagnosticKind::CalledLocal { name },
                         range: ident.range(tree),
                     });
                 }
@@ -398,16 +401,16 @@ impl<'a> Ctx<'a> {
         }
     }
 
-    fn insert_into_current_scope(&mut self, name: String, id: Id<LocalDef>) {
+    fn insert_into_current_scope(&mut self, name: Key, id: Id<LocalDef>) {
         self.current_scope().insert(name, id);
     }
 
-    fn look_up_in_current_scope(&mut self, name: &str) -> Option<Id<LocalDef>> {
-        self.current_scope().get(name).copied()
+    fn look_up_in_current_scope(&mut self, name: Key) -> Option<Id<LocalDef>> {
+        self.current_scope().get(&name).copied()
     }
 
-    fn look_up_param(&mut self, name: &str) -> Option<u32> {
-        self.params.get(name).copied()
+    fn look_up_param(&mut self, name: Key) -> Option<u32> {
+        self.params.get(&name).copied()
     }
 
     fn create_new_child_scope(&mut self) {
@@ -418,15 +421,15 @@ impl<'a> Ctx<'a> {
         self.scopes.pop();
     }
 
-    fn current_scope(&mut self) -> &mut HashMap<String, Id<LocalDef>> {
+    fn current_scope(&mut self) -> &mut HashMap<Key, Id<LocalDef>> {
         let len = self.scopes.len();
         &mut self.scopes[len - 1]
     }
 }
 
 impl Bodies {
-    pub fn function_body(&self, name: &Name) -> Id<Expr> {
-        self.function_bodies[name]
+    pub fn function_body(&self, name: Name) -> Id<Expr> {
+        self.function_bodies[&name]
     }
 
     pub fn range_for_expr(&self, expr: Id<Expr>) -> TextRange {
@@ -486,132 +489,142 @@ impl std::ops::Index<Id<Expr>> for Bodies {
     }
 }
 
-impl fmt::Debug for Bodies {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Bodies {
+    pub fn debug(&self, interner: &Interner) -> String {
+        let mut s = String::new();
+
         let mut function_bodies: Vec<_> = self.function_bodies.iter().collect();
         function_bodies.sort_unstable_by_key(|(name, _)| *name);
 
         for (name, expr_id) in function_bodies {
-            write!(f, "fnc {} -> ", name.0)?;
-            write_expr(*expr_id, self, f, 0)?;
-            writeln!(f, ";")?;
+            s.push_str(&format!("fnc {} -> ", interner.lookup(name.0)));
+            write_expr(*expr_id, self, &mut s, interner, 0);
+            s.push_str(";\n");
         }
 
         if !self.other_module_references.is_empty() {
             let mut other_module_references: Vec<_> = self.other_module_references.iter().collect();
             other_module_references.sort_unstable();
 
-            writeln!(f, "\nReferences to other modules:")?;
+            s.push_str("\nReferences to other modules:\n");
             for fqn in &other_module_references {
-                writeln!(f, "- {}.{}", fqn.module.0, fqn.function.0)?;
+                s.push_str(&format!(
+                    "- {}.{}\n",
+                    interner.lookup(fqn.module.0),
+                    interner.lookup(fqn.function.0)
+                ));
             }
         }
 
-        return Ok(());
+        return s;
 
         fn write_expr(
             id: Id<Expr>,
             bodies: &Bodies,
-            f: &mut fmt::Formatter<'_>,
+            s: &mut String,
+            interner: &Interner,
             mut indentation: usize,
-        ) -> fmt::Result {
+        ) {
             match &bodies[id] {
-                Expr::Missing => write!(f, "<missing>")?,
+                Expr::Missing => s.push_str("<missing>"),
 
-                Expr::IntLiteral(n) => write!(f, "{}", n)?,
+                Expr::IntLiteral(n) => s.push_str(&format!("{}", n)),
 
-                Expr::StringLiteral(s) => write!(f, "\"{}\"", s)?,
+                Expr::StringLiteral(content) => s.push_str(&format!("\"{}\"", content)),
 
                 Expr::Binary { lhs, rhs, operator } => {
-                    write_expr(*lhs, bodies, f, indentation)?;
+                    write_expr(*lhs, bodies, s, interner, indentation);
 
-                    write!(f, " ")?;
+                    s.push(' ');
 
                     match operator {
-                        BinaryOperator::Add => write!(f, "+")?,
-                        BinaryOperator::Sub => write!(f, "-")?,
-                        BinaryOperator::Mul => write!(f, "*")?,
-                        BinaryOperator::Div => write!(f, "/")?,
+                        BinaryOperator::Add => s.push('+'),
+                        BinaryOperator::Sub => s.push('-'),
+                        BinaryOperator::Mul => s.push('*'),
+                        BinaryOperator::Div => s.push('/'),
                     }
 
-                    write!(f, " ")?;
+                    s.push(' ');
 
-                    write_expr(*rhs, bodies, f, indentation)?;
+                    write_expr(*rhs, bodies, s, interner, indentation);
                 }
 
                 Expr::Block { statements, tail_expr: None } if statements.is_empty() => {
-                    write!(f, "{{}}")?;
+                    s.push_str("{}");
                 }
 
                 Expr::Block { statements, tail_expr: Some(tail_expr) } if statements.is_empty() => {
-                    write!(f, "{{ ")?;
-                    write_expr(*tail_expr, bodies, f, indentation + 4)?;
-                    write!(f, " }}")?;
+                    s.push_str("{ ");
+                    write_expr(*tail_expr, bodies, s, interner, indentation + 4);
+                    s.push_str(" }");
                 }
 
                 Expr::Block { statements, tail_expr } => {
                     indentation += 4;
 
-                    writeln!(f, "{{")?;
+                    s.push_str("{\n");
 
                     for statement in statements.clone() {
-                        write!(f, "{}", " ".repeat(indentation))?;
-                        write_statement(statement, bodies, f, indentation)?;
-                        writeln!(f)?;
+                        s.push_str(&" ".repeat(indentation));
+                        write_statement(statement, bodies, s, interner, indentation);
+                        s.push('\n');
                     }
 
                     if let Some(tail_expr) = tail_expr {
-                        write!(f, "{}", " ".repeat(indentation))?;
-                        write_expr(*tail_expr, bodies, f, indentation)?;
-                        writeln!(f)?;
+                        s.push_str(&" ".repeat(indentation));
+                        write_expr(*tail_expr, bodies, s, interner, indentation);
+                        s.push('\n');
                     }
 
                     indentation -= 4;
-                    write!(f, "{}", " ".repeat(indentation))?;
+                    s.push_str(&" ".repeat(indentation));
 
-                    write!(f, "}}")?;
+                    s.push('}');
                 }
 
-                Expr::Local(id) => write!(f, "l{}", id.to_raw())?,
+                Expr::Local(id) => s.push_str(&format!("l{}", id.to_raw())),
 
-                Expr::Param { idx } => write!(f, "p{}", idx)?,
+                Expr::Param { idx } => s.push_str(&format!("p{}", idx)),
 
                 Expr::Call { path, args } => {
                     match path {
-                        Path::ThisModule(function) => write!(f, "{}", function.0)?,
-                        Path::OtherModule(fqn) => write!(f, "{}.{}", fqn.module.0, fqn.function.0)?,
+                        Path::ThisModule(function) => s.push_str(interner.lookup(function.0)),
+                        Path::OtherModule(fqn) => s.push_str(&format!(
+                            "{}.{}",
+                            interner.lookup(fqn.module.0),
+                            interner.lookup(fqn.function.0)
+                        )),
                     }
 
                     for (idx, arg) in args.iter().enumerate() {
                         if idx == 0 {
-                            write!(f, " ")?;
+                            s.push(' ');
                         } else {
-                            write!(f, ", ")?;
+                            s.push_str(", ");
                         }
 
-                        write_expr(*arg, bodies, f, indentation)?;
+                        write_expr(*arg, bodies, s, interner, indentation);
                     }
                 }
             }
-
-            Ok(())
         }
 
         fn write_statement(
             id: Id<Statement>,
             bodies: &Bodies,
-            f: &mut fmt::Formatter<'_>,
+            s: &mut String,
+            interner: &Interner,
             indentation: usize,
-        ) -> fmt::Result {
+        ) {
             match &bodies[id] {
                 Statement::Expr(expr_id) => {
-                    write_expr(*expr_id, bodies, f, indentation)?;
-                    write!(f, ";")
+                    write_expr(*expr_id, bodies, s, interner, indentation);
+                    s.push(';');
                 }
                 Statement::LocalDef(local_def_id) => {
-                    write!(f, "let l{} = ", local_def_id.to_raw())?;
-                    write_expr(bodies[*local_def_id].value, bodies, f, indentation)?;
-                    write!(f, ";")
+                    s.push_str(&format!("let l{} = ", local_def_id.to_raw()));
+                    write_expr(bodies[*local_def_id].value, bodies, s, interner, indentation);
+                    s.push(';');
                 }
             }
         }
@@ -629,9 +642,12 @@ mod tests {
     fn check<const N: usize>(
         input: &str,
         expect: Expect,
-        expected_diagnostics: [(LoweringDiagnosticKind, std::ops::Range<u32>); N],
+        expected_diagnostics: impl Fn(
+            &mut Interner,
+        ) -> [(LoweringDiagnosticKind, std::ops::Range<u32>); N],
     ) {
         let modules = utils::split_multi_module_test_data(input);
+        let mut interner = Interner::default();
         let mut world_index = WorldIndex::default();
 
         for (name, text) in &modules {
@@ -642,22 +658,22 @@ mod tests {
             let tokens = lexer::lex(text);
             let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = index(root, &tree, &WorldIndex::default());
+            let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
 
-            world_index.add_module(Name(name.to_string()), index);
+            world_index.add_module(Name(interner.intern(name)), index);
         }
 
         let text = &modules["main"];
         let tokens = lexer::lex(text);
         let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, _) = index(root, &tree, &WorldIndex::default());
+        let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
 
-        let (bodies, actual_diagnostics) = lower(root, &tree, &index, &world_index);
+        let (bodies, actual_diagnostics) = lower(root, &tree, &index, &world_index, &mut interner);
 
-        expect.assert_eq(&format!("{:?}", bodies));
+        expect.assert_eq(&bodies.debug(&interner));
 
-        let expected_diagnostics: Vec<_> = expected_diagnostics
+        let expected_diagnostics: Vec<_> = expected_diagnostics(&mut interner)
             .into_iter()
             .map(|(kind, range)| LoweringDiagnostic {
                 kind,
@@ -670,7 +686,7 @@ mod tests {
 
     #[test]
     fn empty() {
-        check("", expect![["\n"]], []);
+        check("", expect![["\n"]], |_| []);
     }
 
     #[test]
@@ -682,7 +698,7 @@ mod tests {
             expect![[r#"
                 fnc a -> 1;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -695,7 +711,7 @@ mod tests {
             expect![[r#"
                 fnc a -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::OutOfRangeIntLiteral, 31..46)],
+            |_| [(LoweringDiagnosticKind::OutOfRangeIntLiteral, 31..46)],
         );
     }
 
@@ -708,7 +724,7 @@ mod tests {
             expect![[r#"
                 fnc sum -> 2 + 2;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -721,7 +737,7 @@ mod tests {
             expect![[r#"
                 fnc crab -> "🦀";
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -734,7 +750,7 @@ mod tests {
             expect![[r#"
                 fnc a -> 1 + 2 * 3 + 4 * 5;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -747,7 +763,7 @@ mod tests {
             expect![[r#"
                 fnc nil -> {};
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -760,7 +776,7 @@ mod tests {
             expect![[r#"
                 fnc one -> { 1 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -775,7 +791,7 @@ mod tests {
                     let l0 = 7;
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -790,7 +806,7 @@ mod tests {
                     100;
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -806,7 +822,7 @@ mod tests {
                     l0
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -829,7 +845,7 @@ mod tests {
                     let l3 = 4;
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -845,12 +861,12 @@ mod tests {
             "#,
             expect![[r#"
                 fnc a -> {};
-                fnc b -> {};
-                fnc c -> {};
                 fnc d -> {};
+                fnc b -> {};
                 fnc e -> {};
+                fnc c -> {};
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -863,7 +879,7 @@ mod tests {
             expect![[r#"
                 fnc foo -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::UndefinedLocal { name: "bar".to_string() }, 28..31)],
+            |i| [(LoweringDiagnosticKind::UndefinedLocal { name: i.intern("bar") }, 28..31)],
         );
     }
 
@@ -884,7 +900,7 @@ mod tests {
                     <missing>
                 };
             "#]],
-            [(LoweringDiagnosticKind::UndefinedLocal { name: "foo".to_string() }, 91..94)],
+            |i| [(LoweringDiagnosticKind::UndefinedLocal { name: i.intern("foo") }, 91..94)],
         );
     }
 
@@ -897,7 +913,7 @@ mod tests {
             expect![[r#"
                 fnc number -> 1 + <missing>;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -910,7 +926,7 @@ mod tests {
             expect![[r#"
                 fnc add -> {};
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -923,7 +939,7 @@ mod tests {
             expect![[r#"
                 fnc add -> p0 + p1;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -938,7 +954,7 @@ mod tests {
                 fnc five -> 5;
                 fnc ten -> five + five;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -953,7 +969,7 @@ mod tests {
                 fnc multiply -> p0 * p1;
                 fnc ten -> multiply 2, 5;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -968,14 +984,16 @@ mod tests {
                 fnc greeting -> <missing>;
                 fnc id -> p0;
             "#]],
-            [(
-                LoweringDiagnosticKind::MismatchedArgCount {
-                    name: "id".to_string(),
-                    expected: 1,
-                    got: 2,
-                },
-                41..43,
-            )],
+            |i| {
+                [(
+                    LoweringDiagnosticKind::MismatchedArgCount {
+                        name: i.intern("id"),
+                        expected: 1,
+                        got: 2,
+                    },
+                    41..43,
+                )]
+            },
         );
     }
 
@@ -990,14 +1008,16 @@ mod tests {
                 fnc a -> <missing>;
                 fnc id -> p0;
             "#]],
-            [(
-                LoweringDiagnosticKind::MismatchedArgCount {
-                    name: "id".to_string(),
-                    expected: 1,
-                    got: 0,
-                },
-                34..36,
-            )],
+            |i| {
+                [(
+                    LoweringDiagnosticKind::MismatchedArgCount {
+                        name: i.intern("id"),
+                        expected: 1,
+                        got: 0,
+                    },
+                    34..36,
+                )]
+            },
         );
     }
 
@@ -1016,8 +1036,8 @@ mod tests {
                 };
             "#,
             expect![[r#"
-                fnc bar -> {};
                 fnc foo -> {};
+                fnc bar -> {};
                 fnc main -> {
                     let l0 = 0;
                     let l1 = 1;
@@ -1025,7 +1045,7 @@ mod tests {
                     l1;
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1044,7 +1064,7 @@ mod tests {
                     l0
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1063,7 +1083,7 @@ mod tests {
                     l0
                 };
             "#]],
-            [(LoweringDiagnosticKind::CalledLocal { name: "s".to_string() }, 83..84)],
+            |i| [(LoweringDiagnosticKind::CalledLocal { name: i.intern("s") }, 83..84)],
         );
     }
 
@@ -1094,7 +1114,7 @@ mod tests {
                     l2 + 3
                 };
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1107,7 +1127,7 @@ mod tests {
             expect![[r#"
                 fnc die -> die p0;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1122,7 +1142,7 @@ mod tests {
                 fnc a -> b;
                 fnc b -> a;
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1140,10 +1160,10 @@ mod tests {
                 fnc a -> foo.id foo.constant;
 
                 References to other modules:
-                - foo.constant
                 - foo.id
+                - foo.constant
             "#]],
-            [],
+            |_| [],
         );
     }
 
@@ -1156,7 +1176,7 @@ mod tests {
             expect![[r#"
                 fnc main -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::UndefinedModule { name: "foo".to_string() }, 29..32)],
+            |i| [(LoweringDiagnosticKind::UndefinedModule { name: i.intern("foo") }, 29..32)],
         );
     }
 
@@ -1169,7 +1189,7 @@ mod tests {
             expect![[r#"
                 fnc a -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::UndefinedModule { name: "a".to_string() }, 26..27)],
+            |i| [(LoweringDiagnosticKind::UndefinedModule { name: i.intern("a") }, 26..27)],
         );
     }
 
@@ -1184,7 +1204,7 @@ mod tests {
             expect![[r#"
                 fnc trim -> <missing>;
             "#]],
-            [(LoweringDiagnosticKind::UndefinedLocal { name: "strip".to_string() }, 53..58)],
+            |i| [(LoweringDiagnosticKind::UndefinedLocal { name: i.intern("strip") }, 53..58)],
         );
     }
 
@@ -1203,14 +1223,16 @@ mod tests {
                 References to other modules:
                 - math.add
             "#]],
-            [(
-                LoweringDiagnosticKind::MismatchedArgCount {
-                    name: "add".to_string(),
-                    expected: 2,
-                    got: 3,
-                },
-                44..47,
-            )],
+            |i| {
+                [(
+                    LoweringDiagnosticKind::MismatchedArgCount {
+                        name: i.intern("add"),
+                        expected: 2,
+                        got: 3,
+                    },
+                    44..47,
+                )]
+            },
         );
     }
 
@@ -1226,7 +1248,7 @@ mod tests {
             expect![[r#"
                 fnc foo -> 10;
             "#]],
-            [], // indexing already emits a diagnostic for this
+            |_| [], // indexing already emits a diagnostic for this
         );
     }
 }
