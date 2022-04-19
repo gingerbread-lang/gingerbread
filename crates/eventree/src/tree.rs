@@ -27,7 +27,7 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     pub fn new(text: &str) -> Self {
         debug_assert!(K::LAST < u16::MAX / 2);
 
-        let mut data = ROOT_PLACEHOLDER.to_le_bytes().to_vec();
+        let mut data = ROOT_PLACEHOLDER.to_ne_bytes().to_vec();
         data.extend_from_slice(text.as_bytes());
 
         Self {
@@ -43,12 +43,11 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
         if !self.is_root_set {
             unsafe {
                 debug_assert_eq!(
-                    (self.data.as_mut_ptr() as *mut u32).read_unaligned().to_le(),
+                    (self.data.as_mut_ptr() as *mut u32).read_unaligned(),
                     ROOT_PLACEHOLDER
                 );
 
-                (self.data.as_mut_ptr() as *mut u32)
-                    .write_unaligned((self.data.len() as u32).to_le());
+                (self.data.as_mut_ptr() as *mut u32).write_unaligned(self.data.len() as u32);
             }
             self.is_root_set = true;
         }
@@ -58,10 +57,10 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
         self.data.reserve(START_NODE_SIZE as usize);
         unsafe {
             let ptr = self.data_end_ptr();
-            (ptr as *mut u16).write_unaligned((K::LAST + kind.to_raw() + 1).to_le());
-            (ptr.add(2) as *mut u32).write_unaligned(FINISH_NODE_IDX_PLACEHOLDER.to_le());
-            (ptr.add(6) as *mut u32).write_unaligned(self.current_len.to_le());
-            (ptr.add(10) as *mut u32).write_unaligned(self.current_len.to_le());
+            (ptr as *mut u16).write_unaligned(K::LAST + kind.to_raw() + 1);
+            (ptr.add(2) as *mut u32).write_unaligned(FINISH_NODE_IDX_PLACEHOLDER);
+            (ptr.add(6) as *mut u32).write_unaligned(self.current_len);
+            (ptr.add(10) as *mut u32).write_unaligned(self.current_len);
             self.data.set_len(self.data.len() + START_NODE_SIZE as usize);
         }
     }
@@ -74,9 +73,9 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
         self.data.reserve(ADD_TOKEN_SIZE as usize);
         unsafe {
             let ptr = self.data_end_ptr();
-            (ptr as *mut u16).write_unaligned(kind.to_raw().to_le());
-            (ptr.add(2) as *mut u32).write_unaligned(start.to_le());
-            (ptr.add(6) as *mut u32).write_unaligned(end.to_le());
+            (ptr as *mut u16).write_unaligned(kind.to_raw());
+            (ptr.add(2) as *mut u32).write_unaligned(start);
+            (ptr.add(6) as *mut u32).write_unaligned(end);
             self.data.set_len(self.data.len() + ADD_TOKEN_SIZE as usize);
         }
     }
@@ -88,21 +87,21 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
         self.data.reserve(FINISH_NODE_SIZE as usize);
         unsafe {
             let ptr = self.data_end_ptr() as *mut u16;
-            ptr.write_unaligned(u16::MAX.to_le());
+            ptr.write_unaligned(u16::MAX);
             self.data.set_len(self.data.len() + FINISH_NODE_SIZE as usize);
         }
 
         unsafe {
             let ptr = self.data.as_mut_ptr().add(start_node_idx);
-            debug_assert!(is_tag_start_node::<K>((ptr as *const u16).read_unaligned().to_le()));
+            debug_assert!(is_tag_start_node::<K>((ptr as *const u16).read_unaligned()));
 
             debug_assert_eq!(
-                (ptr.add(2) as *const u32).read_unaligned().to_le(),
+                (ptr.add(2) as *const u32).read_unaligned(),
                 FINISH_NODE_IDX_PLACEHOLDER
             );
-            (ptr.add(2) as *mut u32).write_unaligned(finish_node_idx.to_le());
+            (ptr.add(2) as *mut u32).write_unaligned(finish_node_idx);
 
-            (ptr.add(10) as *mut u32).write_unaligned(self.current_len.to_le());
+            (ptr.add(10) as *mut u32).write_unaligned(self.current_len);
         }
     }
 
@@ -122,7 +121,7 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
 impl<K: SyntaxKind> SyntaxTree<K> {
     pub fn root(&self) -> SyntaxNode<K> {
         SyntaxNode {
-            idx: unsafe { (self.data.as_ptr() as *const u32).read_unaligned() }.to_le(),
+            idx: unsafe { (self.data.as_ptr() as *const u32).read_unaligned() },
             phantom: PhantomData,
         }
     }
@@ -148,10 +147,10 @@ impl<K: SyntaxKind> SyntaxTree<K> {
 
         unsafe {
             let ptr = self.data.as_ptr().add(idx);
-            let tag = (ptr as *const u16).read_unaligned().to_le();
-            let finish_node_idx = (ptr.add(2) as *const u32).read_unaligned().to_le();
-            let start = (ptr.add(6) as *const u32).read_unaligned().to_le();
-            let end = (ptr.add(10) as *const u32).read_unaligned().to_le();
+            let tag = (ptr as *const u16).read_unaligned();
+            let finish_node_idx = (ptr.add(2) as *const u32).read_unaligned();
+            let start = (ptr.add(6) as *const u32).read_unaligned();
+            let end = (ptr.add(10) as *const u32).read_unaligned();
 
             debug_assert!(is_tag_start_node::<K>(tag));
             let kind = K::from_raw(tag - K::LAST - 1);
@@ -166,9 +165,9 @@ impl<K: SyntaxKind> SyntaxTree<K> {
 
         unsafe {
             let ptr = self.data.as_ptr().add(idx);
-            let tag = (ptr as *const u16).read_unaligned().to_le();
-            let start = (ptr.add(2) as *const u32).read_unaligned().to_le();
-            let end = (ptr.add(6) as *const u32).read_unaligned().to_le();
+            let tag = (ptr as *const u16).read_unaligned();
+            let start = (ptr.add(2) as *const u32).read_unaligned();
+            let end = (ptr.add(6) as *const u32).read_unaligned();
 
             debug_assert!(is_tag_add_token::<K>(tag));
             let kind = K::from_raw(tag);
@@ -180,25 +179,23 @@ impl<K: SyntaxKind> SyntaxTree<K> {
     pub(crate) fn is_start_node(&self, idx: u32) -> bool {
         let idx = idx as usize;
         debug_assert!(idx < self.data.len());
-        is_tag_start_node::<K>(
-            unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() }.to_le(),
-        )
+        is_tag_start_node::<K>(unsafe {
+            (self.data.as_ptr().add(idx) as *const u16).read_unaligned()
+        })
     }
 
     pub(crate) fn is_add_token(&self, idx: u32) -> bool {
         let idx = idx as usize;
         debug_assert!(idx < self.data.len());
-        is_tag_add_token::<K>(
-            unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() }.to_le(),
-        )
+        is_tag_add_token::<K>(unsafe {
+            (self.data.as_ptr().add(idx) as *const u16).read_unaligned()
+        })
     }
 
     pub(crate) fn is_finish_node(&self, idx: u32) -> bool {
         let idx = idx as usize;
         debug_assert!(idx < self.data.len());
-        is_tag_finish_node(
-            unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() }.to_le(),
-        )
+        is_tag_finish_node(unsafe { (self.data.as_ptr().add(idx) as *const u16).read_unaligned() })
     }
 }
 
