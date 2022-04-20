@@ -10,11 +10,11 @@ pub struct SyntaxTree<K> {
 
 pub struct SyntaxBuilder<K> {
     data: Vec<u8>,
+    text_len: u32,
     is_root_set: bool,
     current_len: u32,
     start_node_idxs: Vec<usize>,
-    starts: u32,
-    finishes: u32,
+    nesting: u32,
     phantom: PhantomData<K>,
 }
 
@@ -34,19 +34,19 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
 
         Self {
             data,
+            text_len: text.len() as u32,
             is_root_set: false,
             current_len: 0,
             start_node_idxs: Vec::new(),
-            starts: 0,
-            finishes: 0,
+            nesting: 0,
             phantom: PhantomData,
         }
     }
 
     pub fn start_node(&mut self, kind: K) {
-        self.starts += 1;
-
-        if !self.is_root_set {
+        if self.is_root_set {
+            assert_ne!(self.nesting, 0, "root node already created");
+        } else {
             unsafe {
                 debug_assert_eq!(
                     (self.data.as_mut_ptr() as *mut u32).read_unaligned(),
@@ -57,6 +57,8 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
             }
             self.is_root_set = true;
         }
+
+        self.nesting += 1;
 
         self.start_node_idxs.push(self.data.len());
 
@@ -72,6 +74,13 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn add_token(&mut self, kind: K, range: TextRange) {
+        assert!(self.nesting > 0, "cannot add token before starting node");
+        assert!(
+            u32::from(range.end()) <= self.text_len,
+            "token is out of range: range is {range:?}, but text is 0..{}",
+            self.text_len
+        );
+
         let start = u32::from(range.start());
         let end = u32::from(range.end());
         self.current_len = end;
@@ -87,7 +96,8 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     }
 
     pub fn finish_node(&mut self) {
-        self.finishes += 1;
+        assert!(self.nesting > 0, "no nodes are yet to be finished");
+        self.nesting -= 1;
 
         let start_node_idx = self.start_node_idxs.pop().unwrap();
         let finish_node_idx = self.data.len() as u32;
@@ -116,18 +126,17 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
     pub fn finish(self) -> SyntaxTree<K> {
         let Self {
             mut data,
-            is_root_set: _,
+            text_len: _,
+            is_root_set,
             current_len: _,
             start_node_idxs: _,
-            starts,
-            finishes,
+            nesting,
             phantom: _,
         } = self;
 
-        assert_eq!(
-            starts, finishes,
-            "mismatched number of start_node and finish_node calls ({starts} and {finishes})"
-        );
+        assert!(is_root_set, "no nodes created");
+
+        assert_eq!(nesting, 0, "did not finish all nodes ({nesting} unfinished nodes)");
 
         data.shrink_to_fit();
 
@@ -421,15 +430,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "no nodes are yet to be finished")]
     fn no_start_node() {
         let mut builder = SyntaxBuilder::<SyntaxKind>::new("");
         builder.finish_node();
-        builder.finish();
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "did not finish all nodes (1 unfinished nodes)")]
     fn no_finish_node() {
         let mut builder = SyntaxBuilder::new("");
         builder.start_node(SyntaxKind::Root);
@@ -437,23 +445,64 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn finish_then_start_node() {
+    #[should_panic(expected = "did not finish all nodes (2 unfinished nodes)")]
+    fn too_many_start_node_calls() {
         let mut builder = SyntaxBuilder::new("");
-        builder.finish_node();
         builder.start_node(SyntaxKind::Root);
+        builder.start_node(SyntaxKind::Function);
+        builder.start_node(SyntaxKind::Block);
+        builder.start_node(SyntaxKind::Block);
+        builder.finish_node();
+        builder.finish_node();
         builder.finish();
     }
 
     #[test]
-    #[should_panic]
-    fn mismatched_start_and_finish_node_calls() {
+    #[should_panic(expected = "no nodes are yet to be finished")]
+    fn too_many_finish_node_calls() {
         let mut builder = SyntaxBuilder::new("");
         builder.start_node(SyntaxKind::Root);
         builder.start_node(SyntaxKind::Function);
         builder.start_node(SyntaxKind::Block);
         builder.finish_node();
         builder.finish_node();
-        builder.finish();
+        builder.finish_node();
+        builder.finish_node();
+    }
+
+    #[test]
+    #[should_panic(expected = "root node already created")]
+    fn second_root() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.finish_node();
+        builder.start_node(SyntaxKind::Block);
+    }
+
+    #[test]
+    #[should_panic(expected = "no nodes created")]
+    fn empty_without_text() {
+        SyntaxBuilder::<SyntaxKind>::new("").finish();
+    }
+
+    #[test]
+    #[should_panic(expected = "no nodes created")]
+    fn empty_with_text() {
+        SyntaxBuilder::<SyntaxKind>::new("foo").finish();
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot add token before starting node")]
+    fn add_token_before_starting_node() {
+        let mut builder = SyntaxBuilder::new("let");
+        builder.add_token(SyntaxKind::LetKw, TextRange::new(0.into(), 3.into()));
+    }
+
+    #[test]
+    #[should_panic(expected = "token is out of range: range is 0..1, but text is 0..0")]
+    fn add_token_with_out_of_bounds_range() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.add_token(SyntaxKind::LetKw, TextRange::new(0.into(), 1.into()));
     }
 }
