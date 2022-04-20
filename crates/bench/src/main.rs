@@ -1,6 +1,7 @@
 use ast::AstNode;
 use interner::Interner;
 use std::alloc::GlobalAlloc;
+use std::collections::HashMap;
 use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -49,20 +50,20 @@ fn main() {
         }
 
         Some("short") => {
-            for _ in 0..100_000 {
-                compile(
-                    r#"
+            compile(
+                r#"
                         fnc add(x: s32, y: s32): s32 -> x + y;
-                        fnc main -> add 10, 20 + 30;
+                        fnc main: s32 -> add 10, 20 + 30;
                     "#,
-                    false,
-                );
-            }
+                true,
+                1_000_000,
+                true,
+            );
         }
 
         Some("long") => {
             let input = gen::gen(16 << 10 << 10); // 16 MiB
-            compile(&input, true);
+            compile(&input, false, 20, true);
         }
 
         Some(_) => eprintln!("Unrecognized benchmark name"),
@@ -71,21 +72,22 @@ fn main() {
     }
 }
 
-fn compile(input: &str, should_print: bool) {
+fn compile(input: &str, should_compile: bool, runs: usize, should_print: bool) {
     if should_print {
         println!("{} lines, {} bytes", input.lines().count(), input.len());
     }
 
     let mut previous_mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
 
-    let tokens = stage("lex", || lexer::lex(input), &mut previous_mem_usage, should_print);
+    let tokens = stage("lex", || lexer::lex(input), &mut previous_mem_usage, runs, should_print);
 
-    let world_index = hir::WorldIndex::default();
+    let mut world_index = hir::WorldIndex::default();
 
     let tree = stage(
         "parse",
         || parser::parse_repl_line(&tokens, input).into_syntax_tree(),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
 
@@ -93,6 +95,7 @@ fn compile(input: &str, should_print: bool) {
         "get ast",
         || ast::Root::cast(tree.root(), &tree).unwrap(),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
 
@@ -100,6 +103,7 @@ fn compile(input: &str, should_print: bool) {
         "validate",
         || ast::validation::validate(root, &tree),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
 
@@ -109,6 +113,7 @@ fn compile(input: &str, should_print: bool) {
         "index",
         || hir::index(root, &tree, &world_index, &mut interner),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
 
@@ -116,21 +121,49 @@ fn compile(input: &str, should_print: bool) {
         "lower",
         || hir::lower(root, &tree, &index, &world_index, &mut interner),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
 
-    let (_inference, _diagnostics) = stage(
+    let (inference, _diagnostics) = stage(
         "infer",
         || hir_ty::infer_all(&bodies, &index, &world_index),
         &mut previous_mem_usage,
+        runs,
         should_print,
     );
+
+    if should_compile {
+        let main = hir::Name(interner.intern("main"));
+        world_index.add_module(main, index);
+
+        let mut bodies_map = HashMap::new();
+        let mut tys_map = HashMap::new();
+        bodies_map.insert(main, bodies);
+        tys_map.insert(main, inference);
+
+        let _wasm = stage(
+            "compile",
+            || {
+                eval::compile(
+                    hir::Fqn { module: main, function: main },
+                    bodies_map.clone(),
+                    tys_map.clone(),
+                    world_index.clone(),
+                )
+            },
+            &mut previous_mem_usage,
+            runs,
+            should_print,
+        );
+    }
 }
 
 fn stage<T>(
     name: &str,
     mut f: impl FnMut() -> T,
     previous_mem_usage: &mut usize,
+    runs: usize,
     should_print: bool,
 ) -> T {
     if !should_print {
@@ -139,7 +172,7 @@ fn stage<T>(
 
     print!("{name:10}");
 
-    let mut times = [Duration::default(); 20];
+    let mut times = vec![Duration::default(); runs];
     let mut result = None;
 
     for time in &mut times {
@@ -149,6 +182,7 @@ fn stage<T>(
     }
 
     print!("{:>15?}", times.iter().sum::<Duration>() / times.len() as u32);
+    drop(times);
 
     let mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
     print!("{:5}MB", (mem_usage - *previous_mem_usage) / 1_000_000);

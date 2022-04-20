@@ -3,6 +3,7 @@ use interner::Interner;
 use std::collections::HashMap;
 use text_size::TextRange;
 
+#[derive(Clone)]
 pub struct InferenceResult {
     signatures: HashMap<hir::Name, Signature>,
     expr_tys: ArenaMap<Id<hir::Expr>, hir::Ty>,
@@ -25,6 +26,7 @@ impl std::ops::Index<Id<hir::LocalDef>> for InferenceResult {
     }
 }
 
+#[derive(Clone)]
 struct Signature {
     return_ty: hir::Ty,
     param_tys: Vec<hir::Ty>,

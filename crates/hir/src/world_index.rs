@@ -2,7 +2,7 @@ use crate::{Function, Index, Name, Ty};
 use interner::Key;
 use std::collections::HashMap;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct WorldIndex(HashMap<Name, Index>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

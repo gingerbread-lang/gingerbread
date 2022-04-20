@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use syntax::SyntaxTree;
 use text_size::TextRange;
 
+#[derive(Clone)]
 pub struct Bodies {
     local_defs: Arena<LocalDef>,
     statements: Arena<Statement>,
@@ -34,13 +35,13 @@ pub enum Path {
     OtherModule(Fqn),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Expr(Id<Expr>),
     LocalDef(Id<LocalDef>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocalDef {
     pub value: Id<Expr>,
 }

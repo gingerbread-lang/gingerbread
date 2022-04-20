@@ -118,6 +118,7 @@ name = "bench"
 version = "0.0.0"
 dependencies = [
  "ast",
+ "eval",
  "gen",
  "hir",
  "hir_ty",

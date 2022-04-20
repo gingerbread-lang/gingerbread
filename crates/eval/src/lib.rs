@@ -59,6 +59,15 @@ pub fn eval(
     }
 }
 
+pub fn compile(
+    fqn: hir::Fqn,
+    bodies_map: HashMap<hir::Name, hir::Bodies>,
+    tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+    world_index: hir::WorldIndex,
+) -> Vec<u8> {
+    Ctx::new(bodies_map, tys_map, world_index, fqn).finish()
+}
+
 #[derive(Debug)]
 pub enum Val {
     Nil,
