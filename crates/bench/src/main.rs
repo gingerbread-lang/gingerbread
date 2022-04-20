@@ -72,6 +72,10 @@ fn main() {
 }
 
 fn compile(input: &str, should_print: bool) {
+    if should_print {
+        println!("{} lines, {} bytes", input.lines().count(), input.len());
+    }
+
     let mut previous_mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
 
     let tokens = stage("lex", || lexer::lex(input), &mut previous_mem_usage, should_print);
