@@ -1,8 +1,9 @@
 use std::fmt;
 use std::marker::PhantomData;
+use std::num::NonZeroU32;
 
 pub struct Id<T> {
-    pub(crate) raw: u32,
+    raw: NonZeroU32,
     phantom: PhantomData<fn() -> T>,
 }
 
@@ -32,10 +33,10 @@ impl<T> fmt::Debug for Id<T> {
 
 impl<T> Id<T> {
     pub(crate) fn from_raw(raw: u32) -> Self {
-        Self { raw, phantom: PhantomData }
+        Self { raw: NonZeroU32::new(raw + 1).unwrap(), phantom: PhantomData }
     }
 
     pub fn to_raw(self) -> u32 {
-        self.raw
+        self.raw.get() - 1
     }
 }

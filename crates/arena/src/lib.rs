@@ -71,13 +71,13 @@ impl<T> Default for Arena<T> {
 impl<T> Index<Id<T>> for Arena<T> {
     type Output = T;
     fn index(&self, id: Id<T>) -> &T {
-        &self.data[(id.raw as usize)]
+        &self.data[(id.to_raw() as usize)]
     }
 }
 
 impl<T> IndexMut<Id<T>> for Arena<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut T {
-        &mut self.data[(id.raw as usize)]
+        &mut self.data[(id.to_raw() as usize)]
     }
 }
 

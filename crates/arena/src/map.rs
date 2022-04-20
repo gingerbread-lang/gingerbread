@@ -25,18 +25,18 @@ where
 
 impl<K, V> ArenaMap<Id<K>, V> {
     pub fn insert(&mut self, id: Id<K>, v: V) {
-        let idx = id.raw as usize;
+        let idx = id.to_raw() as usize;
 
         self.data.resize_with((idx + 1).max(self.data.len()), || None);
         self.data[idx] = Some(v);
     }
 
     pub fn get(&self, id: Id<K>) -> Option<&V> {
-        self.data.get(id.raw as usize).and_then(|it| it.as_ref())
+        self.data.get(id.to_raw() as usize).and_then(|it| it.as_ref())
     }
 
     pub fn get_mut(&mut self, id: Id<K>) -> Option<&mut V> {
-        self.data.get_mut(id.raw as usize).and_then(|it| it.as_mut())
+        self.data.get_mut(id.to_raw() as usize).and_then(|it| it.as_mut())
     }
 
     pub fn shrink_to_fit(&mut self) {
@@ -66,13 +66,13 @@ impl<K, V> ArenaMap<Id<K>, V> {
 impl<V, K> Index<Id<K>> for ArenaMap<Id<K>, V> {
     type Output = V;
     fn index(&self, id: Id<K>) -> &V {
-        self.data[id.raw as usize].as_ref().unwrap()
+        self.data[id.to_raw() as usize].as_ref().unwrap()
     }
 }
 
 impl<V, K> IndexMut<Id<K>> for ArenaMap<Id<K>, V> {
     fn index_mut(&mut self, id: Id<K>) -> &mut V {
-        self.data[id.raw as usize].as_mut().unwrap()
+        self.data[id.to_raw() as usize].as_mut().unwrap()
     }
 }
 

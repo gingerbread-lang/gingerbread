@@ -13,7 +13,7 @@ pub struct IdRange<T> {
 
 impl<T> IdRange<T> {
     pub fn new(range: RangeInclusive<Id<T>>) -> Self {
-        Self { range: range.start().raw..range.end().raw + 1, phantom: PhantomData }
+        Self { range: range.start().to_raw()..range.end().to_raw() + 1, phantom: PhantomData }
     }
 
     pub fn builder() -> IdRangeBuilder<T> {
