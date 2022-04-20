@@ -8,57 +8,68 @@ use text_size::TextRange;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SyntaxNode<K> {
     idx: NonZeroU32,
+    tree_id: u32,
     phantom: PhantomData<K>,
 }
 
-static_assertions::assert_eq_size!(SyntaxNode<()>, Option<SyntaxNode<()>>, u32);
+static_assertions::assert_eq_size!(SyntaxNode<()>, Option<SyntaxNode<()>>, u64);
 
 impl<K: SyntaxKind> SyntaxNode<K> {
     #[inline(always)]
-    pub(crate) fn new(idx: u32) -> Self {
+    pub(crate) fn new(idx: u32, tree_id: u32) -> Self {
         Self {
             idx: if cfg!(debug_assertions) {
                 NonZeroU32::new(idx).unwrap()
             } else {
                 unsafe { NonZeroU32::new_unchecked(idx) }
             },
+            tree_id,
             phantom: PhantomData,
         }
     }
 
     pub fn kind(self, tree: &SyntaxTree<K>) -> K {
+        self.verify_tree(tree);
         unsafe { tree.get_start_node(self.idx.get()).0 }
     }
 
     pub fn children(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxElement<K>> + '_ {
+        self.verify_tree(tree);
         Children {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
     pub fn child_nodes(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxNode<K>> + '_ {
+        self.verify_tree(tree);
         ChildNodes {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
     pub fn child_tokens(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxToken<K>> + '_ {
+        self.verify_tree(tree);
         ChildTokens {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
     pub fn descendants(self, tree: &SyntaxTree<K>) -> impl Iterator<Item = SyntaxElement<K>> + '_ {
+        self.verify_tree(tree);
         Descendants {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
@@ -66,10 +77,12 @@ impl<K: SyntaxKind> SyntaxNode<K> {
         self,
         tree: &SyntaxTree<K>,
     ) -> impl Iterator<Item = SyntaxNode<K>> + '_ {
+        self.verify_tree(tree);
         DescendantNodes {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
@@ -77,23 +90,35 @@ impl<K: SyntaxKind> SyntaxNode<K> {
         self,
         tree: &SyntaxTree<K>,
     ) -> impl Iterator<Item = SyntaxToken<K>> + '_ {
+        self.verify_tree(tree);
         DescendantTokens {
             idx: self.idx.get() + START_NODE_SIZE,
             finish_idx: unsafe { tree.get_start_node(self.idx.get()).1 },
             tree,
+            tree_id: self.tree_id,
         }
     }
 
     pub fn range(self, tree: &SyntaxTree<K>) -> TextRange {
+        self.verify_tree(tree);
         let (_, _, start, end) = unsafe { tree.get_start_node(self.idx.get()) };
         TextRange::new(start.into(), end.into())
     }
 
     pub fn text(self, tree: &SyntaxTree<K>) -> &str {
+        self.verify_tree(tree);
         unsafe {
             let (_, _, start, end) = tree.get_start_node(self.idx.get());
             tree.get_text(start, end)
         }
+    }
+
+    fn verify_tree(self, tree: &SyntaxTree<K>) {
+        assert_eq!(
+            self.tree_id,
+            tree.id(),
+            "tried to access node data from tree other than the one this node is from"
+        );
     }
 }
 
@@ -101,6 +126,7 @@ struct Children<'a, K> {
     idx: u32,
     finish_idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for Children<'_, K> {
@@ -110,13 +136,13 @@ impl<K: SyntaxKind> Iterator for Children<'_, K> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_start_node(self.idx) } {
                 let (_, finish_node_idx, _, _) = unsafe { self.tree.get_start_node(self.idx) };
-                let element = SyntaxElement::Node(SyntaxNode::new(self.idx));
+                let element = SyntaxElement::Node(SyntaxNode::new(self.idx, self.tree_id));
                 self.idx = finish_node_idx + FINISH_NODE_SIZE;
                 return Some(element);
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let element = SyntaxElement::Token(SyntaxToken::new(self.idx));
+                let element = SyntaxElement::Token(SyntaxToken::new(self.idx, self.tree_id));
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -132,6 +158,7 @@ struct ChildNodes<'a, K> {
     idx: u32,
     finish_idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for ChildNodes<'_, K> {
@@ -141,7 +168,7 @@ impl<K: SyntaxKind> Iterator for ChildNodes<'_, K> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_start_node(self.idx) } {
                 let (_, finish_node_idx, _, _) = unsafe { self.tree.get_start_node(self.idx) };
-                let node = SyntaxNode::new(self.idx);
+                let node = SyntaxNode::new(self.idx, self.tree_id);
                 self.idx = finish_node_idx + FINISH_NODE_SIZE;
                 return Some(node);
             }
@@ -162,6 +189,7 @@ struct ChildTokens<'a, K> {
     finish_idx: u32,
     idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for ChildTokens<'_, K> {
@@ -176,7 +204,7 @@ impl<K: SyntaxKind> Iterator for ChildTokens<'_, K> {
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let token = SyntaxToken::new(self.idx);
+                let token = SyntaxToken::new(self.idx, self.tree_id);
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }
@@ -192,6 +220,7 @@ struct Descendants<'a, K> {
     finish_idx: u32,
     idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for Descendants<'_, K> {
@@ -200,13 +229,13 @@ impl<K: SyntaxKind> Iterator for Descendants<'_, K> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_start_node(self.idx) } {
-                let element = SyntaxElement::Node(SyntaxNode::new(self.idx));
+                let element = SyntaxElement::Node(SyntaxNode::new(self.idx, self.tree_id));
                 self.idx += START_NODE_SIZE;
                 return Some(element);
             }
 
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let element = SyntaxElement::Token(SyntaxToken::new(self.idx));
+                let element = SyntaxElement::Token(SyntaxToken::new(self.idx, self.tree_id));
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(element);
             }
@@ -227,6 +256,7 @@ struct DescendantNodes<'a, K> {
     finish_idx: u32,
     idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for DescendantNodes<'_, K> {
@@ -235,7 +265,7 @@ impl<K: SyntaxKind> Iterator for DescendantNodes<'_, K> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_start_node(self.idx) } {
-                let node = SyntaxNode::new(self.idx);
+                let node = SyntaxNode::new(self.idx, self.tree_id);
                 self.idx += START_NODE_SIZE;
                 return Some(node);
             }
@@ -261,6 +291,7 @@ struct DescendantTokens<'a, K> {
     finish_idx: u32,
     idx: u32,
     tree: &'a SyntaxTree<K>,
+    tree_id: u32,
 }
 
 impl<K: SyntaxKind> Iterator for DescendantTokens<'_, K> {
@@ -269,7 +300,7 @@ impl<K: SyntaxKind> Iterator for DescendantTokens<'_, K> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.idx < self.finish_idx {
             if unsafe { self.tree.is_add_token(self.idx) } {
-                let token = SyntaxToken::new(self.idx);
+                let token = SyntaxToken::new(self.idx, self.tree_id);
                 self.idx += ADD_TOKEN_SIZE;
                 return Some(token);
             }

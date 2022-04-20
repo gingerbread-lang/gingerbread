@@ -1,6 +1,7 @@
 use crate::{SyntaxKind, SyntaxNode, SyntaxToken};
 use std::marker::PhantomData;
 use std::slice;
+use std::sync::atomic::{AtomicU32, Ordering};
 use text_size::TextRange;
 
 pub struct SyntaxTree<K> {
@@ -22,14 +23,19 @@ pub(crate) const START_NODE_SIZE: u32 = 2 + 4 + 4 + 4;
 pub(crate) const ADD_TOKEN_SIZE: u32 = 2 + 4 + 4;
 pub(crate) const FINISH_NODE_SIZE: u32 = 2;
 
-const ROOT_PLACEHOLDER: u32 = 0;
+const ROOT_IDX_PLACEHOLDER: u32 = 0;
 const FINISH_NODE_IDX_PLACEHOLDER: u32 = 0;
+
+static CURRENT_TREE_ID: AtomicU32 = AtomicU32::new(0);
 
 impl<K: SyntaxKind> SyntaxBuilder<K> {
     pub fn new(text: &str) -> Self {
         debug_assert!(K::LAST < u16::MAX / 2);
 
-        let mut data = ROOT_PLACEHOLDER.to_ne_bytes().to_vec();
+        let id = CURRENT_TREE_ID.fetch_add(1, Ordering::SeqCst);
+
+        let mut data = id.to_ne_bytes().to_vec();
+        data.extend_from_slice(&ROOT_IDX_PLACEHOLDER.to_ne_bytes());
         data.extend_from_slice(text.as_bytes());
 
         Self {
@@ -48,12 +54,9 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
             assert_ne!(self.nesting, 0, "root node already created");
         } else {
             unsafe {
-                debug_assert_eq!(
-                    (self.data.as_mut_ptr() as *mut u32).read_unaligned(),
-                    ROOT_PLACEHOLDER
-                );
-
-                (self.data.as_mut_ptr() as *mut u32).write_unaligned(self.data.len() as u32);
+                let root_idx_ptr = self.data.as_mut_ptr().add(4) as *mut u32;
+                debug_assert_eq!(root_idx_ptr.read_unaligned(), ROOT_IDX_PLACEHOLDER);
+                root_idx_ptr.write_unaligned(self.data.len() as u32);
             }
             self.is_root_set = true;
         }
@@ -150,16 +153,20 @@ impl<K: SyntaxKind> SyntaxBuilder<K> {
 
 impl<K: SyntaxKind> SyntaxTree<K> {
     pub fn root(&self) -> SyntaxNode<K> {
-        SyntaxNode::new(self.root_idx())
+        SyntaxNode::new(self.root_idx(), self.id())
     }
 
     pub(crate) fn root_idx(&self) -> u32 {
+        unsafe { (self.data.as_ptr() as *const u32).add(1).read_unaligned() }
+    }
+
+    pub(crate) fn id(&self) -> u32 {
         unsafe { (self.data.as_ptr() as *const u32).read_unaligned() }
     }
 
     pub(crate) unsafe fn get_text(&self, start: u32, end: u32) -> &str {
-        let start = start as usize + 4;
-        let end = end as usize + 4;
+        let start = start as usize + 8;
+        let end = end as usize + 8;
 
         let slice = slice::from_raw_parts(self.data.as_ptr().add(start), end - start);
 
@@ -241,7 +248,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
             }
 
             if unsafe { self.is_start_node(idx) } {
-                let node = SyntaxNode::new(idx);
+                let node = SyntaxNode::new(idx, self.id());
                 let kind = node.kind(self);
                 let range = node.range(self);
                 writeln!(f, "{kind:?}@{range:?}")?;
@@ -251,7 +258,7 @@ impl<K: SyntaxKind> std::fmt::Debug for SyntaxTree<K> {
             }
 
             if unsafe { self.is_add_token(idx) } {
-                let token = SyntaxToken::new(idx);
+                let token = SyntaxToken::new(idx, self.id());
                 let kind = token.kind(self);
                 let text = token.text(self);
                 let range = token.range(self);
@@ -337,7 +344,7 @@ mod tests {
             })
             .collect();
 
-        assert_eq!(tree.data, data);
+        assert_eq!(tree.data[4..], data);
     }
 
     #[test]
@@ -349,9 +356,9 @@ mod tests {
                 b.finish_node();
             },
             [
-                D::U32(4),
+                D::U32(8),
                 D::U16(SyntaxKind::Root as u16 + SyntaxKind::__Last as u16 + 1),
-                D::U32(18),
+                D::U32(22),
                 D::U32(0),
                 D::U32(0),
                 D::U16(u16::MAX),
@@ -369,10 +376,10 @@ mod tests {
                 b.finish_node();
             },
             [
-                D::U32(7),
+                D::U32(11),
                 D::Text("let"),
                 D::U16(SyntaxKind::Root as u16 + SyntaxKind::__Last as u16 + 1),
-                D::U32(31),
+                D::U32(35),
                 D::U32(0),
                 D::U32(3),
                 D::U16(SyntaxKind::LetKw as u16),
@@ -504,5 +511,43 @@ mod tests {
         let mut builder = SyntaxBuilder::new("");
         builder.start_node(SyntaxKind::Root);
         builder.add_token(SyntaxKind::LetKw, TextRange::new(0.into(), 1.into()));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "tried to access node data from tree other than the one this node is from"
+    )]
+    fn access_node_data_from_other_tree() {
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.finish_node();
+        let tree = builder.finish();
+
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.finish_node();
+        let tree2 = builder.finish();
+
+        tree.root().text(&tree2);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "tried to access token data from tree other than the one this token is from"
+    )]
+    fn access_token_data_from_other_tree() {
+        let mut builder = SyntaxBuilder::new("->");
+        builder.start_node(SyntaxKind::Root);
+        builder.add_token(SyntaxKind::Arrow, TextRange::new(0.into(), 2.into()));
+        builder.finish_node();
+        let tree = builder.finish();
+
+        let mut builder = SyntaxBuilder::new("");
+        builder.start_node(SyntaxKind::Root);
+        builder.finish_node();
+        let tree2 = builder.finish();
+
+        let arrow_token = tree.root().child_tokens(&tree).next().unwrap();
+        arrow_token.text(&tree2);
     }
 }
