@@ -5,6 +5,7 @@ name = "eventree"
 version = "0.0.0"
 
 [dependencies]
+static_assertions = "1.1"
 text-size = "1.1"
 
 [dev-dependencies]

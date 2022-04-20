@@ -445,6 +445,7 @@ name = "eventree"
 version = "0.0.0"
 dependencies = [
  "expect-test",
+ "static_assertions",
  "text-size",
 ]
 
