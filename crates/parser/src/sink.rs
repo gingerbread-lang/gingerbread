@@ -62,6 +62,7 @@ impl<'tokens> Sink<'tokens> {
         Parse { syntax_tree: self.builder.finish(), errors }
     }
 
+    #[inline(always)]
     fn process_event(&mut self, event: Event) {
         match event {
             Event::StartNode { kind } => self.builder.start_node(kind),
@@ -70,6 +71,7 @@ impl<'tokens> Sink<'tokens> {
         }
     }
 
+    #[inline(always)]
     fn skip_trivia(&mut self) {
         while let Some(TokenKind::Whitespace | TokenKind::Comment) =
             self.tokens.get_kind(self.token_idx)
@@ -78,6 +80,7 @@ impl<'tokens> Sink<'tokens> {
         }
     }
 
+    #[inline(always)]
     fn add_token(&mut self) {
         let kind = self.tokens.kind(self.token_idx);
         let range = self.tokens.range(self.token_idx);
