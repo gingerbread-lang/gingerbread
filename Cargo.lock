@@ -443,9 +443,10 @@ dependencies = [
 
 [[package]]
 name = "eventree"
-version = "0.0.0"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "090237e6d0c47e9d4ac02d86d7ff396f5800942f37da6369e720c1182971405a"
 dependencies = [
- "expect-test",
  "static_assertions",
  "text-size",
 ]
