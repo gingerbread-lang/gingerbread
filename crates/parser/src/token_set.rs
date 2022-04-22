@@ -1,4 +1,4 @@
-use token::TokenKind;
+use syntax::TokenKind;
 
 // Each bit represents whether that bit’s TokenKind is in the set.
 //

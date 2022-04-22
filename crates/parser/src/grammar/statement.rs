@@ -1,8 +1,7 @@
 use crate::grammar::expr::parse_expr;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
-use syntax::SyntaxKind;
-use token::TokenKind;
+use syntax::{NodeKind, TokenKind};
 
 pub(super) fn parse_statement(p: &mut Parser<'_>) -> Option<CompletedMarker> {
     let _guard = p.expected_syntax_name("statement");
@@ -24,7 +23,7 @@ pub(super) fn parse_statement(p: &mut Parser<'_>) -> Option<CompletedMarker> {
     let m = cm.precede(p);
     p.expect_with_no_skip(TokenKind::Semicolon);
 
-    Some(m.complete(p, SyntaxKind::ExprStatement))
+    Some(m.complete(p, NodeKind::ExprStatement))
 }
 
 fn parse_local_def(p: &mut Parser<'_>) -> CompletedMarker {
@@ -42,5 +41,5 @@ fn parse_local_def(p: &mut Parser<'_>) -> CompletedMarker {
 
     p.expect_with_no_skip(TokenKind::Semicolon);
 
-    m.complete(p, SyntaxKind::LocalDef)
+    m.complete(p, NodeKind::LocalDef)
 }

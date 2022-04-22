@@ -2,8 +2,7 @@ use crate::grammar::expr::{parse_expr, EXPR_FIRST};
 use crate::grammar::ty::parse_ty;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
-use syntax::SyntaxKind;
-use token::TokenKind;
+use syntax::{NodeKind, TokenKind};
 
 pub(super) fn parse_function(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::FncKw));
@@ -27,7 +26,7 @@ pub(super) fn parse_function(p: &mut Parser<'_>) -> CompletedMarker {
     parse_expr(p, "function body");
     p.expect(TokenKind::Semicolon);
 
-    m.complete(p, SyntaxKind::Function)
+    m.complete(p, NodeKind::Function)
 }
 
 fn parse_param_list(p: &mut Parser<'_>) -> CompletedMarker {
@@ -56,7 +55,7 @@ fn parse_param_list(p: &mut Parser<'_>) -> CompletedMarker {
 
     p.expect_with_recovery_set(TokenKind::RParen, TokenSet::new([TokenKind::Arrow]));
 
-    return m.complete(p, SyntaxKind::ParamList);
+    return m.complete(p, NodeKind::ParamList);
 
     fn should_stop(p: &mut Parser<'_>) -> bool {
         p.at_set(TokenSet::new([TokenKind::RParen, TokenKind::Arrow]))
@@ -75,7 +74,7 @@ fn parse_return_ty(p: &mut Parser<'_>) -> CompletedMarker {
         parse_ty(p, TokenSet::new([TokenKind::Arrow]).union(EXPR_FIRST));
     }
 
-    m.complete(p, SyntaxKind::ReturnTy)
+    m.complete(p, NodeKind::ReturnTy)
 }
 
 fn parse_param(p: &mut Parser<'_>) -> CompletedMarker {
@@ -96,5 +95,5 @@ fn parse_param(p: &mut Parser<'_>) -> CompletedMarker {
         parse_ty(p, TokenSet::new([TokenKind::Comma, TokenKind::RParen]));
     }
 
-    m.complete(p, SyntaxKind::Param)
+    m.complete(p, NodeKind::Param)
 }

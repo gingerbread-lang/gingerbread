@@ -338,8 +338,8 @@ dependencies = [
  "interner",
  "line_index",
  "parser",
+ "syntax",
  "text-size",
- "token",
 ]
 
 [[package]]
@@ -443,9 +443,9 @@ dependencies = [
 
 [[package]]
 name = "eventree"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66b6eb3569cc4be9e0256a54c4cfd857a7fdec7d5a4157e7e1250ab28e2da428"
+checksum = "0e408b73f9c5cad6f9754570cf7ae77bba4a08b468cbeb370703cf32413319f9"
 dependencies = [
  "static_assertions",
  "text-size",
@@ -702,6 +702,7 @@ name = "lexer"
 version = "0.0.0"
 dependencies = [
  "logos",
+ "syntax",
  "text-size",
  "token",
 ]
@@ -1193,7 +1194,6 @@ name = "syntax"
 version = "0.0.0"
 dependencies = [
  "eventree",
- "token",
 ]
 
 [[package]]
@@ -1256,6 +1256,7 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 name = "token"
 version = "0.0.0"
 dependencies = [
+ "syntax",
  "text-size",
 ]
 

@@ -5,5 +5,4 @@ name = "syntax"
 version = "0.0.0"
 
 [dependencies]
-eventree = "0.2.0"
-token = {path = "../token"}
+eventree = "0.3.0"

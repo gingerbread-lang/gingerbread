@@ -1,36 +1,11 @@
 use std::fmt;
+use syntax::TokenKind;
 use text_size::{TextRange, TextSize};
 
 #[derive(PartialEq)]
 pub struct Tokens {
     kinds: Vec<TokenKind>,
     starts: Vec<TextSize>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TokenKind {
-    LetKw,
-    FncKw,
-    Ident,
-    Int,
-    String,
-    Plus,
-    Hyphen,
-    Asterisk,
-    Slash,
-    Eq,
-    Dot,
-    Colon,
-    Comma,
-    Semicolon,
-    Arrow,
-    LParen,
-    RParen,
-    LBrace,
-    RBrace,
-    Whitespace,
-    Comment,
-    Error,
 }
 
 impl Tokens {

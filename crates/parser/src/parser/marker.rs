@@ -2,7 +2,7 @@ use super::Parser;
 use crate::event::Event;
 use drop_bomb::DropBomb;
 use std::mem;
-use syntax::SyntaxKind;
+use syntax::NodeKind;
 
 pub(crate) struct Marker {
     pos: usize,
@@ -14,7 +14,7 @@ impl Marker {
         Self { pos, bomb: DropBomb::new("markers must be completed") }
     }
 
-    pub(crate) fn complete(mut self, p: &mut Parser<'_>, kind: SyntaxKind) -> CompletedMarker {
+    pub(crate) fn complete(mut self, p: &mut Parser<'_>, kind: NodeKind) -> CompletedMarker {
         self.bomb.defuse();
         let old_event = mem::replace(&mut p.events[self.pos], Some(Event::StartNode { kind }));
         debug_assert!(old_event.is_none());

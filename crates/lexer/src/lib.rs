@@ -1,8 +1,9 @@
 use logos::Logos;
 use std::convert::TryInto;
 use std::mem;
+use syntax::TokenKind;
 use text_size::TextSize;
-use token::{TokenKind, Tokens};
+use token::Tokens;
 
 pub fn lex(text: &str) -> Tokens {
     let mut kinds = Vec::new();
@@ -113,7 +114,6 @@ enum LexerTokenKind {
 mod tests {
     use super::*;
     use text_size::TextRange;
-    use token::TokenKind;
 
     fn check(input: &str, expected_kind: TokenKind) {
         let tokens = lex(input);

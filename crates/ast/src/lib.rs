@@ -1,6 +1,6 @@
 pub mod validation;
 
-use syntax::{SyntaxKind, SyntaxNode, SyntaxToken, SyntaxTree};
+use syntax::{NodeKind, SyntaxNode, SyntaxToken, SyntaxTree, TokenKind};
 use text_size::TextRange;
 
 pub trait AstNode: Copy + Sized {
@@ -34,7 +34,7 @@ macro_rules! def_ast_node {
 
         impl AstNode for $kind {
             fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
-                if node.kind(tree) == SyntaxKind::$kind {
+                if node.kind(tree) == NodeKind::$kind {
                     Some(Self(node))
                 } else {
                     None
@@ -55,7 +55,7 @@ macro_rules! def_ast_token {
 
         impl AstToken for $kind {
             fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self> {
-                if token.kind(tree) == SyntaxKind::$kind {
+                if token.kind(tree) == TokenKind::$kind {
                     Some(Self(token))
                 } else {
                     None
@@ -93,7 +93,7 @@ pub enum Def {
 impl AstNode for Def {
     fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
         match node.kind(tree) {
-            SyntaxKind::Function => Some(Self::Function(Function(node))),
+            NodeKind::Function => Some(Self::Function(Function(node))),
 
             _ => None,
         }
@@ -135,8 +135,8 @@ pub enum Statement {
 impl AstNode for Statement {
     fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
         match node.kind(tree) {
-            SyntaxKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
-            SyntaxKind::ExprStatement => Some(Self::ExprStatement(ExprStatement(node))),
+            NodeKind::LocalDef => Some(Self::LocalDef(LocalDef(node))),
+            NodeKind::ExprStatement => Some(Self::ExprStatement(ExprStatement(node))),
             _ => None,
         }
     }
@@ -217,11 +217,11 @@ pub enum Expr {
 impl AstNode for Expr {
     fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
         match node.kind(tree) {
-            SyntaxKind::BinaryExpr => Some(Self::Binary(BinaryExpr(node))),
-            SyntaxKind::Block => Some(Self::Block(Block(node))),
-            SyntaxKind::Call => Some(Self::Call(Call(node))),
-            SyntaxKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
-            SyntaxKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
+            NodeKind::BinaryExpr => Some(Self::Binary(BinaryExpr(node))),
+            NodeKind::Block => Some(Self::Block(Block(node))),
+            NodeKind::Call => Some(Self::Call(Call(node))),
+            NodeKind::IntLiteral => Some(Self::IntLiteral(IntLiteral(node))),
+            NodeKind::StringLiteral => Some(Self::StringLiteral(StringLiteral(node))),
             _ => None,
         }
     }
@@ -324,10 +324,10 @@ pub enum BinaryOperator {
 impl AstToken for BinaryOperator {
     fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self> {
         match token.kind(tree) {
-            SyntaxKind::Plus => Some(Self::Add(Plus(token))),
-            SyntaxKind::Hyphen => Some(Self::Sub(Hyphen(token))),
-            SyntaxKind::Asterisk => Some(Self::Mul(Asterisk(token))),
-            SyntaxKind::Slash => Some(Self::Div(Slash(token))),
+            TokenKind::Plus => Some(Self::Add(Plus(token))),
+            TokenKind::Hyphen => Some(Self::Sub(Hyphen(token))),
+            TokenKind::Asterisk => Some(Self::Mul(Asterisk(token))),
+            TokenKind::Slash => Some(Self::Div(Slash(token))),
             _ => None,
         }
     }

@@ -1,7 +1,7 @@
 use super::event::Event;
 use crate::{Parse, SyntaxError};
-use syntax::SyntaxBuilder;
-use token::{TokenKind, Tokens};
+use syntax::{SyntaxBuilder, TokenKind};
+use token::Tokens;
 
 pub(crate) struct Sink<'tokens> {
     events: Vec<Event>,
@@ -84,7 +84,7 @@ impl<'tokens> Sink<'tokens> {
     fn add_token(&mut self) {
         let kind = self.tokens.kind(self.token_idx);
         let range = self.tokens.range(self.token_idx);
-        self.builder.add_token(kind.into(), range);
+        self.builder.add_token(kind, range);
         self.token_idx += 1;
     }
 }

@@ -1,10 +1,10 @@
-use syntax::SyntaxKind;
+use syntax::NodeKind;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Event {
-    StartNode { kind: SyntaxKind },
+    StartNode { kind: NodeKind },
     FinishNode,
     AddToken,
 }
 
-static_assertions::assert_eq_size!(Event, Option<Event>, u16);
+static_assertions::assert_eq_size!(Event, Option<Event>, u8);

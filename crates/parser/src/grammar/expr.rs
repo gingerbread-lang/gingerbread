@@ -2,8 +2,7 @@ use crate::grammar::def::DEF_FIRST;
 use crate::grammar::statement::parse_statement;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
-use syntax::SyntaxKind;
-use token::TokenKind;
+use syntax::{NodeKind, TokenKind};
 
 pub(super) const EXPR_FIRST: TokenSet =
     TokenSet::new([TokenKind::Ident, TokenKind::LBrace, TokenKind::Int, TokenKind::String]);
@@ -48,7 +47,7 @@ fn parse_expr_bp(
 
         let m = lhs.precede(p);
         parse_expr_bp(p, right_bp, recovery_set, "operand");
-        lhs = m.complete(p, SyntaxKind::BinaryExpr);
+        lhs = m.complete(p, NodeKind::BinaryExpr);
     }
 
     Some(lhs)
@@ -90,7 +89,7 @@ fn parse_call(p: &mut Parser<'_>) -> CompletedMarker {
         parse_arg_list(p);
     }
 
-    m.complete(p, SyntaxKind::Call)
+    m.complete(p, NodeKind::Call)
 }
 
 fn parse_arg_list(p: &mut Parser<'_>) -> CompletedMarker {
@@ -107,7 +106,7 @@ fn parse_arg_list(p: &mut Parser<'_>) -> CompletedMarker {
         }
     }
 
-    m.complete(p, SyntaxKind::ArgList)
+    m.complete(p, NodeKind::ArgList)
 }
 
 fn parse_arg(p: &mut Parser<'_>) -> CompletedMarker {
@@ -116,7 +115,7 @@ fn parse_arg(p: &mut Parser<'_>) -> CompletedMarker {
 
     parse_expr(p, "expression");
 
-    m.complete(p, SyntaxKind::Arg)
+    m.complete(p, NodeKind::Arg)
 }
 
 fn parse_block(p: &mut Parser<'_>) -> CompletedMarker {
@@ -130,19 +129,19 @@ fn parse_block(p: &mut Parser<'_>) -> CompletedMarker {
 
     p.expect(TokenKind::RBrace);
 
-    m.complete(p, SyntaxKind::Block)
+    m.complete(p, NodeKind::Block)
 }
 
 fn parse_int_literal(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Int));
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::IntLiteral)
+    m.complete(p, NodeKind::IntLiteral)
 }
 
 fn parse_string_literal(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::String));
     let m = p.start();
     p.bump();
-    m.complete(p, SyntaxKind::StringLiteral)
+    m.complete(p, NodeKind::StringLiteral)
 }

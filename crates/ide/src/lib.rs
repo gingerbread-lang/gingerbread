@@ -7,7 +7,7 @@ use parser::Parse;
 use std::collections::HashMap;
 use std::mem;
 use std::ops::BitOrAssign;
-use syntax::{SyntaxElement, SyntaxKind};
+use syntax::{NodeKind, SyntaxElement, TokenKind};
 use text_size::{TextRange, TextSize};
 use url::Url;
 
@@ -171,7 +171,7 @@ impl Analysis {
         for token in last_node.child_tokens(self.parse.syntax_tree()) {
             let range = token.range(self.parse.syntax_tree());
 
-            if token.kind(self.parse.syntax_tree()) == SyntaxKind::Whitespace {
+            if token.kind(self.parse.syntax_tree()) == TokenKind::Whitespace {
                 continue;
             }
 
@@ -186,7 +186,7 @@ impl Analysis {
 
     fn highlight(&self) -> Vec<Highlight> {
         let mut tokens = Vec::new();
-        let mut last_parent_node_kind = SyntaxKind::Root;
+        let mut last_parent_node_kind = NodeKind::Root;
 
         for element in self.ast.syntax().descendants(self.parse.syntax_tree()) {
             let token = match element {
@@ -200,25 +200,24 @@ impl Analysis {
             let mut modifiers = HighlightModifiers(0);
 
             let kind = match token.kind(self.parse.syntax_tree()) {
-                SyntaxKind::LetKw | SyntaxKind::FncKw => HighlightKind::Keyword,
-                SyntaxKind::Int => HighlightKind::Number,
-                SyntaxKind::String => HighlightKind::String,
-                SyntaxKind::Plus
-                | SyntaxKind::Hyphen
-                | SyntaxKind::Asterisk
-                | SyntaxKind::Slash => HighlightKind::Operator,
-                SyntaxKind::Comment => HighlightKind::Comment,
+                TokenKind::LetKw | TokenKind::FncKw => HighlightKind::Keyword,
+                TokenKind::Int => HighlightKind::Number,
+                TokenKind::String => HighlightKind::String,
+                TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
+                    HighlightKind::Operator
+                }
+                TokenKind::Comment => HighlightKind::Comment,
 
-                SyntaxKind::Ident => match last_parent_node_kind {
-                    SyntaxKind::LocalDef => {
+                TokenKind::Ident => match last_parent_node_kind {
+                    NodeKind::LocalDef => {
                         modifiers |= HighlightModifier::Declaration;
                         HighlightKind::Local
                     }
-                    SyntaxKind::Param => {
+                    NodeKind::Param => {
                         modifiers |= HighlightModifier::Declaration;
                         HighlightKind::Param
                     }
-                    SyntaxKind::Function => {
+                    NodeKind::Function => {
                         modifiers |= HighlightModifier::Declaration;
                         HighlightKind::Function
                     }

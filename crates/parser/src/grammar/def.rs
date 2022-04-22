@@ -3,7 +3,7 @@ mod function;
 use self::function::parse_function;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
-use token::TokenKind;
+use syntax::TokenKind;
 
 pub(super) const DEF_FIRST: TokenSet = TokenSet::new([TokenKind::FncKw]);
 

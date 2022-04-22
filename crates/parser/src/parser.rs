@@ -7,9 +7,9 @@ use crate::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::cell::Cell;
 use std::mem;
 use std::rc::Rc;
-use syntax::SyntaxKind;
+use syntax::{NodeKind, TokenKind};
 use text_size::TextRange;
-use token::{TokenKind, Tokens};
+use token::Tokens;
 
 const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
     TokenKind::LetKw,
@@ -113,7 +113,7 @@ impl<'tokens> Parser<'tokens> {
 
         let m = self.start();
         self.bump();
-        Some(m.complete(self, SyntaxKind::Error))
+        Some(m.complete(self, NodeKind::Error))
     }
 
     #[must_use]

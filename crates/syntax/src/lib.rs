@@ -1,15 +1,21 @@
 use std::mem;
-use token::TokenKind;
 
-pub type SyntaxBuilder = eventree::SyntaxBuilder<SyntaxKind>;
-pub type SyntaxElement = eventree::SyntaxElement<SyntaxKind>;
-pub type SyntaxNode = eventree::SyntaxNode<SyntaxKind>;
-pub type SyntaxToken = eventree::SyntaxToken<SyntaxKind>;
-pub type SyntaxTree = eventree::SyntaxTree<SyntaxKind>;
+pub type SyntaxBuilder = eventree::SyntaxBuilder<TreeConfig>;
+pub type SyntaxElement = eventree::SyntaxElement<TreeConfig>;
+pub type SyntaxNode = eventree::SyntaxNode<TreeConfig>;
+pub type SyntaxToken = eventree::SyntaxToken<TreeConfig>;
+pub type SyntaxTree = eventree::SyntaxTree<TreeConfig>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(u16)]
-pub enum SyntaxKind {
+pub enum TreeConfig {}
+
+impl eventree::TreeConfig for TreeConfig {
+    type NodeKind = NodeKind;
+    type TokenKind = TokenKind;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum TokenKind {
     LetKw,
     FncKw,
     Ident,
@@ -32,7 +38,11 @@ pub enum SyntaxKind {
     Whitespace,
     Comment,
     Error,
+    __Last,
+}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum NodeKind {
     Root,
     Call,
     ArgList,
@@ -48,11 +58,11 @@ pub enum SyntaxKind {
     Param,
     ReturnTy,
     Ty,
-
+    Error,
     __Last,
 }
 
-unsafe impl eventree::SyntaxKind for SyntaxKind {
+unsafe impl eventree::SyntaxKind for TokenKind {
     const LAST: u16 = Self::__Last as u16;
 
     fn to_raw(self) -> u16 {
@@ -60,12 +70,18 @@ unsafe impl eventree::SyntaxKind for SyntaxKind {
     }
 
     unsafe fn from_raw(raw: u16) -> Self {
-        mem::transmute(raw)
+        mem::transmute(raw as u8)
     }
 }
 
-impl From<TokenKind> for SyntaxKind {
-    fn from(token_kind: TokenKind) -> SyntaxKind {
-        unsafe { mem::transmute(token_kind as u16) }
+unsafe impl eventree::SyntaxKind for NodeKind {
+    const LAST: u16 = Self::__Last as u16;
+
+    fn to_raw(self) -> u16 {
+        self as u16
+    }
+
+    unsafe fn from_raw(raw: u16) -> Self {
+        mem::transmute(raw as u8)
     }
 }

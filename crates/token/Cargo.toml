@@ -5,4 +5,5 @@ name = "token"
 version = "0.0.0"
 
 [dependencies]
+syntax = {path = "../syntax"}
 text-size = "1.1"

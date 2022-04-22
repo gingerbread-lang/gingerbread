@@ -5,8 +5,8 @@ use interner::Interner;
 use line_index::{ColNr, LineIndex, LineNr};
 use parser::{ExpectedSyntax, SyntaxError, SyntaxErrorKind};
 use std::convert::TryInto;
+use syntax::TokenKind;
 use text_size::{TextRange, TextSize};
-use token::TokenKind;
 
 pub struct Diagnostic(Repr);
 
@@ -247,6 +247,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Whitespace => "whitespace",
         TokenKind::Comment => "comment",
         TokenKind::Error => "an unrecognized token",
+        TokenKind::__Last => unreachable!(),
     }
 }
 

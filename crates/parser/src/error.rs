@@ -1,6 +1,6 @@
 use std::fmt;
+use syntax::TokenKind;
 use text_size::{TextRange, TextSize};
-use token::TokenKind;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct SyntaxError {

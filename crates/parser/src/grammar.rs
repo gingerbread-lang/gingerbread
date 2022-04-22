@@ -7,8 +7,7 @@ use self::def::{parse_def, DEF_FIRST};
 use self::statement::parse_statement;
 use crate::parser::Parser;
 use crate::token_set::TokenSet;
-use syntax::SyntaxKind;
-use token::TokenKind;
+use syntax::{NodeKind, TokenKind};
 
 pub(crate) fn source_file(p: &mut Parser<'_>) {
     let m = p.start();
@@ -17,7 +16,7 @@ pub(crate) fn source_file(p: &mut Parser<'_>) {
         self::def::parse_def(p);
     }
 
-    m.complete(p, SyntaxKind::Root);
+    m.complete(p, NodeKind::Root);
 }
 
 pub(crate) fn repl_line(p: &mut Parser<'_>) {
@@ -34,5 +33,5 @@ pub(crate) fn repl_line(p: &mut Parser<'_>) {
         }
     }
 
-    m.complete(p, SyntaxKind::Root);
+    m.complete(p, NodeKind::Root);
 }
