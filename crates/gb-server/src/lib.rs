@@ -5,12 +5,12 @@ use ide::GlobalState;
 use line_index::{ColNr, LineIndex, LineNr};
 use lsp::connection::Connection;
 use lsp::proto::WriteMsgError;
-use lsp_types::notification::PublishDiagnostics;
+use lsp_types::notification::{PublishDiagnostics, ShowMessage};
 use lsp_types::request::SemanticTokensRefesh as SemanticTokensRefresh;
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    Position, PublishDiagnosticsParams, Range, SelectionRange, SelectionRangeParams, SemanticToken,
-    SemanticTokens, SemanticTokensParams, SemanticTokensResult,
+    MessageType, Position, PublishDiagnosticsParams, Range, SelectionRange, SelectionRangeParams,
+    SemanticToken, SemanticTokens, SemanticTokensParams, SemanticTokensResult, ShowMessageParams,
 };
 use text_size::{TextRange, TextSize};
 
@@ -81,8 +81,17 @@ pub fn open_text_document(
     global_state: &mut GlobalState,
     connection: &mut Connection<'_>,
 ) -> Result<(), WriteMsgError> {
-    global_state.open_file(params.text_document.uri.clone(), params.text_document.text);
-    publish_all_diagnostics(global_state, connection)?;
+    match global_state.open_file(params.text_document.uri) {
+        Ok(Ok(())) => publish_all_diagnostics(global_state, connection)?,
+        Ok(Err(())) => connection.notify::<ShowMessage>(ShowMessageParams {
+            typ: MessageType::ERROR,
+            message: "file is not part of project".to_string(),
+        })?,
+        Err(e) => connection.notify::<ShowMessage>(ShowMessageParams {
+            typ: MessageType::ERROR,
+            message: e.to_string(),
+        })?,
+    }
 
     Ok(())
 }

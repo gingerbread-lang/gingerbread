@@ -5,8 +5,9 @@ use interner::Interner;
 use line_index::LineIndex;
 use parser::Parse;
 use std::collections::HashMap;
-use std::mem;
 use std::ops::BitOrAssign;
+use std::path::Path;
+use std::{fs, io, mem};
 use syntax::{NodeKind, SyntaxElement, TokenKind};
 use text_size::{TextRange, TextSize};
 use url::Url;
@@ -16,6 +17,7 @@ pub struct GlobalState {
     interner: Interner,
     world_index: hir::WorldIndex,
     analyses: HashMap<Url, Analysis>,
+    project: Option<hir::Project>,
 }
 
 struct Analysis {
@@ -34,22 +36,45 @@ struct Analysis {
 }
 
 impl GlobalState {
-    pub fn open_file(&mut self, uri: Url, content: String) {
-        let filename = uri.path_segments().unwrap().next_back().unwrap();
-        let module_name = filename.find('.').map_or(filename, |dot| &filename[..dot]);
+    pub fn open_file(&mut self, uri: Url) -> io::Result<Result<(), ()>> {
+        let path = "/".to_string() + &uri.path_segments().unwrap().collect::<Vec<_>>().join("/");
+        let path = Path::new(&path);
+        assert_eq!(path.extension().unwrap(), "gb");
 
-        let analysis = Analysis::new(
-            content,
-            hir::Name(self.interner.intern(module_name)),
-            &mut self.interner,
-            &mut self.world_index,
-        );
+        if let Some(project) = &self.project {
+            if project.is_module(path) {
+                assert!(self.analyses.contains_key(&uri));
+                return Ok(Ok(()));
+            }
+            return Ok(Err(()));
+        }
+
+        let project = hir::Project::new(path.parent().unwrap())?;
+
+        for module in project.modules() {
+            let uri = Url::parse(&format!("file://{}", module.display())).unwrap();
+            let content = fs::read_to_string(module)?;
+
+            let filename = uri.path_segments().unwrap().next_back().unwrap();
+            let module_name = filename.find('.').map_or(filename, |dot| &filename[..dot]);
+
+            let analysis = Analysis::new(
+                content,
+                hir::Name(self.interner.intern(module_name)),
+                &mut self.interner,
+                &mut self.world_index,
+            );
+
+            self.analyses.insert(uri, analysis);
+        }
 
         for analysis in self.analyses.values_mut() {
             analysis.recheck(&mut self.world_index, &mut self.interner);
         }
 
-        self.analyses.insert(uri, analysis);
+        self.project = Some(project);
+
+        Ok(Ok(()))
     }
 
     pub fn update_contents(&mut self, uri: &Url, f: impl FnOnce(&mut String, &LineIndex)) {
