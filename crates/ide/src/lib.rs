@@ -49,10 +49,10 @@ impl GlobalState {
             return Ok(Err(()));
         }
 
-        let project = hir::Project::new(path.parent().unwrap())?;
+        let project = hir::Project::new(path.parent().unwrap(), &mut self.interner)?;
 
         for module in project.modules() {
-            let uri = Url::parse(&format!("file://{}", module.display())).unwrap();
+            let uri = path_to_uri(module);
             let content = fs::read_to_string(module)?;
 
             let filename = uri.path_segments().unwrap().next_back().unwrap();
@@ -97,6 +97,18 @@ impl GlobalState {
         self.analyses[uri].parent_ranges(offset)
     }
 
+    pub fn symbols(&self) -> Vec<Symbol> {
+        let project = self.project.as_ref().unwrap();
+        self.world_index
+            .iter()
+            .map(|(fqn, range)| Symbol {
+                name: self.interner.lookup(fqn.function.0).to_string(),
+                file: path_to_uri(project.module_path(fqn.module).unwrap()),
+                range,
+            })
+            .collect()
+    }
+
     pub fn highlight(&self, uri: &Url) -> Vec<Highlight> {
         self.analyses[uri].highlight()
     }
@@ -112,6 +124,10 @@ impl GlobalState {
     pub fn interner(&self) -> &Interner {
         &self.interner
     }
+}
+
+fn path_to_uri(path: &Path) -> Url {
+    Url::parse(&format!("file://{}", path.display())).unwrap()
 }
 
 impl Analysis {
@@ -331,6 +347,12 @@ impl Analysis {
         self.inference_result = results;
         self.ty_diagnostics = diagnostics;
     }
+}
+
+pub struct Symbol {
+    pub name: String,
+    pub file: Url,
+    pub range: TextRange,
 }
 
 pub struct Highlight {

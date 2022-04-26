@@ -1,6 +1,7 @@
 use crate::{Function, Index, Name, Ty};
 use interner::Key;
 use std::collections::HashMap;
+use text_size::TextRange;
 
 #[derive(Default, Clone)]
 pub struct WorldIndex(HashMap<Name, Index>);
@@ -38,6 +39,15 @@ impl WorldIndex {
 
     pub fn update_module(&mut self, module: Name, index: Index) {
         *self.0.get_mut(&module).unwrap() = index;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Fqn, TextRange)> + '_ {
+        self.0.iter().flat_map(|(module, index)| {
+            index
+                .functions
+                .iter()
+                .map(|(name, function)| (Fqn { module: *module, function: *name }, function.range))
+        })
     }
 }
 

@@ -9,8 +9,9 @@ use lsp_types::notification::{PublishDiagnostics, ShowMessage};
 use lsp_types::request::SemanticTokensRefesh as SemanticTokensRefresh;
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    MessageType, Position, PublishDiagnosticsParams, Range, SelectionRange, SelectionRangeParams,
-    SemanticToken, SemanticTokens, SemanticTokensParams, SemanticTokensResult, ShowMessageParams,
+    Location, MessageType, Position, PublishDiagnosticsParams, Range, SelectionRange,
+    SelectionRangeParams, SemanticToken, SemanticTokens, SemanticTokensParams,
+    SemanticTokensResult, ShowMessageParams, SymbolInformation, SymbolKind, WorkspaceSymbolParams,
 };
 use text_size::{TextRange, TextSize};
 
@@ -39,6 +40,31 @@ pub fn selection_range(
             }
 
             range
+        })
+        .collect()
+}
+
+pub fn workspace_symbol(
+    params: WorkspaceSymbolParams,
+    global_state: &mut GlobalState,
+) -> Vec<SymbolInformation> {
+    global_state
+        .symbols()
+        .into_iter()
+        .filter(|symbol| symbol.name.contains(&params.query))
+        .map(|symbol| {
+            let line_index = global_state.line_index(&symbol.file);
+            let range = convert_text_range(symbol.range, line_index);
+
+            #[allow(deprecated)]
+            SymbolInformation {
+                name: symbol.name,
+                kind: SymbolKind::FUNCTION,
+                tags: None,
+                deprecated: None,
+                location: Location { uri: symbol.file, range },
+                container_name: None,
+            }
         })
         .collect()
 }

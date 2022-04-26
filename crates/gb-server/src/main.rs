@@ -1,5 +1,7 @@
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
-use lsp_types::request::{SelectionRangeRequest, SemanticTokensFullRequest, Shutdown};
+use lsp_types::request::{
+    SelectionRangeRequest, SemanticTokensFullRequest, Shutdown, WorkspaceSymbol,
+};
 use lsp_types::InitializeResult;
 
 #[global_allocator]
@@ -37,6 +39,9 @@ fn main() -> anyhow::Result<()> {
                     })?
                     .on::<SelectionRangeRequest, _>(|params| {
                         Ok(Some(gb_server::selection_range(params, &mut global_state)))
+                    })?
+                    .on::<WorkspaceSymbol, _>(|params| {
+                        Ok(Some(gb_server::workspace_symbol(params, &mut global_state)))
                     })?
                     .on::<SemanticTokensFullRequest, _>(|params| {
                         Ok(Some(gb_server::semantic_tokens(params, &mut global_state)))

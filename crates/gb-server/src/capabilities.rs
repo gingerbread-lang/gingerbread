@@ -1,6 +1,6 @@
 use ide::{HighlightKind, HighlightModifier};
 use lsp_types::{
-    SelectionRangeProviderCapability, SemanticTokenModifier, SemanticTokenType,
+    OneOf, SelectionRangeProviderCapability, SemanticTokenModifier, SemanticTokenType,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     SemanticTokensServerCapabilities, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextDocumentSyncOptions, WorkDoneProgressOptions,
@@ -16,6 +16,7 @@ pub fn capabilities() -> ServerCapabilities {
             save: None,
         })),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+        workspace_symbol_provider: Some(OneOf::Left(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {
                 legend: SemanticTokensLegend {

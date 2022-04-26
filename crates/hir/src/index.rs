@@ -22,6 +22,10 @@ impl Index {
         self.functions.keys().copied()
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (&Name, TextRange)> {
+        self.functions.iter().map(|(name, function)| (name, function.range))
+    }
+
     pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
         self.tys.contains(&ident)
     }
@@ -37,6 +41,7 @@ impl Index {
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
+    pub range: TextRange,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -112,7 +117,11 @@ pub fn index(
                         range: function.range(tree),
                     }),
                     Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(Function { params, return_ty });
+                        vacant_entry.insert(Function {
+                            params,
+                            return_ty,
+                            range: function.range(tree),
+                        });
                     }
                 }
             }
