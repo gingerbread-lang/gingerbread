@@ -51,7 +51,22 @@ pub fn workspace_symbol(
     global_state
         .symbols()
         .into_iter()
-        .filter(|symbol| symbol.name.contains(&params.query))
+        .filter(|symbol| {
+            // all the characters in the query
+            // have to be present in the symbol’s name
+            // in the order they are in the query
+
+            let mut name = symbol.name.as_str();
+
+            for c in params.query.chars() {
+                match name.find(c) {
+                    Some(idx) => name = &name[idx..],
+                    None => return false,
+                }
+            }
+
+            true
+        })
         .map(|symbol| {
             let line_index = global_state.line_index(&symbol.file);
             let range = convert_text_range(symbol.range, line_index);
