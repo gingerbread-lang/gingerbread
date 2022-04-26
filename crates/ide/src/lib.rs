@@ -101,10 +101,14 @@ impl GlobalState {
         let project = self.project.as_ref().unwrap();
         self.world_index
             .iter()
-            .map(|(fqn, range)| Symbol {
-                name: self.interner.lookup(fqn.function.0).to_string(),
-                file: path_to_uri(project.module_path(fqn.module).unwrap()),
-                range,
+            .map(|(fqn, range)| {
+                let module_name = self.interner.lookup(fqn.module.0);
+                let function_name = self.interner.lookup(fqn.function.0);
+                Symbol {
+                    name: format!("{module_name}.{function_name}"),
+                    file: path_to_uri(project.module_path(fqn.module).unwrap()),
+                    range,
+                }
             })
             .collect()
     }
