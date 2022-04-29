@@ -16,6 +16,7 @@ pub fn capabilities() -> ServerCapabilities {
             save: None,
         })),
         selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
+        definition_provider: Some(OneOf::Left(true)),
         workspace_symbol_provider: Some(OneOf::Left(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(
             SemanticTokensOptions {

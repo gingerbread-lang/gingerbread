@@ -9,9 +9,10 @@ use lsp_types::notification::{PublishDiagnostics, ShowMessage};
 use lsp_types::request::SemanticTokensRefesh as SemanticTokensRefresh;
 use lsp_types::{
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidOpenTextDocumentParams,
-    Location, MessageType, Position, PublishDiagnosticsParams, Range, SelectionRange,
-    SelectionRangeParams, SemanticToken, SemanticTokens, SemanticTokensParams,
-    SemanticTokensResult, ShowMessageParams, SymbolInformation, SymbolKind, WorkspaceSymbolParams,
+    GotoDefinitionParams, GotoDefinitionResponse, Location, LocationLink, MessageType, Position,
+    PublishDiagnosticsParams, Range, SelectionRange, SelectionRangeParams, SemanticToken,
+    SemanticTokens, SemanticTokensParams, SemanticTokensResult, ShowMessageParams,
+    SymbolInformation, SymbolKind, WorkspaceSymbolParams,
 };
 use text_size::{TextRange, TextSize};
 
@@ -42,6 +43,27 @@ pub fn selection_range(
             range
         })
         .collect()
+}
+
+pub fn goto_definition(
+    params: GotoDefinitionParams,
+    global_state: &mut GlobalState,
+) -> Option<GotoDefinitionResponse> {
+    let uri = &params.text_document_position_params.text_document.uri;
+    let offset = {
+        let line_index = global_state.line_index(uri);
+        convert_lsp_position(params.text_document_position_params.position, line_index)
+    };
+
+    let definition = global_state.goto_definition(uri, offset)?;
+    let line_index = global_state.line_index(&definition.file);
+
+    Some(GotoDefinitionResponse::Link(vec![LocationLink {
+        origin_selection_range: None,
+        target_uri: definition.file,
+        target_range: convert_text_range(definition.definition_range, line_index),
+        target_selection_range: convert_text_range(definition.name_range, line_index),
+    }]))
 }
 
 pub fn workspace_symbol(

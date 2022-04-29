@@ -1,6 +1,6 @@
 use lsp_types::notification::{DidChangeTextDocument, DidOpenTextDocument};
 use lsp_types::request::{
-    SelectionRangeRequest, SemanticTokensFullRequest, Shutdown, WorkspaceSymbol,
+    GotoDefinition, SelectionRangeRequest, SemanticTokensFullRequest, Shutdown, WorkspaceSymbol,
 };
 use lsp_types::InitializeResult;
 
@@ -39,6 +39,9 @@ fn main() -> anyhow::Result<()> {
                     })?
                     .on::<SelectionRangeRequest, _>(|params| {
                         Ok(Some(gb_server::selection_range(params, &mut global_state)))
+                    })?
+                    .on::<GotoDefinition, _>(|params| {
+                        Ok(gb_server::goto_definition(params, &mut global_state))
                     })?
                     .on::<WorkspaceSymbol, _>(|params| {
                         Ok(Some(gb_server::workspace_symbol(params, &mut global_state)))

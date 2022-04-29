@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::ops::BitOrAssign;
 use std::path::Path;
 use std::{fs, io, mem};
-use syntax::{NodeKind, SyntaxElement, TokenKind};
+use syntax::{NodeKind, SyntaxElement, SyntaxNode, SyntaxTree, TokenKind};
 use text_size::{TextRange, TextSize};
 use url::Url;
 
@@ -21,6 +21,7 @@ pub struct GlobalState {
 }
 
 struct Analysis {
+    uri: Url,
     content: String,
     line_index: LineIndex,
     module_name: hir::Name,
@@ -59,6 +60,7 @@ impl GlobalState {
             let module_name = filename.find('.').map_or(filename, |dot| &filename[..dot]);
 
             let analysis = Analysis::new(
+                uri.clone(),
                 content,
                 hir::Name(self.interner.intern(module_name)),
                 &mut self.interner,
@@ -97,17 +99,25 @@ impl GlobalState {
         self.analyses[uri].parent_ranges(offset)
     }
 
+    pub fn goto_definition(&self, uri: &Url, offset: TextSize) -> Option<Definition> {
+        self.analyses[uri].goto_definition(
+            offset,
+            &self.world_index,
+            self.project.as_ref().unwrap(),
+        )
+    }
+
     pub fn symbols(&self) -> Vec<Symbol> {
         let project = self.project.as_ref().unwrap();
         self.world_index
             .iter()
-            .map(|(fqn, range)| {
+            .map(|(fqn, range_info)| {
                 let module_name = self.interner.lookup(fqn.module.0);
                 let function_name = self.interner.lookup(fqn.function.0);
                 Symbol {
                     name: format!("{module_name}.{function_name}"),
                     file: path_to_uri(project.module_path(fqn.module).unwrap()),
-                    range,
+                    range: range_info.whole,
                 }
             })
             .collect()
@@ -136,6 +146,7 @@ fn path_to_uri(path: &Path) -> Url {
 
 impl Analysis {
     fn new(
+        uri: Url,
         content: String,
         module_name: hir::Name,
         interner: &mut Interner,
@@ -154,6 +165,7 @@ impl Analysis {
         world_index.add_module(module_name, index.clone());
 
         let mut analysis = Self {
+            uri,
             content,
             line_index: LineIndex::default(),
             module_name,
@@ -229,6 +241,47 @@ impl Analysis {
         ranges
     }
 
+    fn goto_definition(
+        &self,
+        offset: TextSize,
+        world_index: &hir::WorldIndex,
+        project: &hir::Project,
+    ) -> Option<Definition> {
+        let tree = self.parse.syntax_tree();
+        let ident = ident_at_offset(tree, self.ast.syntax(), offset)?;
+
+        let (definition_range, name_range, file) = match self.bodies.symbol(ident)? {
+            hir::Symbol::Local(local_def) => {
+                let local_def = self.bodies[local_def].ast;
+                (local_def.range(tree), local_def.name(tree)?.range(tree), self.uri.clone())
+            }
+            hir::Symbol::Param(ast) => {
+                (ast.range(tree), ast.name(tree)?.range(tree), self.uri.clone())
+            }
+            hir::Symbol::Function(path) => match path {
+                hir::Path::ThisModule(name) => {
+                    let range_info = self.index.range_info(name);
+                    (range_info.whole, range_info.name, self.uri.clone())
+                }
+                hir::Path::OtherModule(fqn) => {
+                    let range_info = world_index.range_info(fqn);
+                    (
+                        range_info.whole,
+                        range_info.name,
+                        path_to_uri(project.module_path(fqn.module).unwrap()),
+                    )
+                }
+            },
+            hir::Symbol::Module(name) => (
+                TextRange::default(),
+                TextRange::default(),
+                path_to_uri(project.module_path(name).unwrap()),
+            ),
+        };
+
+        Some(Definition { definition_range, name_range, file })
+    }
+
     fn highlight(&self) -> Vec<Highlight> {
         let mut tokens = Vec::new();
         let mut last_parent_node_kind = NodeKind::Root;
@@ -269,10 +322,10 @@ impl Analysis {
                     _ => {
                         let ident = ast::Ident::cast(token, self.parse.syntax_tree()).unwrap();
                         match self.bodies.symbol(ident) {
-                            Some(hir::Symbol::Local) => HighlightKind::Local,
-                            Some(hir::Symbol::Param) => HighlightKind::Param,
-                            Some(hir::Symbol::Function) => HighlightKind::Function,
-                            Some(hir::Symbol::Module) => HighlightKind::Module,
+                            Some(hir::Symbol::Local(_)) => HighlightKind::Local,
+                            Some(hir::Symbol::Param(_)) => HighlightKind::Param,
+                            Some(hir::Symbol::Function(_)) => HighlightKind::Function,
+                            Some(hir::Symbol::Module(_)) => HighlightKind::Module,
                             None if self.index.is_ident_ty(ident) => HighlightKind::Ty,
                             None => continue,
                         }
@@ -353,6 +406,12 @@ impl Analysis {
     }
 }
 
+pub struct Definition {
+    pub definition_range: TextRange,
+    pub name_range: TextRange,
+    pub file: Url,
+}
+
 pub struct Symbol {
     pub name: String,
     pub file: Url,
@@ -426,4 +485,32 @@ impl BitOrAssign<HighlightModifier> for HighlightModifiers {
     fn bitor_assign(&mut self, rhs: HighlightModifier) {
         self.0 |= rhs.mask();
     }
+}
+
+fn ident_at_offset(tree: &SyntaxTree, node: SyntaxNode, offset: TextSize) -> Option<ast::Ident> {
+    for child in node.children(tree) {
+        let range = match child {
+            SyntaxElement::Node(n) => n.range(tree),
+            SyntaxElement::Token(t) => t.range(tree),
+        };
+
+        if !range.contains_inclusive(offset) {
+            continue;
+        }
+
+        match child {
+            SyntaxElement::Node(node) => {
+                if let Some(ident) = ident_at_offset(tree, node, offset) {
+                    return Some(ident);
+                }
+            }
+            SyntaxElement::Token(token) => {
+                if let Some(ident) = ast::Ident::cast(token, tree) {
+                    return Some(ident);
+                }
+            }
+        }
+    }
+
+    None
 }

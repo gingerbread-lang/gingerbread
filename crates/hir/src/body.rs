@@ -29,7 +29,7 @@ pub enum Expr {
     Call { path: Path, args: Vec<Id<Expr>> },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum Path {
     ThisModule(Name),
     OtherModule(Fqn),
@@ -41,9 +41,16 @@ pub enum Statement {
     LocalDef(Id<LocalDef>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LocalDef {
     pub value: Id<Expr>,
+    pub ast: ast::LocalDef,
+}
+
+impl std::fmt::Debug for LocalDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LocalDef").field("value", &self.value).finish()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -71,10 +78,10 @@ pub enum LoweringDiagnosticKind {
 
 #[derive(Clone, Copy)]
 pub enum Symbol {
-    Local,
-    Param,
-    Function,
-    Module,
+    Local(Id<LocalDef>),
+    Param(ast::Param),
+    Function(Path),
+    Module(Name),
 }
 
 pub fn lower(
@@ -105,7 +112,7 @@ struct Ctx<'a> {
     tree: &'a SyntaxTree,
     diagnostics: Vec<LoweringDiagnostic>,
     scopes: Vec<HashMap<Key, Id<LocalDef>>>,
-    params: HashMap<Key, u32>,
+    params: HashMap<Key, (u32, ast::Param)>,
 }
 
 impl<'a> Ctx<'a> {
@@ -153,7 +160,8 @@ impl<'a> Ctx<'a> {
         if let Some(param_list) = function.param_list(self.tree) {
             for (idx, param) in param_list.params(self.tree).enumerate() {
                 if let Some(ident) = param.name(self.tree) {
-                    self.params.insert(self.interner.intern(ident.text(self.tree)), idx as u32);
+                    self.params
+                        .insert(self.interner.intern(ident.text(self.tree)), (idx as u32, param));
                 }
             }
         }
@@ -175,7 +183,7 @@ impl<'a> Ctx<'a> {
 
     fn lower_local_def(&mut self, local_def: ast::LocalDef) -> Statement {
         let value = self.lower_expr(local_def.value(self.tree));
-        let id = self.bodies.local_defs.alloc(LocalDef { value });
+        let id = self.bodies.local_defs.alloc(LocalDef { value, ast: local_def });
 
         if let Some(ident) = local_def.name(self.tree) {
             let name = self.interner.intern(ident.text(self.tree));
@@ -256,16 +264,15 @@ impl<'a> Ctx<'a> {
 
             match self.world_index.get_function(fqn) {
                 Ok(function) => {
-                    self.bodies.other_module_references.insert(fqn);
-                    self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
-                    self.bodies.symbol_map.insert(function_name_token, Symbol::Function);
+                    let path = Path::OtherModule(fqn);
 
-                    return self.lower_call(
-                        call,
-                        function,
-                        Path::OtherModule(fqn),
-                        function_name_token,
-                    );
+                    self.bodies.other_module_references.insert(fqn);
+                    self.bodies
+                        .symbol_map
+                        .insert(module_name_token, Symbol::Module(Name(module_name)));
+                    self.bodies.symbol_map.insert(function_name_token, Symbol::Function(path));
+
+                    return self.lower_call(call, function, path, function_name_token);
                 }
 
                 Err(GetFunctionError::UnknownModule) => {
@@ -282,7 +289,9 @@ impl<'a> Ctx<'a> {
                         kind: LoweringDiagnosticKind::UndefinedLocal { name: function_name },
                         range: function_name_token.range(self.tree),
                     });
-                    self.bodies.symbol_map.insert(module_name_token, Symbol::Module);
+                    self.bodies
+                        .symbol_map
+                        .insert(module_name_token, Symbol::Module(Name(module_name)));
 
                     return Expr::Missing;
                 }
@@ -293,20 +302,21 @@ impl<'a> Ctx<'a> {
 
         if let Some(def) = self.look_up_in_current_scope(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
-            self.bodies.symbol_map.insert(ident, Symbol::Local);
+            self.bodies.symbol_map.insert(ident, Symbol::Local(def));
             return Expr::Local(def);
         }
 
-        if let Some(idx) = self.look_up_param(name) {
+        if let Some((idx, ast)) = self.look_up_param(name) {
             check_args_for_local(call, ident, self.tree, name, &mut self.diagnostics);
-            self.bodies.symbol_map.insert(ident, Symbol::Param);
+            self.bodies.symbol_map.insert(ident, Symbol::Param(ast));
             return Expr::Param { idx };
         }
 
         let name = Name(name);
         if let Some(function) = self.index.get_function(name) {
-            self.bodies.symbol_map.insert(ident, Symbol::Function);
-            return self.lower_call(call, function, Path::ThisModule(name), ident);
+            let path = Path::ThisModule(name);
+            self.bodies.symbol_map.insert(ident, Symbol::Function(path));
+            return self.lower_call(call, function, path, ident);
         }
 
         self.diagnostics.push(LoweringDiagnostic {
@@ -416,7 +426,7 @@ impl<'a> Ctx<'a> {
         None
     }
 
-    fn look_up_param(&mut self, name: Key) -> Option<u32> {
+    fn look_up_param(&mut self, name: Key) -> Option<(u32, ast::Param)> {
         self.params.get(&name).copied()
     }
 
@@ -454,7 +464,7 @@ impl Bodies {
             expr_ranges,
             function_bodies,
             other_module_references,
-            symbol_map: source_map,
+            symbol_map,
         } = self;
 
         local_defs.shrink_to_fit();
@@ -463,7 +473,7 @@ impl Bodies {
         expr_ranges.shrink_to_fit();
         function_bodies.shrink_to_fit();
         other_module_references.shrink_to_fit();
-        source_map.shrink_to_fit();
+        symbol_map.shrink_to_fit();
     }
 }
 

@@ -10,7 +10,7 @@ use text_size::TextRange;
 #[derive(Clone)]
 pub struct Index {
     pub(crate) functions: HashMap<Name, Function>,
-    ranges: HashMap<Name, TextRange>,
+    pub(crate) range_info: HashMap<Name, RangeInfo>,
     tys: HashSet<ast::Ident>,
 }
 
@@ -19,12 +19,16 @@ impl Index {
         self.functions.get(&name)
     }
 
+    pub fn range_info(&self, name: Name) -> RangeInfo {
+        self.range_info[&name]
+    }
+
     pub fn functions(&self) -> impl Iterator<Item = Name> + '_ {
         self.functions.keys().copied()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (Name, TextRange)> + '_ {
-        self.ranges.iter().map(|(n, r)| (*n, *r))
+    pub fn iter(&self) -> impl Iterator<Item = (Name, RangeInfo)> + '_ {
+        self.range_info.iter().map(|(n, r)| (*n, *r))
     }
 
     pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
@@ -32,9 +36,9 @@ impl Index {
     }
 
     fn shrink_to_fit(&mut self) {
-        let Self { functions, ranges, tys } = self;
+        let Self { functions, range_info, tys } = self;
         functions.shrink_to_fit();
-        ranges.shrink_to_fit();
+        range_info.shrink_to_fit();
         tys.shrink_to_fit();
     }
 }
@@ -43,6 +47,12 @@ impl Index {
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RangeInfo {
+    pub whole: TextRange,
+    pub name: TextRange,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -69,17 +79,19 @@ pub fn index(
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
-    let mut ranges = HashMap::new();
+    let mut range_info = HashMap::new();
     let mut tys = HashSet::new();
     let mut diagnostics = Vec::new();
 
     for def in root.defs(tree) {
         match def {
             ast::Def::Function(function) => {
-                let name = match function.name(tree) {
-                    Some(ident) => Name(interner.intern(ident.text(tree))),
+                let name_token = match function.name(tree) {
+                    Some(ident) => ident,
                     None => continue,
                 };
+
+                let name = Name(interner.intern(name_token.text(tree)));
 
                 let mut params = Vec::new();
 
@@ -120,14 +132,17 @@ pub fn index(
                     }),
                     Entry::Vacant(vacant_entry) => {
                         vacant_entry.insert(Function { params, return_ty });
-                        ranges.insert(name, function.range(tree));
+                        range_info.insert(
+                            name,
+                            RangeInfo { whole: function.range(tree), name: name_token.range(tree) },
+                        );
                     }
                 }
             }
         }
     }
 
-    let mut index = Index { functions, ranges, tys };
+    let mut index = Index { functions, range_info, tys };
     index.shrink_to_fit();
 
     (index, diagnostics)

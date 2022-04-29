@@ -1,7 +1,6 @@
-use crate::{Function, Index, Name, Ty};
+use crate::{Function, Index, Name, RangeInfo, Ty};
 use interner::Key;
 use std::collections::HashMap;
-use text_size::TextRange;
 
 #[derive(Default, Clone)]
 pub struct WorldIndex(HashMap<Name, Index>);
@@ -33,6 +32,10 @@ impl WorldIndex {
         }
     }
 
+    pub fn range_info(&self, fqn: Fqn) -> RangeInfo {
+        self.0[&fqn.module].range_info[&fqn.function]
+    }
+
     pub fn add_module(&mut self, module: Name, index: Index) {
         assert!(self.0.insert(module, index).is_none());
     }
@@ -41,7 +44,7 @@ impl WorldIndex {
         *self.0.get_mut(&module).unwrap() = index;
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (Fqn, TextRange)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (Fqn, RangeInfo)> + '_ {
         self.0.iter().flat_map(|(module, index)| {
             index.iter().map(|(function, range)| (Fqn { module: *module, function }, range))
         })
