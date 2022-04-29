@@ -43,10 +43,7 @@ impl WorldIndex {
 
     pub fn iter(&self) -> impl Iterator<Item = (Fqn, TextRange)> + '_ {
         self.0.iter().flat_map(|(module, index)| {
-            index
-                .functions
-                .iter()
-                .map(|(name, function)| (Fqn { module: *module, function: *name }, function.range))
+            index.iter().map(|(function, range)| (Fqn { module: *module, function }, range))
         })
     }
 }

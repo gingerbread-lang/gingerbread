@@ -10,6 +10,7 @@ use text_size::TextRange;
 #[derive(Clone)]
 pub struct Index {
     pub(crate) functions: HashMap<Name, Function>,
+    ranges: HashMap<Name, TextRange>,
     tys: HashSet<ast::Ident>,
 }
 
@@ -22,8 +23,8 @@ impl Index {
         self.functions.keys().copied()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&Name, TextRange)> {
-        self.functions.iter().map(|(name, function)| (name, function.range))
+    pub fn iter(&self) -> impl Iterator<Item = (Name, TextRange)> + '_ {
+        self.ranges.iter().map(|(n, r)| (*n, *r))
     }
 
     pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
@@ -31,8 +32,9 @@ impl Index {
     }
 
     fn shrink_to_fit(&mut self) {
-        let Self { functions, tys } = self;
+        let Self { functions, ranges, tys } = self;
         functions.shrink_to_fit();
+        ranges.shrink_to_fit();
         tys.shrink_to_fit();
     }
 }
@@ -41,7 +43,6 @@ impl Index {
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
-    pub range: TextRange,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -68,6 +69,7 @@ pub fn index(
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = HashMap::new();
+    let mut ranges = HashMap::new();
     let mut tys = HashSet::new();
     let mut diagnostics = Vec::new();
 
@@ -117,18 +119,15 @@ pub fn index(
                         range: function.range(tree),
                     }),
                     Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(Function {
-                            params,
-                            return_ty,
-                            range: function.range(tree),
-                        });
+                        vacant_entry.insert(Function { params, return_ty });
+                        ranges.insert(name, function.range(tree));
                     }
                 }
             }
         }
     }
 
-    let mut index = Index { functions, tys };
+    let mut index = Index { functions, ranges, tys };
     index.shrink_to_fit();
 
     (index, diagnostics)
