@@ -16,6 +16,13 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "grammars": [
+      {
+        "language": "gingerbread",
+        "scopeName": "source.gingerbread",
+        "path": "./gingerbread.tmLanguage.json"
+      }
+    ],
     "semanticTokenTypes": [
       {
         "id": "builtinType",

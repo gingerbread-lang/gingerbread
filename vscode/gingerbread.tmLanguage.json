@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "source.gingerbread",
+  "patterns": [
+    { "include": "#keywords" },
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#modules" },
+    { "include": "#types" },
+    { "include": "#function-defs" },
+    { "include": "#local-defs" },
+    { "include": "#parameter-defs" },
+    { "include": "#generic-identifiers" },
+    { "include": "#punctuation" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "keywords": {
+      "match": "\\b(fnc|let)\\b",
+      "name": "keyword.gingerbread"
+    },
+    "comments": {
+      "match": "#.*",
+      "name": "comment.gingerbread"
+    },
+    "strings": {
+      "match": "\".*\"",
+      "name": "string.gingerbread"
+    },
+    "numbers": {
+      "match": "\\b[0-9]+\\b",
+      "name": "constant.numeric.gingerbread"
+    },
+    "modules": {
+      "match": "[a-zA-Z][a-zA-Z0-9_]*(?=\\.[a-zA-Z][a-zA-Z0-9_]*)",
+      "name": "entity.name.type.namespace.gingerbread"
+    },
+    "types": {
+      "match": "(?<=:\\s*)[a-zA-Z][a-zA-Z0-9_]*",
+      "name": "entity.name.type.gingerbread"
+    },
+    "function-defs": {
+      "match": "(?<=fnc\\s*)[a-zA-Z][a-zA-Z0-9_]*",
+      "name": "entity.name.function.gingerbread"
+    },
+    "local-defs": {
+      "match": "(?<=let\\s*)[a-zA-Z][a-zA-Z0-9_]*",
+      "name": "entity.name.variable.gingerbread"
+    },
+    "parameter-defs": {
+      "match": "[a-zA-Z][a-zA-Z0-9_]*(?=:)",
+      "name": "variable.parameter.gingerbread"
+    },
+    "generic-identifiers": {
+      "match": "[a-zA-Z][a-zA-Z0-9_]*",
+      "name": "variable.gingerbread"
+    },
+    "punctuation": {
+      "match": "(\\.|=|{|}|:|,|->|;)",
+      "name": "punctuation.gingerbread"
+    },
+    "operators": {
+      "match": "(\\+|-|\\*|/)",
+      "name": "keyword.operator.gingerbread"
+    }
+  },
+  "fileTypes": ["gb"]
+}
