@@ -403,11 +403,17 @@ impl<'a> Ctx<'a> {
     }
 
     fn insert_into_current_scope(&mut self, name: Key, id: Id<LocalDef>) {
-        self.current_scope().insert(name, id);
+        self.scopes.last_mut().unwrap().insert(name, id);
     }
 
     fn look_up_in_current_scope(&mut self, name: Key) -> Option<Id<LocalDef>> {
-        self.current_scope().get(&name).copied()
+        for scope in self.scopes.iter().rev() {
+            if let Some(def) = scope.get(&name) {
+                return Some(*def);
+            }
+        }
+
+        None
     }
 
     fn look_up_param(&mut self, name: Key) -> Option<u32> {
@@ -420,11 +426,6 @@ impl<'a> Ctx<'a> {
 
     fn destroy_current_scope(&mut self) {
         self.scopes.pop();
-    }
-
-    fn current_scope(&mut self) -> &mut HashMap<Key, Id<LocalDef>> {
-        let len = self.scopes.len();
-        &mut self.scopes[len - 1]
     }
 }
 
@@ -902,6 +903,25 @@ mod tests {
                 };
             "#]],
             |i| [(LoweringDiagnosticKind::UndefinedLocal { name: i.intern("foo") }, 91..94)],
+        );
+    }
+
+    #[test]
+    fn reference_local_from_block() {
+        check(
+            r#"
+                fnc f -> {
+                    let a = 7;
+                    { a };
+                }
+            "#,
+            expect![[r#"
+                fnc f -> {
+                    let l0 = 7;
+                    { l0 };
+                };
+            "#]],
+            |_| [],
         );
     }
 
