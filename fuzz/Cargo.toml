@@ -11,6 +11,7 @@ cargo-fuzz = true
 ast = {path = "../crates/ast"}
 hir = {path = "../crates/hir"}
 hir_ty = {path = "../crates/hir_ty"}
+interner = {path = "../crates/interner"}
 lexer = {path = "../crates/lexer"}
 libfuzzer-sys = "0.4.2"
 parser = {path = "../crates/parser"}
