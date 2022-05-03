@@ -1,16 +1,16 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
-pub fn split_multi_module_test_data(input: &str) -> HashMap<&str, &str> {
+pub fn split_multi_module_test_data(input: &str) -> FxHashMap<&str, &str> {
     const MARKER_COMMENT_START: &str = "#- ";
 
     let has_no_marker_comments = !input.contains(MARKER_COMMENT_START);
     if has_no_marker_comments {
-        let mut modules = HashMap::with_capacity(1);
+        let mut modules = FxHashMap::default();
         modules.insert("main", input);
         return modules;
     }
 
-    let mut module_idxs = HashMap::with_capacity(1);
+    let mut module_idxs = FxHashMap::default();
     let mut current_module_name = None;
     let mut line_idxs = input.match_indices('\n').map(|(idx, _)| idx + 1).peekable();
 

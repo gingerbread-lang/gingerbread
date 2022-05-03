@@ -4,7 +4,7 @@ use diagnostics::Diagnostic;
 use interner::Interner;
 use line_index::LineIndex;
 use parser::Parse;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::ops::BitOrAssign;
 use std::path::Path;
 use std::{fs, io, mem};
@@ -16,7 +16,7 @@ use url::Url;
 pub struct GlobalState {
     interner: Interner,
     world_index: hir::WorldIndex,
-    analyses: HashMap<Url, Analysis>,
+    analyses: FxHashMap<Url, Analysis>,
     project: Option<hir::Project>,
 }
 

@@ -2,7 +2,7 @@ use crate::{Fqn, Function, GetFunctionError, Index, Name, WorldIndex};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use syntax::SyntaxTree;
 use text_size::TextRange;
 
@@ -12,9 +12,9 @@ pub struct Bodies {
     statements: Arena<Statement>,
     exprs: Arena<Expr>,
     expr_ranges: ArenaMap<Id<Expr>, TextRange>,
-    function_bodies: HashMap<Name, Id<Expr>>,
-    other_module_references: HashSet<Fqn>,
-    symbol_map: HashMap<ast::Ident, Symbol>,
+    function_bodies: FxHashMap<Name, Id<Expr>>,
+    other_module_references: FxHashSet<Fqn>,
+    symbol_map: FxHashMap<ast::Ident, Symbol>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,8 +111,8 @@ struct Ctx<'a> {
     interner: &'a mut Interner,
     tree: &'a SyntaxTree,
     diagnostics: Vec<LoweringDiagnostic>,
-    scopes: Vec<HashMap<Key, Id<LocalDef>>>,
-    params: HashMap<Key, (u32, ast::Param)>,
+    scopes: Vec<FxHashMap<Key, Id<LocalDef>>>,
+    params: FxHashMap<Key, (u32, ast::Param)>,
 }
 
 impl<'a> Ctx<'a> {
@@ -128,17 +128,17 @@ impl<'a> Ctx<'a> {
                 statements: Arena::new(),
                 exprs: Arena::new(),
                 expr_ranges: ArenaMap::default(),
-                function_bodies: HashMap::new(),
-                other_module_references: HashSet::new(),
-                symbol_map: HashMap::new(),
+                function_bodies: FxHashMap::default(),
+                other_module_references: FxHashSet::default(),
+                symbol_map: FxHashMap::default(),
             },
             index,
             world_index,
             interner,
             tree,
             diagnostics: Vec::new(),
-            scopes: vec![HashMap::new()],
-            params: HashMap::new(),
+            scopes: vec![FxHashMap::default()],
+            params: FxHashMap::default(),
         }
     }
 
@@ -431,7 +431,7 @@ impl<'a> Ctx<'a> {
     }
 
     fn create_new_child_scope(&mut self) {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(FxHashMap::default());
     }
 
     fn destroy_current_scope(&mut self) {
@@ -448,7 +448,7 @@ impl Bodies {
         self.expr_ranges[expr]
     }
 
-    pub fn other_module_references(&self) -> &HashSet<Fqn> {
+    pub fn other_module_references(&self) -> &FxHashSet<Fqn> {
         &self.other_module_references
     }
 

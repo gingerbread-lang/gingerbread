@@ -1,9 +1,9 @@
 use crate::{Index, Name};
 use interner::Interner;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
-    let mut deleted_or_changed = HashSet::new();
+    let mut deleted_or_changed = FxHashSet::default();
 
     for (&name, old_function) in &old_index.functions {
         match new_index.get_function(name) {
@@ -23,11 +23,11 @@ pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
 }
 
 pub struct Diff {
-    deleted_or_changed: HashSet<Name>,
+    deleted_or_changed: FxHashSet<Name>,
 }
 
 impl Diff {
-    pub fn deleted_or_changed(&self) -> &HashSet<Name> {
+    pub fn deleted_or_changed(&self) -> &FxHashSet<Name> {
         &self.deleted_or_changed
     }
 

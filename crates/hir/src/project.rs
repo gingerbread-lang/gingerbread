@@ -1,16 +1,16 @@
 use crate::Name;
 use interner::{Interner, Key};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::io;
 use std::path::{Path, PathBuf};
 
 pub struct Project {
-    modules: HashMap<Key, PathBuf>,
+    modules: FxHashMap<Key, PathBuf>,
 }
 
 impl Project {
     pub fn new(root: &Path, interner: &mut Interner) -> io::Result<Self> {
-        let mut modules = HashMap::new();
+        let mut modules = FxHashMap::default();
 
         for entry in root.read_dir()? {
             let entry = entry?;

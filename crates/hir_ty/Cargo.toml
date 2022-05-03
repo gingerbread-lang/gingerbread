@@ -8,6 +8,7 @@ version = "0.0.0"
 arena = {path = "../arena"}
 hir = {path = "../hir"}
 interner = {path = "../interner"}
+rustc-hash = "1.1"
 text-size = "1.1"
 
 [dev-dependencies]

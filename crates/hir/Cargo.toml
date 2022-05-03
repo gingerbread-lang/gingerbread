@@ -8,6 +8,7 @@ version = "0.0.0"
 arena = {path = "../arena"}
 ast = {path = "../ast"}
 interner = {path = "../interner"}
+rustc-hash = "1.1"
 syntax = {path = "../syntax"}
 text-size = "1.1"
 thiserror = "1.0"

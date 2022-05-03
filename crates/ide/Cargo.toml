@@ -13,6 +13,7 @@ interner = {path = "../interner"}
 lexer = {path = "../lexer"}
 line_index = {path = "../line_index"}
 parser = {path = "../parser"}
+rustc-hash = "1.1"
 syntax = {path = "../syntax"}
 text-size = "1.1"
 url = "2.2"

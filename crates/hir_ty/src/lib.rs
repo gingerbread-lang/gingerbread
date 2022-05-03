@@ -1,11 +1,11 @@
 use arena::{ArenaMap, Id};
 use interner::Interner;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use text_size::TextRange;
 
 #[derive(Clone)]
 pub struct InferenceResult {
-    signatures: HashMap<hir::Name, Signature>,
+    signatures: FxHashMap<hir::Name, Signature>,
     expr_tys: ArenaMap<Id<hir::Expr>, hir::Ty>,
     local_tys: ArenaMap<Id<hir::LocalDef>, hir::Ty>,
 }
@@ -51,7 +51,7 @@ pub fn infer_all(
     let mut expr_tys = ArenaMap::default();
     let mut local_tys = ArenaMap::default();
     let mut diagnostics = Vec::new();
-    let mut signatures = HashMap::new();
+    let mut signatures = FxHashMap::default();
 
     for function_name in index.functions() {
         signatures.insert(
@@ -93,7 +93,7 @@ pub fn infer(
         &mut diagnostics,
     );
 
-    let mut signatures = HashMap::new();
+    let mut signatures = FxHashMap::default();
     signatures.insert(function_name, signature);
 
     let mut result = InferenceResult { signatures, expr_tys, local_tys };

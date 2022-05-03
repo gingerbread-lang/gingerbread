@@ -1,5 +1,5 @@
 use arena::{ArenaMap, Id};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use wasm_encoder::{
     CodeSection, DataSection, Export, ExportSection, Function, FunctionSection, Instruction,
     MemorySection, MemoryType, Module, TypeSection, ValType,
@@ -12,22 +12,22 @@ pub(crate) struct Ctx {
     code_section: CodeSection,
     data_section: DataSection,
     instructions: Vec<Instruction<'static>>,
-    function_idxs: HashMap<hir::Fqn, u32>,
+    function_idxs: FxHashMap<hir::Fqn, u32>,
     function_idx: u32,
     functions_to_compile: Vec<hir::Fqn>,
     local_idxs: ArenaMap<Id<hir::LocalDef>, u32>,
     local_idx: u32,
     local_tys: Vec<(u32, ValType)>,
     constant_idx: i32,
-    bodies_map: HashMap<hir::Name, hir::Bodies>,
-    tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+    bodies_map: FxHashMap<hir::Name, hir::Bodies>,
+    tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
 }
 
 impl Ctx {
     pub(crate) fn new(
-        bodies_map: HashMap<hir::Name, hir::Bodies>,
-        tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+        bodies_map: FxHashMap<hir::Name, hir::Bodies>,
+        tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
         world_index: hir::WorldIndex,
         entry_point: hir::Fqn,
     ) -> Self {
@@ -38,7 +38,7 @@ impl Ctx {
             code_section: CodeSection::new(),
             data_section: DataSection::new(),
             instructions: Vec::new(),
-            function_idxs: HashMap::new(),
+            function_idxs: FxHashMap::default(),
             function_idx: 0,
             functions_to_compile: vec![entry_point],
             local_idxs: ArenaMap::default(),

@@ -1,9 +1,9 @@
 use crate::{Function, Index, Name, RangeInfo, Ty};
 use interner::Key;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 #[derive(Default, Clone)]
-pub struct WorldIndex(HashMap<Name, Index>);
+pub struct WorldIndex(FxHashMap<Name, Index>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fqn {

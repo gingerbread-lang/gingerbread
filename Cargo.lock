@@ -126,6 +126,7 @@ dependencies = [
  "lexer",
  "mimalloc",
  "parser",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -436,6 +437,7 @@ dependencies = [
  "interner",
  "lexer",
  "parser",
+ "rustc-hash",
  "utils",
  "wasm-encoder",
  "wasmtime",
@@ -574,6 +576,7 @@ dependencies = [
  "interner",
  "lexer",
  "parser",
+ "rustc-hash",
  "syntax",
  "text-size",
  "thiserror",
@@ -591,6 +594,7 @@ dependencies = [
  "interner",
  "lexer",
  "parser",
+ "rustc-hash",
  "text-size",
  "utils",
 ]
@@ -613,6 +617,7 @@ dependencies = [
  "lexer",
  "line_index",
  "parser",
+ "rustc-hash",
  "syntax",
  "text-size",
  "url",
@@ -1325,6 +1330,9 @@ checksum = "b4ae116fef2b7fea257ed6440d3cfcff7f190865f170cdad00bb6465bf18ecba"
 [[package]]
 name = "utils"
 version = "0.0.0"
+dependencies = [
+ "rustc-hash",
+]
 
 [[package]]
 name = "version_check"

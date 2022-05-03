@@ -1,17 +1,17 @@
 use crate::WorldIndex;
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet};
 use std::fmt;
 use syntax::SyntaxTree;
 use text_size::TextRange;
 
 #[derive(Clone)]
 pub struct Index {
-    pub(crate) functions: HashMap<Name, Function>,
-    pub(crate) range_info: HashMap<Name, RangeInfo>,
-    tys: HashSet<ast::Ident>,
+    pub(crate) functions: FxHashMap<Name, Function>,
+    pub(crate) range_info: FxHashMap<Name, RangeInfo>,
+    tys: FxHashSet<ast::Ident>,
 }
 
 impl Index {
@@ -78,9 +78,9 @@ pub fn index(
     world_index: &WorldIndex,
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
-    let mut functions = HashMap::new();
-    let mut range_info = HashMap::new();
-    let mut tys = HashSet::new();
+    let mut functions = FxHashMap::default();
+    let mut range_info = FxHashMap::default();
+    let mut tys = FxHashSet::default();
     let mut diagnostics = Vec::new();
 
     for def in root.defs(tree) {
@@ -152,7 +152,7 @@ fn lower_ty(
     ty: Option<ast::Ty>,
     tree: &SyntaxTree,
     world_index: &WorldIndex,
-    tys: &mut HashSet<ast::Ident>,
+    tys: &mut FxHashSet<ast::Ident>,
     interner: &mut Interner,
     diagnostics: &mut Vec<IndexingDiagnostic>,
 ) -> Ty {

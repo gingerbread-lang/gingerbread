@@ -1,12 +1,12 @@
 mod codegen;
 use self::codegen::Ctx;
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 pub fn eval(
     fqn: hir::Fqn,
-    bodies_map: HashMap<hir::Name, hir::Bodies>,
-    tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+    bodies_map: FxHashMap<hir::Name, hir::Bodies>,
+    tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
@@ -61,8 +61,8 @@ pub fn eval(
 
 pub fn compile(
     fqn: hir::Fqn,
-    bodies_map: HashMap<hir::Name, hir::Bodies>,
-    tys_map: HashMap<hir::Name, hir_ty::InferenceResult>,
+    bodies_map: FxHashMap<hir::Name, hir::Bodies>,
+    tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
     world_index: hir::WorldIndex,
 ) -> Vec<u8> {
     Ctx::new(bodies_map, tys_map, world_index, fqn).finish()
@@ -83,7 +83,7 @@ mod tests {
     use interner::Interner;
 
     fn check<const N: usize>(modules: [(&str, &str); N], expect: Expect) {
-        let mut analysis_results = HashMap::with_capacity(modules.len());
+        let mut analysis_results = FxHashMap::default();
         let mut interner = Interner::default();
         let mut world_index = hir::WorldIndex::default();
 
@@ -103,8 +103,8 @@ mod tests {
             analysis_results.insert(module, (tree, root, index));
         }
 
-        let mut bodies_map = HashMap::with_capacity(modules.len());
-        let mut tys_map = HashMap::with_capacity(modules.len());
+        let mut bodies_map = FxHashMap::default();
+        let mut tys_map = FxHashMap::default();
 
         for (module, (tree, root, index)) in analysis_results {
             let (bodies, _) = hir::lower(root, &tree, &index, &world_index, &mut interner);

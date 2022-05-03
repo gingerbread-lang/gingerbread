@@ -14,3 +14,4 @@ interner = {path = "../interner"}
 lexer = {path = "../lexer"}
 mimalloc = {version = "0.1.27", default-features = false}
 parser = {path = "../parser"}
+rustc-hash = "1.1"

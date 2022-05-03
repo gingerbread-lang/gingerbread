@@ -1,7 +1,7 @@
 use ast::AstNode;
 use interner::Interner;
+use rustc_hash::FxHashMap;
 use std::alloc::GlobalAlloc;
-use std::collections::HashMap;
 use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -137,8 +137,8 @@ fn compile(input: &str, should_compile: bool, runs: usize, should_print: bool) {
         let main = hir::Name(interner.intern("main"));
         world_index.add_module(main, index);
 
-        let mut bodies_map = HashMap::new();
-        let mut tys_map = HashMap::new();
+        let mut bodies_map = FxHashMap::default();
+        let mut tys_map = FxHashMap::default();
         bodies_map.insert(main, bodies);
         tys_map.insert(main, inference);
 

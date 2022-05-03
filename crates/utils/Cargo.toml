@@ -3,3 +3,6 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 name = "utils"
 version = "0.0.0"
+
+[dependencies]
+rustc-hash = "1.1"
