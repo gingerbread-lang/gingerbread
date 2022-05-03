@@ -50,20 +50,19 @@ fn main() {
         }
 
         Some("short") => {
-            compile(
+            Bench::new(
                 r#"
-                        fnc add(x: s32, y: s32): s32 -> x + y;
-                        fnc main: s32 -> add 10, 20 + 30;
-                    "#,
-                true,
-                5_000_000,
-                true,
-            );
+                    fnc add(x: s32, y: s32): s32 -> x + y;
+                    fnc main: s32 -> add 10, 20 + 30;
+                "#,
+                BenchOptions { should_compile: true, runs: 5_000_000 },
+            )
+            .run();
         }
 
         Some("long") => {
             let input = gen::gen(16 << 10 << 10); // 16 MiB
-            compile(&input, false, 20, true);
+            Bench::new(&input, BenchOptions { should_compile: false, runs: 20 }).run();
         }
 
         Some(_) => eprintln!("Unrecognized benchmark name"),
@@ -72,124 +71,108 @@ fn main() {
     }
 }
 
-fn compile(input: &str, should_compile: bool, runs: usize, should_print: bool) {
-    if should_print {
-        println!("{} lines, {} bytes", input.lines().count(), input.len());
+struct BenchOptions {
+    should_compile: bool,
+    runs: usize,
+}
+
+struct Bench<'a> {
+    input: &'a str,
+    options: BenchOptions,
+    initial_mem_usage: usize,
+    previous_mem_usage: usize,
+    total_time: Duration,
+}
+
+impl<'a> Bench<'a> {
+    #[must_use]
+    fn new(input: &'a str, options: BenchOptions) -> Self {
+        let mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
+        Self {
+            input,
+            options,
+            initial_mem_usage: mem_usage,
+            previous_mem_usage: 0,
+            total_time: Duration::default(),
+        }
     }
 
-    let mut previous_mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
+    fn run(mut self) {
+        println!("{} lines, {} bytes", self.input.lines().count(), self.input.len());
 
-    let tokens = stage("lex", || lexer::lex(input), &mut previous_mem_usage, runs, should_print);
+        let tokens = self.stage("lex", || lexer::lex(self.input));
 
-    let mut world_index = hir::WorldIndex::default();
+        let mut world_index = hir::WorldIndex::default();
 
-    let tree = stage(
-        "parse",
-        || parser::parse_repl_line(&tokens, input).into_syntax_tree(),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let tree =
+            self.stage("parse", || parser::parse_repl_line(&tokens, self.input).into_syntax_tree());
 
-    let root = stage(
-        "get ast",
-        || ast::Root::cast(tree.root(), &tree).unwrap(),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let root = self.stage("get ast", || ast::Root::cast(tree.root(), &tree).unwrap());
 
-    let _diagnostics = stage(
-        "validate",
-        || ast::validation::validate(root, &tree),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let _diagnostics = self.stage("validate", || ast::validation::validate(root, &tree));
 
-    let mut interner = Interner::default();
+        let mut interner = Interner::default();
 
-    let (index, _diagnostics) = stage(
-        "index",
-        || hir::index(root, &tree, &world_index, &mut interner),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let (index, _diagnostics) =
+            self.stage("index", || hir::index(root, &tree, &world_index, &mut interner));
 
-    let (bodies, _diagnostics) = stage(
-        "lower",
-        || hir::lower(root, &tree, &index, &world_index, &mut interner),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let (bodies, _diagnostics) =
+            self.stage("lower", || hir::lower(root, &tree, &index, &world_index, &mut interner));
 
-    let (inference, _diagnostics) = stage(
-        "infer",
-        || hir_ty::infer_all(&bodies, &index, &world_index),
-        &mut previous_mem_usage,
-        runs,
-        should_print,
-    );
+        let (inference, _diagnostics) =
+            self.stage("infer", || hir_ty::infer_all(&bodies, &index, &world_index));
 
-    if should_compile {
-        let main = hir::Name(interner.intern("main"));
-        world_index.add_module(main, index);
+        if self.options.should_compile {
+            let main = hir::Name(interner.intern("main"));
+            world_index.add_module(main, index);
 
-        let mut bodies_map = FxHashMap::default();
-        let mut tys_map = FxHashMap::default();
-        bodies_map.insert(main, bodies);
-        tys_map.insert(main, inference);
+            let mut bodies_map = FxHashMap::default();
+            let mut tys_map = FxHashMap::default();
+            bodies_map.insert(main, bodies);
+            tys_map.insert(main, inference);
 
-        let _wasm = stage(
-            "compile",
-            || {
+            let _wasm = self.stage("compile", || {
                 eval::compile(
                     hir::Fqn { module: main, function: main },
                     bodies_map.clone(),
                     tys_map.clone(),
                     world_index.clone(),
                 )
-            },
-            &mut previous_mem_usage,
-            runs,
-            should_print,
-        );
-    }
-}
+            });
+        }
 
-fn stage<T>(
-    name: &str,
-    mut f: impl FnMut() -> T,
-    previous_mem_usage: &mut usize,
-    runs: usize,
-    should_print: bool,
-) -> T {
-    if !should_print {
-        return f();
+        // MB/s == B/µs
+        let throughput = self.input.len() as f32 / self.total_time.as_micros() as f32;
+        let lines_per_second = self.input.lines().count() as f32 / self.total_time.as_secs_f32();
+        println!("\n{throughput} MB/s");
+        println!("{:.0} KLOC/s", lines_per_second / 1000.0);
     }
 
-    print!("{name:10}");
+    fn stage<T>(&mut self, name: &str, mut f: impl FnMut() -> T) -> T {
+        print!("{name:10}");
 
-    let mut times = vec![Duration::default(); runs];
-    let mut result = None;
+        let mut times = vec![Duration::default(); self.options.runs];
+        let mut result = None;
 
-    for time in &mut times {
-        let now = Instant::now();
-        result = Some(f());
-        *time = now.elapsed();
+        for time in &mut times {
+            let now = Instant::now();
+            result = Some(f());
+            *time = now.elapsed();
+        }
+
+        let average_time = times.iter().sum::<Duration>() / times.len() as u32;
+        self.total_time += average_time;
+        print!("{:>15?}", average_time);
+
+        drop(times);
+
+        let mem_usage = GLOBAL.total_size.load(Ordering::SeqCst) - self.initial_mem_usage;
+        print!("{:5}MB", (mem_usage - self.previous_mem_usage) / 1_000_000);
+        print!("{:5}MB", mem_usage / 1_000_000);
+        self.previous_mem_usage = mem_usage;
+
+        println!();
+
+        result.unwrap()
     }
-
-    print!("{:>15?}", times.iter().sum::<Duration>() / times.len() as u32);
-    drop(times);
-
-    let mem_usage = GLOBAL.total_size.load(Ordering::SeqCst);
-    print!("{:5}MB", (mem_usage - *previous_mem_usage) / 1_000_000);
-    print!("{:5}MB", mem_usage / 1_000_000);
-    *previous_mem_usage = mem_usage;
-
-    println!();
-
-    result.unwrap()
 }
