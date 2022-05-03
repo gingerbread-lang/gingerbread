@@ -136,7 +136,7 @@ impl<'a> Bench<'a> {
                     hir::Fqn { module: main, function: main },
                     bodies_map.clone(),
                     tys_map.clone(),
-                    world_index.clone(),
+                    &world_index,
                 )
             });
         }

@@ -7,7 +7,7 @@ pub fn eval(
     fqn: hir::Fqn,
     bodies_map: FxHashMap<hir::Name, hir::Bodies>,
     tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
-    world_index: hir::WorldIndex,
+    world_index: &hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
         let function = world_index.get_function(fqn).unwrap();
@@ -63,7 +63,7 @@ pub fn compile(
     fqn: hir::Fqn,
     bodies_map: FxHashMap<hir::Name, hir::Bodies>,
     tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
-    world_index: hir::WorldIndex,
+    world_index: &hir::WorldIndex,
 ) -> Vec<u8> {
     Ctx::new(bodies_map, tys_map, world_index, fqn).finish()
 }
@@ -123,7 +123,7 @@ mod tests {
             },
             bodies_map,
             tys_map,
-            world_index,
+            &world_index,
         );
 
         expect.assert_eq(&format!("{:?}", result));

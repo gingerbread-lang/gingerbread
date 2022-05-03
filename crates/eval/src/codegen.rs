@@ -5,7 +5,7 @@ use wasm_encoder::{
     MemorySection, MemoryType, Module, TypeSection, ValType,
 };
 
-pub(crate) struct Ctx {
+pub(crate) struct Ctx<'a> {
     type_section: TypeSection,
     function_section: FunctionSection,
     export_section: ExportSection,
@@ -21,14 +21,14 @@ pub(crate) struct Ctx {
     constant_idx: i32,
     bodies_map: FxHashMap<hir::Name, hir::Bodies>,
     tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
-    world_index: hir::WorldIndex,
+    world_index: &'a hir::WorldIndex,
 }
 
-impl Ctx {
+impl<'a> Ctx<'a> {
     pub(crate) fn new(
         bodies_map: FxHashMap<hir::Name, hir::Bodies>,
         tys_map: FxHashMap<hir::Name, hir_ty::InferenceResult>,
-        world_index: hir::WorldIndex,
+        world_index: &'a hir::WorldIndex,
         entry_point: hir::Fqn,
     ) -> Self {
         let mut ctx = Self {

@@ -2,7 +2,7 @@ use crate::{Function, Index, Name, RangeInfo, Ty};
 use interner::Key;
 use rustc_hash::FxHashMap;
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct WorldIndex(FxHashMap<Name, Index>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
