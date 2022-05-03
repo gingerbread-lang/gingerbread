@@ -144,7 +144,9 @@ impl<'a> Bench<'a> {
         // MB/s == B/µs
         let throughput = self.input.len() as f32 / self.total_time.as_micros() as f32;
         let lines_per_second = self.input.lines().count() as f32 / self.total_time.as_secs_f32();
-        println!("\n{throughput} MB/s");
+        println!();
+        println!("{:?}", self.total_time);
+        println!("{throughput} MB/s");
         println!("{:.0} KLOC/s", lines_per_second / 1000.0);
     }
 
