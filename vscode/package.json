@@ -33,6 +33,10 @@
         "id": "quote",
         "description": "Style for quotes around string literals",
         "superType": "string"
+      },
+      {
+        "id": "unresolvedReference",
+        "description": "Style for unresolved references"
       }
     ],
     "semanticTokenScopes": [
@@ -71,6 +75,9 @@
           ],
           "comment": [
             "comment.line.gingerbread"
+          ],
+          "unresolvedReference": [
+            "invalid.illegal.unresolved.gingerbread"
           ]
         }
       }

@@ -277,6 +277,7 @@ impl Analysis {
                 TextRange::default(),
                 path_to_uri(project.module_path(name).unwrap()),
             ),
+            hir::Symbol::Unknown => return None,
         };
 
         Some(Definition { definition_range, name_range, file })
@@ -327,6 +328,7 @@ impl Analysis {
                             Some(hir::Symbol::Param(_)) => HighlightKind::Param,
                             Some(hir::Symbol::Function(_)) => HighlightKind::Function,
                             Some(hir::Symbol::Module(_)) => HighlightKind::Module,
+                            Some(hir::Symbol::Unknown) => HighlightKind::UnresolvedReference,
                             None if self.index.is_ident_ty(ident) => HighlightKind::Ty,
                             None => continue,
                         }
@@ -438,6 +440,7 @@ pub enum HighlightKind {
     String,
     Operator,
     Comment,
+    UnresolvedReference,
     __Last,
 }
 

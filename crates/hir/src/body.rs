@@ -82,6 +82,7 @@ pub enum Symbol {
     Param(ast::Param),
     Function(Path),
     Module(Name),
+    Unknown,
 }
 
 pub fn lower(
@@ -267,6 +268,7 @@ impl<'a> Ctx<'a> {
                     let path = Path::OtherModule(fqn);
 
                     self.bodies.other_module_references.insert(fqn);
+
                     self.bodies
                         .symbol_map
                         .insert(module_name_token, Symbol::Module(Name(module_name)));
@@ -281,6 +283,9 @@ impl<'a> Ctx<'a> {
                         range: module_name_token.range(self.tree),
                     });
 
+                    self.bodies.symbol_map.insert(module_name_token, Symbol::Unknown);
+                    self.bodies.symbol_map.insert(function_name_token, Symbol::Unknown);
+
                     return Expr::Missing;
                 }
 
@@ -289,9 +294,11 @@ impl<'a> Ctx<'a> {
                         kind: LoweringDiagnosticKind::UndefinedLocal { name: function_name },
                         range: function_name_token.range(self.tree),
                     });
+
                     self.bodies
                         .symbol_map
                         .insert(module_name_token, Symbol::Module(Name(module_name)));
+                    self.bodies.symbol_map.insert(function_name_token, Symbol::Unknown);
 
                     return Expr::Missing;
                 }
@@ -323,6 +330,8 @@ impl<'a> Ctx<'a> {
             kind: LoweringDiagnosticKind::UndefinedLocal { name: name.0 },
             range: ident.range(self.tree),
         });
+
+        self.bodies.symbol_map.insert(ident, Symbol::Unknown);
 
         return Expr::Missing;
 
