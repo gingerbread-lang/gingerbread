@@ -38,7 +38,6 @@ pub enum TokenKind {
     Whitespace,
     Comment,
     Error,
-    __Last,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -59,12 +58,9 @@ pub enum NodeKind {
     ReturnTy,
     Ty,
     Error,
-    __Last,
 }
 
 unsafe impl eventree::SyntaxKind for TokenKind {
-    const LAST: u16 = Self::__Last as u16;
-
     fn to_raw(self) -> u16 {
         self as u16
     }
@@ -75,8 +71,6 @@ unsafe impl eventree::SyntaxKind for TokenKind {
 }
 
 unsafe impl eventree::SyntaxKind for NodeKind {
-    const LAST: u16 = Self::__Last as u16;
-
     fn to_raw(self) -> u16 {
         self as u16
     }

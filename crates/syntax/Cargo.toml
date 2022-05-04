@@ -5,4 +5,4 @@ name = "syntax"
 version = "0.0.0"
 
 [dependencies]
-eventree = "0.3.0"
+eventree = "0.4.0"

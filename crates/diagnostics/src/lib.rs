@@ -247,7 +247,6 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Whitespace => "whitespace",
         TokenKind::Comment => "comment",
         TokenKind::Error => "an unrecognized token",
-        TokenKind::__Last => unreachable!(),
     }
 }
 
