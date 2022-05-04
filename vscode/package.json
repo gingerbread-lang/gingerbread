@@ -28,6 +28,11 @@
         "id": "builtinType",
         "description": "Style for builtin types",
         "superType": "type"
+      },
+      {
+        "id": "quote",
+        "description": "Style for quotes around string literals",
+        "superType": "string"
       }
     ],
     "semanticTokenScopes": [
@@ -54,6 +59,9 @@
           ],
           "number": [
             "constant.numeric.gingerbread"
+          ],
+          "quote": [
+            "punctuation.definition.string.gingerbread"
           ],
           "string": [
             "string.quoted.double.gingerbread"
