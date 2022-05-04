@@ -308,7 +308,7 @@ impl IntLiteral {
 def_ast_node!(StringLiteral);
 
 impl StringLiteral {
-    pub fn value(self, tree: &SyntaxTree) -> Option<String> {
+    pub fn contents(self, tree: &SyntaxTree) -> Option<StringContents> {
         token(self, tree)
     }
 }
@@ -348,7 +348,7 @@ def_ast_token!(Asterisk);
 def_ast_token!(Slash);
 def_ast_token!(Ident);
 def_ast_token!(Int);
-def_ast_token!(String);
+def_ast_token!(StringContents);
 
 fn nodes<Parent: AstNode, Child: AstNode>(
     node: Parent,
@@ -511,7 +511,7 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert_eq!(string_literal.value(&tree).unwrap().text(&tree), "\"👀\"");
+        assert_eq!(string_literal.contents(&tree).unwrap().text(&tree), "👀");
     }
 
     #[test]

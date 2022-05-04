@@ -300,7 +300,7 @@ impl Analysis {
             let kind = match token.kind(self.parse.syntax_tree()) {
                 TokenKind::LetKw | TokenKind::FncKw => HighlightKind::Keyword,
                 TokenKind::Int => HighlightKind::Number,
-                TokenKind::String => HighlightKind::String,
+                TokenKind::StringContents => HighlightKind::String,
                 TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
                     HighlightKind::Operator
                 }

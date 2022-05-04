@@ -50,12 +50,12 @@ fn it_works() {
 
     assert!(set.contains(TokenKind::LetKw));
     assert!(set.contains(TokenKind::Int));
-    assert!(!set.contains(TokenKind::String));
+    assert!(!set.contains(TokenKind::StringContents));
 
-    let set = set.union(TokenSet::new([TokenKind::String]));
+    let set = set.union(TokenSet::new([TokenKind::StringContents]));
 
     assert!(set.contains(TokenKind::LetKw));
     assert!(set.contains(TokenKind::Int));
-    assert!(set.contains(TokenKind::String));
+    assert!(set.contains(TokenKind::StringContents));
     assert!(!set.contains(TokenKind::Ident));
 }

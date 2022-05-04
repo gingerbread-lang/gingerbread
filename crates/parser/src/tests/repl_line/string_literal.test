@@ -2,4 +2,6 @@
 ===
 Root@0..15
   StringLiteral@0..15
-    String@0..15 "\"Hello, world!\""
+    Quote@0..1 "\""
+    StringContents@1..14 "Hello, world!"
+    Quote@14..15 "\""

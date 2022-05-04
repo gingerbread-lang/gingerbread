@@ -7,5 +7,7 @@ Root@0..15
     ArgList@7..15
       Arg@7..14
         StringLiteral@7..14
-          String@7..14 "\"Hello\""
+          Quote@7..8 "\""
+          StringContents@8..13 "Hello"
+          Quote@13..14 "\""
       Comma@14..15 ","

@@ -16,7 +16,9 @@ Root@0..72
     Arrow@18..20 "->"
     Whitespace@20..21 " "
     StringLiteral@21..28
-      String@21..28 "\"hello\""
+      Quote@21..22 "\""
+      StringContents@22..27 "hello"
+      Quote@27..28 "\""
     Semicolon@28..29 ";"
   Whitespace@29..30 "\n"
   Error@30..33
@@ -46,7 +48,9 @@ Root@0..72
     Arrow@61..63 "->"
     Whitespace@63..64 " "
     StringLiteral@64..71
-      String@64..71 "\"world\""
+      Quote@64..65 "\""
+      StringContents@65..70 "world"
+      Quote@70..71 "\""
     Semicolon@71..72 ";"
 error at 30..33: expected definition but found LetKw
 error at 34..37: expected definition but found Ident

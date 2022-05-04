@@ -5,7 +5,7 @@ use crate::token_set::TokenSet;
 use syntax::{NodeKind, TokenKind};
 
 pub(super) const EXPR_FIRST: TokenSet =
-    TokenSet::new([TokenKind::Ident, TokenKind::LBrace, TokenKind::Int, TokenKind::String]);
+    TokenSet::new([TokenKind::Ident, TokenKind::LBrace, TokenKind::Int, TokenKind::Quote]);
 
 pub(super) fn parse_expr(
     p: &mut Parser<'_>,
@@ -66,7 +66,7 @@ fn parse_lhs(
         parse_block(p)
     } else if p.at(TokenKind::Int) {
         parse_int_literal(p)
-    } else if p.at(TokenKind::String) {
+    } else if p.at(TokenKind::Quote) {
         parse_string_literal(p)
     } else {
         return p.error_with_recovery_set(recovery_set);
@@ -140,8 +140,14 @@ fn parse_int_literal(p: &mut Parser<'_>) -> CompletedMarker {
 }
 
 fn parse_string_literal(p: &mut Parser<'_>) -> CompletedMarker {
-    assert!(p.at(TokenKind::String));
+    assert!(p.at(TokenKind::Quote));
     let m = p.start();
     p.bump();
+
+    if p.at(TokenKind::StringContents) {
+        p.bump();
+    }
+
+    p.expect(TokenKind::Quote);
     m.complete(p, NodeKind::StringLiteral)
 }

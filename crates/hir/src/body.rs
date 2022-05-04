@@ -401,12 +401,10 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_string_literal(&self, string_literal: ast::StringLiteral) -> Expr {
-        match string_literal.value(self.tree) {
+        match string_literal.contents(self.tree) {
             Some(string) => {
                 let text = string.text(self.tree);
-
-                // trim off quotes
-                Expr::StringLiteral(text[1..text.len() - 1].to_string())
+                Expr::StringLiteral(text.to_string())
             }
             None => Expr::Missing,
         }

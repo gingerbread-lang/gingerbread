@@ -9,7 +9,8 @@ pub fn lex(text: &str) -> Tokens {
     let mut kinds = Vec::new();
     let mut starts = Vec::new();
 
-    for (kind, start) in (Lexer { inner: LexerTokenKind::lexer(text) }) {
+    let lexer = Lexer { top_level_lexer: LexerTokenKind::lexer(text), string_lexer: None };
+    for (kind, start) in lexer {
         kinds.push(kind);
         starts.push(start);
     }
@@ -23,16 +24,49 @@ pub fn lex(text: &str) -> Tokens {
 }
 
 struct Lexer<'a> {
-    inner: logos::Lexer<'a, LexerTokenKind>,
+    top_level_lexer: logos::Lexer<'a, LexerTokenKind>,
+    string_lexer: Option<(logos::Lexer<'a, StringTokenKind>, usize)>,
 }
 
 impl Iterator for Lexer<'_> {
     type Item = (TokenKind, TextSize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        let kind = self.inner.next()?;
+        let (kind, range) = match &mut self.string_lexer {
+            Some((string_lexer, offset)) => match string_lexer.next() {
+                Some(kind) => {
+                    let kind = match kind {
+                        StringTokenKind::Quote => LexerTokenKind::Quote,
+                        StringTokenKind::Contents => LexerTokenKind::StringContents,
+                        StringTokenKind::Error => unreachable!(),
+                    };
+                    let range = string_lexer.span();
+
+                    (kind, (range.start + *offset)..(range.end + *offset))
+                }
+                None => {
+                    self.string_lexer = None;
+                    return self.next();
+                }
+            },
+
+            None => {
+                let kind = self.top_level_lexer.next()?;
+
+                if kind == LexerTokenKind::__String {
+                    self.string_lexer = Some((
+                        StringTokenKind::lexer(self.top_level_lexer.slice()),
+                        self.top_level_lexer.span().start,
+                    ));
+                    return self.next();
+                }
+
+                (kind, self.top_level_lexer.span())
+            }
+        };
+
         let start = {
-            let start = self.inner.span().start;
+            let start = range.start;
             let start: u32 = start.try_into().unwrap();
             start.into()
         };
@@ -55,8 +89,9 @@ enum LexerTokenKind {
     #[regex("[0-9]+")]
     Int,
 
-    #[regex("\"[^\"\n]*\"")]
-    String,
+    Quote,
+
+    StringContents,
 
     #[token("+")]
     Plus,
@@ -106,6 +141,21 @@ enum LexerTokenKind {
     #[regex("#.*")]
     Comment,
 
+    #[error]
+    Error,
+
+    // the closing quote is optional;
+    // unclosed quotes are handled in parsing for better error messages
+    #[regex(r#""[^"\n]*"?"#)]
+    __String,
+}
+
+#[derive(Debug, Logos)]
+enum StringTokenKind {
+    #[token("\"")]
+    Quote,
+    #[regex("[^\"]*")]
+    Contents,
     #[error]
     Error,
 }
@@ -201,7 +251,43 @@ mod tests {
 
     #[test]
     fn lex_string() {
-        check("\"hello\"", TokenKind::String);
+        assert_eq!(
+            lex("\"hello\""),
+            Tokens::new(
+                vec![TokenKind::Quote, TokenKind::StringContents, TokenKind::Quote],
+                vec![0.into(), 1.into(), 6.into(), 7.into()]
+            )
+        );
+    }
+
+    #[test]
+    fn lex_empty_string() {
+        assert_eq!(
+            lex("\"\""),
+            Tokens::new(
+                vec![TokenKind::Quote, TokenKind::Quote],
+                vec![0.into(), 1.into(), 2.into()]
+            )
+        );
+    }
+
+    #[test]
+    fn unclosed_string_go_to_end_of_line() {
+        assert_eq!(
+            lex("\
+foo\"bar
+baz"),
+            Tokens::new(
+                vec![
+                    TokenKind::Ident,
+                    TokenKind::Quote,
+                    TokenKind::StringContents,
+                    TokenKind::Whitespace,
+                    TokenKind::Ident
+                ],
+                vec![0.into(), 3.into(), 4.into(), 7.into(), 8.into(), 11.into()]
+            )
+        );
     }
 
     #[test]
@@ -209,8 +295,14 @@ mod tests {
         assert_eq!(
             lex("\"foo\nbar\""),
             Tokens::new(
-                vec![TokenKind::Error, TokenKind::Whitespace, TokenKind::Ident, TokenKind::Error],
-                vec![0.into(), 4.into(), 5.into(), 8.into(), 9.into()]
+                vec![
+                    TokenKind::Quote,
+                    TokenKind::StringContents,
+                    TokenKind::Whitespace,
+                    TokenKind::Ident,
+                    TokenKind::Quote
+                ],
+                vec![0.into(), 1.into(), 4.into(), 5.into(), 8.into(), 9.into()]
             )
         );
     }
