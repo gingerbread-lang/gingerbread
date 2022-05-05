@@ -9,9 +9,13 @@ Root@0..30
   Whitespace@3..4 "\n"
   Function@4..30
     Docs@4..17
-      DocComment@4..10 "## foo"
+      DocComment@4..10
+        DocCommentLeader@4..6 "##"
+        DocCommentContents@6..10 " foo"
       Whitespace@10..11 "\n"
-      DocComment@11..17 "## bar"
+      DocComment@11..17
+        DocCommentLeader@11..13 "##"
+        DocCommentContents@13..17 " bar"
     Whitespace@17..18 "\n"
     FncKw@18..21 "fnc"
     Whitespace@21..22 " "

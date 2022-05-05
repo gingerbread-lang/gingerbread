@@ -136,22 +136,19 @@ pub fn index(
                 if let Some(d) = function.docs(tree) {
                     let mut paras = vec![String::new()];
 
-                    for doc_comment in d.lines(tree) {
-                        let (leader, line) = doc_comment.text(tree).split_at(2);
-                        debug_assert_eq!(leader, "##");
+                    for doc_comment in d.doc_comments(tree) {
+                        match doc_comment.contents(tree) {
+                            Some(contents) => {
+                                let contents = contents.text(tree).trim();
+                                let last_para = &mut paras.last_mut().unwrap();
 
-                        let line = line.trim();
+                                if !last_para.is_empty() {
+                                    last_para.push(' ');
+                                }
 
-                        if line.is_empty() {
-                            paras.push(String::new());
-                        } else {
-                            let last_para = &mut paras.last_mut().unwrap();
-
-                            if !last_para.is_empty() {
-                                last_para.push(' ');
+                                last_para.push_str(contents);
                             }
-
-                            last_para.push_str(line);
+                            None => paras.push(String::new()),
                         }
                     }
 

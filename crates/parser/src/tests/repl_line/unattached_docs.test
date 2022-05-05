@@ -2,5 +2,7 @@
 ===
 Root@0..17
   Docs@0..17
-    DocComment@0..17 "## Unattached ..."
+    DocComment@0..17
+      DocCommentLeader@0..2 "##"
+      DocCommentContents@2..17 " Unattached ..."
 error at 17: missing definition

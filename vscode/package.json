@@ -40,9 +40,19 @@
         "superType": "string"
       },
       {
+        "id": "commentLeader",
+        "description": "Style for the leading punctuation that indicates a comment",
+        "superType": "comment"
+      },
+      {
         "id": "docComment",
         "description": "Style for documentation comments",
         "superType": "comment"
+      },
+      {
+        "id": "docCommentLeader",
+        "description": "Style for the leading punctuation that indicates a documentation comment",
+        "superType": "docComment"
       },
       {
         "id": "unresolvedReference",
@@ -89,7 +99,13 @@
           "comment": [
             "comment.line.gingerbread"
           ],
+          "commentLeader": [
+            "comment.line.gingerbread"
+          ],
           "docComment": [
+            "comment.line.documentation.gingerbread"
+          ],
+          "docCommentLeader": [
             "comment.line.documentation.gingerbread"
           ],
           "unresolvedReference": [

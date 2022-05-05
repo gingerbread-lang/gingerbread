@@ -73,8 +73,9 @@ impl<'tokens> Sink<'tokens> {
 
     #[inline(always)]
     fn skip_trivia(&mut self) {
-        while let Some(TokenKind::Whitespace | TokenKind::Comment) =
-            self.tokens.get_kind(self.token_idx)
+        while let Some(
+            TokenKind::Whitespace | TokenKind::CommentLeader | TokenKind::CommentContents,
+        ) = self.tokens.get_kind(self.token_idx)
         {
             self.add_token();
         }

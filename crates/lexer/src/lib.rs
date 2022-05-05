@@ -13,16 +13,17 @@ pub fn lex(text: &str) -> Tokens {
         let range = lexer.span();
         let start = (range.start as u32).into();
 
-        if kind == LexerTokenKind::__InternalString {
-            lex_string(lexer.slice(), start, |k, s| {
-                kinds.push(k);
-                starts.push(s);
-            });
-            continue;
-        }
+        let mut handler = |k, s| {
+            kinds.push(k);
+            starts.push(s);
+        };
 
-        kinds.push(unsafe { mem::transmute(kind) });
-        starts.push(start);
+        match kind {
+            LexerTokenKind::__InternalString => lex_string(lexer.slice(), start, handler),
+            LexerTokenKind::__InternalComment => lex_comment(start, range.len(), handler),
+            LexerTokenKind::__InternalDocComment => lex_doc_comment(start, range.len(), handler),
+            _ => handler(unsafe { mem::transmute(kind) }, start),
+        }
     }
 
     starts.push((text.len() as u32).into());
@@ -63,6 +64,22 @@ fn lex_string(s: &str, offset: TextSize, mut f: impl FnMut(TokenKind, TextSize))
         }
 
         pos += TextSize::from(c.len_utf8() as u32);
+    }
+}
+
+fn lex_comment(offset: TextSize, len: usize, mut f: impl FnMut(TokenKind, TextSize)) {
+    f(TokenKind::CommentLeader, offset);
+
+    if len > 1 {
+        f(TokenKind::CommentContents, offset + TextSize::from(1));
+    }
+}
+
+fn lex_doc_comment(offset: TextSize, len: usize, mut f: impl FnMut(TokenKind, TextSize)) {
+    f(TokenKind::DocCommentLeader, offset);
+
+    if len > 2 {
+        f(TokenKind::DocCommentContents, offset + TextSize::from(2));
     }
 }
 
@@ -131,11 +148,13 @@ enum LexerTokenKind {
     #[regex("[ \n]+")]
     Whitespace,
 
-    #[regex("#.*")]
-    Comment,
+    _CommentContents,
 
-    #[regex("##.*")]
-    DocComment,
+    _CommentLeader,
+
+    _DocCommentContents,
+
+    _DocCommentLeader,
 
     #[error]
     Error,
@@ -144,6 +163,12 @@ enum LexerTokenKind {
     // unclosed quotes are handled in parsing for better error messages
     #[regex(r#""([^"\\\n]|\\.)*"?"#)]
     __InternalString,
+
+    #[regex("#.*")]
+    __InternalComment,
+
+    #[regex("##.*")]
+    __InternalDocComment,
 }
 
 #[cfg(test)]
@@ -171,7 +196,18 @@ mod tests {
         check(
             "# ignore me",
             expect![[r#"
-                Comment@0..11
+                CommentLeader@0..1
+                CommentContents@1..11
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_empty_comment() {
+        check(
+            "#",
+            expect![[r#"
+                CommentLeader@0..1
             "#]],
         );
     }
@@ -181,7 +217,8 @@ mod tests {
         check(
             "# foo\n100",
             expect![[r#"
-                Comment@0..5
+                CommentLeader@0..1
+                CommentContents@1..5
                 Whitespace@5..6
                 Int@6..9
             "#]],
@@ -538,7 +575,20 @@ baz",
         check(
             "## foo",
             expect![[r#"
-                DocComment@0..6
+                DocCommentLeader@0..2
+                DocCommentContents@2..6
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_empty_doc_comment() {
+        check(
+            "##\n1",
+            expect![[r#"
+                DocCommentLeader@0..2
+                Whitespace@2..3
+                Int@3..4
             "#]],
         );
     }

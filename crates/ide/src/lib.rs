@@ -307,8 +307,10 @@ impl Analysis {
                 TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
                     HighlightKind::Operator
                 }
-                TokenKind::Comment => HighlightKind::Comment,
-                TokenKind::DocComment => HighlightKind::DocComment,
+                TokenKind::CommentContents => HighlightKind::CommentContents,
+                TokenKind::CommentLeader => HighlightKind::CommentLeader,
+                TokenKind::DocCommentContents => HighlightKind::DocCommentContents,
+                TokenKind::DocCommentLeader => HighlightKind::DocCommentLeader,
 
                 TokenKind::Ident => match last_parent_node_kind {
                     NodeKind::LocalDef => {
@@ -442,8 +444,10 @@ pub enum HighlightKind {
     Escape,
     String,
     Operator,
-    Comment,
-    DocComment,
+    CommentContents,
+    CommentLeader,
+    DocCommentContents,
+    DocCommentLeader,
     UnresolvedReference,
     __Last,
 }

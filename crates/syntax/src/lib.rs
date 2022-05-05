@@ -38,8 +38,10 @@ pub enum TokenKind {
     LBrace,
     RBrace,
     Whitespace,
-    Comment,
-    DocComment,
+    CommentContents,
+    CommentLeader,
+    DocCommentContents,
+    DocCommentLeader,
     Error,
 }
 
@@ -60,6 +62,7 @@ pub enum NodeKind {
     Param,
     ReturnTy,
     Ty,
+    DocComment,
     Docs,
     Error,
 }

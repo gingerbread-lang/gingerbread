@@ -5,9 +5,13 @@ fnc id(n: s32): s32 -> n;
 Root@0..90
   Function@0..90
     Docs@0..64
-      DocComment@0..30 "## Returns its only parameter."
+      DocComment@0..30
+        DocCommentLeader@0..2 "##"
+        DocCommentContents@2..30 " Returns its only parameter."
       Whitespace@30..31 "\n"
-      DocComment@31..64 "## Yes, this is pretty pointless."
+      DocComment@31..64
+        DocCommentLeader@31..33 "##"
+        DocCommentContents@33..64 " Yes, this is pretty pointless."
     Whitespace@64..65 "\n"
     FncKw@65..68 "fnc"
     Whitespace@68..69 " "

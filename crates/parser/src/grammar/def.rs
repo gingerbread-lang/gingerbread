@@ -5,10 +5,11 @@ use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use syntax::{NodeKind, TokenKind};
 
-pub(super) const DEF_FIRST: TokenSet = TokenSet::new([TokenKind::FncKw, TokenKind::DocComment]);
+pub(super) const DEF_FIRST: TokenSet =
+    TokenSet::new([TokenKind::FncKw, TokenKind::DocCommentLeader]);
 
 pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
-    let docs_cm = if p.at(TokenKind::DocComment) { Some(parse_docs(p)) } else { None };
+    let docs_cm = if p.at(TokenKind::DocCommentLeader) { Some(parse_docs(p)) } else { None };
 
     let _guard = p.expected_syntax_name("definition");
 
@@ -24,11 +25,16 @@ pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
 }
 
 fn parse_docs(p: &mut Parser<'_>) -> CompletedMarker {
-    assert!(p.at(TokenKind::DocComment));
+    assert!(p.at(TokenKind::DocCommentLeader));
     let m = p.start();
 
-    while p.at(TokenKind::DocComment) {
+    while p.at(TokenKind::DocCommentLeader) {
+        let m = p.start();
         p.bump();
+        if p.at(TokenKind::DocCommentContents) {
+            p.bump();
+        }
+        m.complete(p, NodeKind::DocComment);
     }
 
     m.complete(p, NodeKind::Docs)

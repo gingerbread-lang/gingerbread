@@ -48,8 +48,10 @@ fn token_types() -> Vec<SemanticTokenType> {
             HighlightKind::Escape => SemanticTokenType::new("escapeSequence"),
             HighlightKind::String => SemanticTokenType::STRING,
             HighlightKind::Operator => SemanticTokenType::OPERATOR,
-            HighlightKind::Comment => SemanticTokenType::COMMENT,
-            HighlightKind::DocComment => SemanticTokenType::new("docComment"),
+            HighlightKind::CommentContents => SemanticTokenType::COMMENT,
+            HighlightKind::CommentLeader => SemanticTokenType::new("commentLeader"),
+            HighlightKind::DocCommentContents => SemanticTokenType::new("docComment"),
+            HighlightKind::DocCommentLeader => SemanticTokenType::new("docCommentLeader"),
             HighlightKind::UnresolvedReference => SemanticTokenType::new("unresolvedReference"),
             HighlightKind::__Last => unreachable!(),
         })

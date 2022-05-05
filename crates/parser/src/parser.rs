@@ -17,7 +17,7 @@ const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
     TokenKind::LBrace,
     TokenKind::RBrace,
     TokenKind::Semicolon,
-    TokenKind::DocComment,
+    TokenKind::DocCommentLeader,
 ]);
 
 #[derive(Debug)]
@@ -168,7 +168,8 @@ impl<'tokens> Parser<'tokens> {
 
     fn previous_token_range(&mut self) -> TextRange {
         let mut previous_token_idx = self.token_idx - 1;
-        while let TokenKind::Whitespace | TokenKind::Comment = self.tokens.kind(previous_token_idx)
+        while let TokenKind::Whitespace | TokenKind::CommentLeader | TokenKind::CommentContents =
+            self.tokens.kind(previous_token_idx)
         {
             previous_token_idx -= 1;
         }
@@ -177,7 +178,10 @@ impl<'tokens> Parser<'tokens> {
     }
 
     fn skip_trivia(&mut self) {
-        while self.at_raw(TokenKind::Whitespace) || self.at_raw(TokenKind::Comment) {
+        while self.at_raw(TokenKind::Whitespace)
+            || self.at_raw(TokenKind::CommentLeader)
+            || self.at_raw(TokenKind::CommentContents)
+        {
             self.token_idx += 1;
         }
     }

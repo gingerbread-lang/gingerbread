@@ -8,6 +8,10 @@ pub trait AstNode: Copy + Sized {
 
     fn syntax(self) -> SyntaxNode;
 
+    fn text(self, tree: &SyntaxTree) -> &str {
+        self.syntax().text(tree)
+    }
+
     fn range(self, tree: &SyntaxTree) -> TextRange {
         self.syntax().range(tree)
     }
@@ -204,8 +208,16 @@ impl Ty {
 def_ast_node!(Docs);
 
 impl Docs {
-    pub fn lines(self, tree: &SyntaxTree) -> impl Iterator<Item = DocComment> + '_ {
-        tokens(self, tree)
+    pub fn doc_comments(self, tree: &SyntaxTree) -> impl Iterator<Item = DocComment> + '_ {
+        nodes(self, tree)
+    }
+}
+
+def_ast_node!(DocComment);
+
+impl DocComment {
+    pub fn contents(self, tree: &SyntaxTree) -> Option<DocCommentContents> {
+        token(self, tree)
     }
 }
 
@@ -386,7 +398,7 @@ impl AstToken for StringComponent {
 def_ast_token!(Escape);
 def_ast_token!(StringContents);
 
-def_ast_token!(DocComment);
+def_ast_token!(DocCommentContents);
 
 fn nodes<Parent: AstNode, Child: AstNode>(
     node: Parent,
@@ -670,16 +682,16 @@ mod tests {
         let Def::Function(function) = def;
 
         let docs = function.docs(&tree).unwrap();
-        let mut lines = docs.lines(&tree);
+        let mut doc_comments = docs.doc_comments(&tree);
         assert_eq!(
-            lines.next().unwrap().text(&tree),
-            "## Definitely prints something to the screen."
+            doc_comments.next().unwrap().contents(&tree).unwrap().text(&tree),
+            " Definitely prints something to the screen."
         );
-        assert_eq!(lines.next().unwrap().text(&tree), "##");
+        assert!(doc_comments.next().unwrap().contents(&tree).is_none());
         assert_eq!(
-            lines.next().unwrap().text(&tree),
-            "## Does not actually print something to the screen."
+            doc_comments.next().unwrap().contents(&tree).unwrap().text(&tree),
+            " Does not actually print something to the screen."
         );
-        assert!(lines.next().is_none());
+        assert!(doc_comments.next().is_none());
     }
 }
