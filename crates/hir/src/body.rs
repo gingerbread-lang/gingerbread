@@ -74,6 +74,7 @@ pub enum LoweringDiagnosticKind {
     UndefinedModule { name: Key },
     MismatchedArgCount { name: Key, expected: u32, got: u32 },
     CalledLocal { name: Key },
+    InvalidEscape,
 }
 
 #[derive(Clone, Copy)]
@@ -409,14 +410,42 @@ impl<'a> Ctx<'a> {
         Expr::Missing
     }
 
-    fn lower_string_literal(&self, string_literal: ast::StringLiteral) -> Expr {
-        match string_literal.contents(self.tree) {
-            Some(string) => {
-                let text = string.text(self.tree);
-                Expr::StringLiteral(text.to_string())
+    fn lower_string_literal(&mut self, string_literal: ast::StringLiteral) -> Expr {
+        let mut text = String::new();
+
+        for component in string_literal.components(self.tree) {
+            match component {
+                ast::StringComponent::Escape(escape) => {
+                    let escape_text = escape.text(self.tree);
+                    let mut chars = escape_text.chars();
+                    if cfg!(debug_assertions) {
+                        assert_eq!(chars.next(), Some('\\'));
+                    } else {
+                        chars.next();
+                    }
+
+                    let escape_char = chars.next().unwrap();
+                    debug_assert!(chars.next().is_none());
+
+                    match escape_char {
+                        '"' => text.push('"'),
+                        '\\' => text.push('\\'),
+                        'n' => text.push('\n'),
+                        'r' => text.push('\r'),
+                        't' => text.push('\t'),
+                        _ => self.diagnostics.push(LoweringDiagnostic {
+                            kind: LoweringDiagnosticKind::InvalidEscape,
+                            range: escape.range(self.tree),
+                        }),
+                    }
+                }
+                ast::StringComponent::Contents(contents) => {
+                    text.push_str(contents.text(self.tree));
+                }
             }
-            None => Expr::Missing,
         }
+
+        Expr::StringLiteral(text)
     }
 
     fn insert_into_current_scope(&mut self, name: Key, id: Id<LocalDef>) {
@@ -549,7 +578,7 @@ impl Bodies {
 
                 Expr::IntLiteral(n) => s.push_str(&format!("{}", n)),
 
-                Expr::StringLiteral(content) => s.push_str(&format!("\"{}\"", content)),
+                Expr::StringLiteral(content) => s.push_str(&format!("{content:?}")),
 
                 Expr::Binary { lhs, rhs, operator } => {
                     write_expr(*lhs, bodies, s, interner, indentation);
@@ -757,6 +786,37 @@ mod tests {
                 fnc crab -> "🦀";
             "#]],
             |_| [],
+        );
+    }
+
+    #[test]
+    fn string_literal_with_escapes() {
+        check(
+            r#"
+                fnc f: string -> "\r\n\t\"\\";
+            "#,
+            expect![[r#"
+                fnc f -> "\r\n\t\"\\";
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn string_literal_with_invalid_escapes() {
+        check(
+            r#"
+                fnc f: string -> "a\*b\🤡c";
+            "#,
+            expect![[r#"
+                fnc f -> "abc";
+            "#]],
+            |_| {
+                [
+                    (LoweringDiagnosticKind::InvalidEscape, 36..38),
+                    (LoweringDiagnosticKind::InvalidEscape, 39..44),
+                ]
+            },
         );
     }
 

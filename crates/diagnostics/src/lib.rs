@@ -212,6 +212,7 @@ fn lowering_diagnostic_message(d: &LoweringDiagnostic, interner: &Interner) -> S
                 interner.lookup(*name)
             )
         }
+        LoweringDiagnosticKind::InvalidEscape => "invalid escape".to_string(),
     }
 }
 
@@ -511,6 +512,20 @@ mod tests {
                 error at 1:1: tried to call `frobnicate`, which is a variable, not a function
                   frobnicate a, b
                   ^^^^^^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lowering_invalid_escape() {
+        check_lowering(
+            "\\#",
+            |_| LoweringDiagnosticKind::InvalidEscape,
+            0..2,
+            expect![[r#"
+                error at 1:1: invalid escape
+                  \#
+                  ^^
             "#]],
         );
     }

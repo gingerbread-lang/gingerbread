@@ -308,8 +308,8 @@ impl IntLiteral {
 def_ast_node!(StringLiteral);
 
 impl StringLiteral {
-    pub fn contents(self, tree: &SyntaxTree) -> Option<StringContents> {
-        token(self, tree)
+    pub fn components(self, tree: &SyntaxTree) -> impl Iterator<Item = StringComponent> + '_ {
+        tokens(self, tree)
     }
 }
 
@@ -348,6 +348,30 @@ def_ast_token!(Asterisk);
 def_ast_token!(Slash);
 def_ast_token!(Ident);
 def_ast_token!(Int);
+
+pub enum StringComponent {
+    Escape(Escape),
+    Contents(StringContents),
+}
+
+impl AstToken for StringComponent {
+    fn cast(token: SyntaxToken, tree: &SyntaxTree) -> Option<Self> {
+        match token.kind(tree) {
+            TokenKind::Escape => Some(Self::Escape(Escape(token))),
+            TokenKind::StringContents => Some(Self::Contents(StringContents(token))),
+            _ => None,
+        }
+    }
+
+    fn syntax(self) -> SyntaxToken {
+        match self {
+            Self::Escape(escape) => escape.syntax(),
+            Self::Contents(contents) => contents.syntax(),
+        }
+    }
+}
+
+def_ast_token!(Escape);
 def_ast_token!(StringContents);
 
 fn nodes<Parent: AstNode, Child: AstNode>(
@@ -359,6 +383,13 @@ fn nodes<Parent: AstNode, Child: AstNode>(
 
 fn node<Parent: AstNode, Child: AstNode>(node: Parent, tree: &SyntaxTree) -> Option<Child> {
     node.syntax().child_nodes(tree).find_map(|n| Child::cast(n, tree))
+}
+
+fn tokens<Node: AstNode, Token: AstToken>(
+    node: Node,
+    tree: &SyntaxTree,
+) -> impl Iterator<Item = Token> + '_ {
+    node.syntax().child_tokens(tree).filter_map(|t| Token::cast(t, tree))
 }
 
 fn token<Node: AstNode, Token: AstToken>(node: Node, tree: &SyntaxTree) -> Option<Token> {
@@ -503,15 +534,35 @@ mod tests {
     }
 
     #[test]
-    fn get_value_of_string_literal() {
-        let (tree, root) = parse("\"👀\"");
+    fn get_components_of_string_literal() {
+        let (tree, root) = parse(r#""\"👀\"""#);
 
         let string_literal = match root.tail_expr(&tree) {
             Some(Expr::StringLiteral(string_literal)) => string_literal,
             _ => unreachable!(),
         };
 
-        assert_eq!(string_literal.contents(&tree).unwrap().text(&tree), "👀");
+        let mut components = string_literal.components(&tree);
+
+        let escaped_quote = match components.next() {
+            Some(StringComponent::Escape(escape)) => escape,
+            _ => unreachable!(),
+        };
+        assert_eq!(escaped_quote.text(&tree), "\\\"");
+
+        let eyes = match components.next() {
+            Some(StringComponent::Contents(contents)) => contents,
+            _ => unreachable!(),
+        };
+        assert_eq!(eyes.text(&tree), "👀");
+
+        let escaped_quote = match components.next() {
+            Some(StringComponent::Escape(escape)) => escape,
+            _ => unreachable!(),
+        };
+        assert_eq!(escaped_quote.text(&tree), "\\\"");
+
+        assert!(components.next().is_none());
     }
 
     #[test]
