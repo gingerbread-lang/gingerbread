@@ -144,7 +144,7 @@ fn parse_string_literal(p: &mut Parser<'_>) -> CompletedMarker {
     let m = p.start();
     p.bump();
 
-    if p.at(TokenKind::StringContents) {
+    while p.at(TokenKind::StringContents) || p.at(TokenKind::Escape) {
         p.bump();
     }
 

@@ -230,6 +230,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::Ident => "identifier",
         TokenKind::Int => "integer literal",
         TokenKind::Quote => "`\"`",
+        TokenKind::Escape => "escape sequence",
         TokenKind::StringContents => "string literal",
         TokenKind::Plus => "`+`",
         TokenKind::Hyphen => "`-`",

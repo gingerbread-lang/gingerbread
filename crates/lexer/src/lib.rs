@@ -37,6 +37,7 @@ impl Iterator for Lexer<'_> {
                 Some(kind) => {
                     let kind = match kind {
                         StringTokenKind::Quote => LexerTokenKind::Quote,
+                        StringTokenKind::Escape => LexerTokenKind::Escape,
                         StringTokenKind::Contents => LexerTokenKind::StringContents,
                         StringTokenKind::Error => unreachable!(),
                     };
@@ -90,6 +91,8 @@ enum LexerTokenKind {
     Int,
 
     Quote,
+
+    Escape,
 
     StringContents,
 
@@ -146,15 +149,17 @@ enum LexerTokenKind {
 
     // the closing quote is optional;
     // unclosed quotes are handled in parsing for better error messages
-    #[regex(r#""[^"\n]*"?"#)]
+    #[regex(r#""([^"\n]|\\")*"?"#)]
     __String,
 }
 
 #[derive(Debug, Logos)]
 enum StringTokenKind {
-    #[token("\"")]
+    #[token(r#"""#)]
     Quote,
-    #[regex("[^\"]*")]
+    #[regex(r#"\\."#)]
+    Escape,
+    #[regex(r#"[^"\\]*"#)]
     Contents,
     #[error]
     Error,
@@ -352,6 +357,23 @@ baz",
                 Whitespace@4..5
                 Ident@5..8
                 Quote@8..9
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_escapes_in_string() {
+        check(
+            r#""\\section{Introduction}\n\"Why?\"""#,
+            expect![[r#"
+                Quote@0..1
+                Escape@1..3
+                StringContents@3..24
+                Escape@24..26
+                Escape@26..28
+                StringContents@28..32
+                Escape@32..34
+                Quote@34..35
             "#]],
         );
     }

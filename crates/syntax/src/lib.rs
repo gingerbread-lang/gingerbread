@@ -21,6 +21,7 @@ pub enum TokenKind {
     Ident,
     Int,
     Quote,
+    Escape,
     StringContents,
     Plus,
     Hyphen,

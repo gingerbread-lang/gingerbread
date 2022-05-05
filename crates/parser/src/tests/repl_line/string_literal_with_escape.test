@@ -1,0 +1,15 @@
+"She said \"hello!\"\n\t\"Huh?\""
+===
+Root@0..33
+  StringLiteral@0..33
+    Quote@0..1 "\""
+    StringContents@1..10 "She said "
+    Escape@10..12 "\\\""
+    StringContents@12..18 "hello!"
+    Escape@18..20 "\\\""
+    Escape@20..22 "\\n"
+    Escape@22..24 "\\t"
+    Escape@24..26 "\\\""
+    StringContents@26..30 "Huh?"
+    Escape@30..32 "\\\""
+    Quote@32..33 "\""
