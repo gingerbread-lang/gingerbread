@@ -1,12 +1,11 @@
 use crate::grammar::expr::{parse_expr, EXPR_FIRST};
 use crate::grammar::ty::parse_ty;
-use crate::parser::{CompletedMarker, Parser};
+use crate::parser::{CompletedMarker, Marker, Parser};
 use crate::token_set::TokenSet;
 use syntax::{NodeKind, TokenKind};
 
-pub(super) fn parse_function(p: &mut Parser<'_>) -> CompletedMarker {
+pub(super) fn parse_function(p: &mut Parser<'_>, m: Marker) -> CompletedMarker {
     assert!(p.at(TokenKind::FncKw));
-    let m = p.start();
     p.bump();
 
     {

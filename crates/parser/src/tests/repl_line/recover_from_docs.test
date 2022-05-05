@@ -1,0 +1,29 @@
+fnc
+## foo
+## bar
+fnc f -> {};
+===
+Root@0..30
+  Function@0..3
+    FncKw@0..3 "fnc"
+  Whitespace@3..4 "\n"
+  Function@4..30
+    Docs@4..17
+      DocComment@4..10 "## foo"
+      Whitespace@10..11 "\n"
+      DocComment@11..17 "## bar"
+    Whitespace@17..18 "\n"
+    FncKw@18..21 "fnc"
+    Whitespace@21..22 " "
+    Ident@22..23 "f"
+    Whitespace@23..24 " "
+    Arrow@24..26 "->"
+    Whitespace@26..27 " "
+    Block@27..29
+      LBrace@27..28 "{"
+      RBrace@28..29 "}"
+    Semicolon@29..30 ";"
+error at 3: missing function name
+error at 3: missing Arrow
+error at 3: missing function body
+error at 3: missing Semicolon

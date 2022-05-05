@@ -17,6 +17,7 @@ const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
     TokenKind::LBrace,
     TokenKind::RBrace,
     TokenKind::Semicolon,
+    TokenKind::DocComment,
 ]);
 
 #[derive(Debug)]

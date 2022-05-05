@@ -3,16 +3,33 @@ mod function;
 use self::function::parse_function;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
-use syntax::TokenKind;
+use syntax::{NodeKind, TokenKind};
 
-pub(super) const DEF_FIRST: TokenSet = TokenSet::new([TokenKind::FncKw]);
+pub(super) const DEF_FIRST: TokenSet = TokenSet::new([TokenKind::FncKw, TokenKind::DocComment]);
 
 pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
+    let docs_cm = if p.at(TokenKind::DocComment) { Some(parse_docs(p)) } else { None };
+
     let _guard = p.expected_syntax_name("definition");
 
     if p.at(TokenKind::FncKw) {
-        return Some(parse_function(p));
+        let m = match docs_cm {
+            Some(cm) => cm.precede(p),
+            None => p.start(),
+        };
+        return Some(parse_function(p, m));
     }
 
     p.error_with_recovery_set_no_default(TokenSet::default())
+}
+
+fn parse_docs(p: &mut Parser<'_>) -> CompletedMarker {
+    assert!(p.at(TokenKind::DocComment));
+    let m = p.start();
+
+    while p.at(TokenKind::DocComment) {
+        p.bump();
+    }
+
+    m.complete(p, NodeKind::Docs)
 }

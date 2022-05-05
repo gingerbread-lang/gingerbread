@@ -109,6 +109,10 @@ impl AstNode for Def {
 def_ast_node!(Function);
 
 impl Function {
+    pub fn docs(self, tree: &SyntaxTree) -> Option<Docs> {
+        node(self, tree)
+    }
+
     pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
         token(self, tree)
     }
@@ -194,6 +198,14 @@ def_ast_node!(Ty);
 impl Ty {
     pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
         token(self, tree)
+    }
+}
+
+def_ast_node!(Docs);
+
+impl Docs {
+    pub fn lines(self, tree: &SyntaxTree) -> impl Iterator<Item = DocComment> + '_ {
+        tokens(self, tree)
     }
 }
 
@@ -373,6 +385,8 @@ impl AstToken for StringComponent {
 
 def_ast_token!(Escape);
 def_ast_token!(StringContents);
+
+def_ast_token!(DocComment);
 
 fn nodes<Parent: AstNode, Child: AstNode>(
     node: Parent,
@@ -639,5 +653,33 @@ mod tests {
         };
 
         assert!(block.statements(&tree).next().is_none());
+    }
+
+    #[test]
+    fn get_function_docs() {
+        let (tree, root) = parse(
+            "
+                ## Definitely prints something to the screen.
+                ##
+                ## Does not actually print something to the screen.
+                fnc print(s: string) -> {};
+            ",
+        );
+        let def = root.defs(&tree).next().unwrap();
+
+        let Def::Function(function) = def;
+
+        let docs = function.docs(&tree).unwrap();
+        let mut lines = docs.lines(&tree);
+        assert_eq!(
+            lines.next().unwrap().text(&tree),
+            "## Definitely prints something to the screen."
+        );
+        assert_eq!(lines.next().unwrap().text(&tree), "##");
+        assert_eq!(
+            lines.next().unwrap().text(&tree),
+            "## Does not actually print something to the screen."
+        );
+        assert!(lines.next().is_none());
     }
 }

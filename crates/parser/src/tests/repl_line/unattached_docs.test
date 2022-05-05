@@ -1,0 +1,6 @@
+## Unattached ...
+===
+Root@0..17
+  Docs@0..17
+    DocComment@0..17 "## Unattached ..."
+error at 17: missing definition
