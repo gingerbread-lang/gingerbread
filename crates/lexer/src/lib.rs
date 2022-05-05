@@ -149,7 +149,7 @@ enum LexerTokenKind {
 
     // the closing quote is optional;
     // unclosed quotes are handled in parsing for better error messages
-    #[regex(r#""([^"\n]|\\")*"?"#)]
+    #[regex(r#""([^"\\\n]|\\.)*"?"#)]
     __String,
 }
 
@@ -374,6 +374,20 @@ baz",
                 StringContents@28..32
                 Escape@32..34
                 Quote@34..35
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_backslash_at_end_of_string() {
+        check(
+            r#""\\" test"#,
+            expect![[r#"
+                Quote@0..1
+                Escape@1..3
+                Quote@3..4
+                Whitespace@4..5
+                Ident@5..9
             "#]],
         );
     }
