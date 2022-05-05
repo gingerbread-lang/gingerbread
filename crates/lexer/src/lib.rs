@@ -327,7 +327,7 @@ mod tests {
     }
 
     #[test]
-    fn unclosed_string_go_to_end_of_line() {
+    fn unclosed_string_goes_to_end_of_line() {
         check(
             "\
 foo\"bar
