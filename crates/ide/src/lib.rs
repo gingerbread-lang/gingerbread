@@ -302,6 +302,7 @@ impl Analysis {
                 TokenKind::LetKw | TokenKind::FncKw => HighlightKind::Keyword,
                 TokenKind::Int => HighlightKind::Number,
                 TokenKind::Quote => HighlightKind::Quote,
+                TokenKind::Escape => HighlightKind::Escape,
                 TokenKind::StringContents => HighlightKind::String,
                 TokenKind::Plus | TokenKind::Hyphen | TokenKind::Asterisk | TokenKind::Slash => {
                     HighlightKind::Operator
@@ -437,6 +438,7 @@ pub enum HighlightKind {
     Ty,
     Number,
     Quote,
+    Escape,
     String,
     Operator,
     Comment,

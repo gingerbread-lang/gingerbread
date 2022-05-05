@@ -45,6 +45,7 @@ fn token_types() -> Vec<SemanticTokenType> {
             HighlightKind::Ty => SemanticTokenType::new("builtinType"),
             HighlightKind::Number => SemanticTokenType::NUMBER,
             HighlightKind::Quote => SemanticTokenType::new("quote"),
+            HighlightKind::Escape => SemanticTokenType::new("escapeSequence"),
             HighlightKind::String => SemanticTokenType::STRING,
             HighlightKind::Operator => SemanticTokenType::OPERATOR,
             HighlightKind::Comment => SemanticTokenType::COMMENT,

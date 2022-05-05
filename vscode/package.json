@@ -35,6 +35,11 @@
         "superType": "string"
       },
       {
+        "id": "escapeSequence",
+        "description": "Style for escape sequences in string literals",
+        "superType": "string"
+      },
+      {
         "id": "unresolvedReference",
         "description": "Style for unresolved references"
       }
@@ -66,6 +71,9 @@
           ],
           "quote": [
             "punctuation.definition.string.gingerbread"
+          ],
+          "escapeSequence": [
+            "constant.character.escape.gingerbread"
           ],
           "string": [
             "string.quoted.double.gingerbread"
