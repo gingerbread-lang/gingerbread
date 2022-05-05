@@ -9,12 +9,15 @@ i #
 5 #
 ===
 Root@0..76
-  CommentLeader@0..1 "#"
+  Comment@0..1
+    CommentLeader@0..1 "#"
   Whitespace@1..2 "\n"
-  CommentLeader@2..3 "#"
-  CommentContents@3..12 " COMMENTS"
+  Comment@2..12
+    CommentLeader@2..3 "#"
+    CommentContents@3..12 " COMMENTS"
   Whitespace@12..13 "\n"
-  CommentLeader@13..14 "#"
+  Comment@13..14
+    CommentLeader@13..14 "#"
   Whitespace@14..16 "\n\n"
   LocalDef@16..26
     LetKw@16..19 "let"
@@ -27,20 +30,24 @@ Root@0..76
       Int@24..25 "0"
     Semicolon@25..26 ";"
   Whitespace@26..27 " "
-  CommentLeader@27..28 "#"
-  CommentContents@28..63 " TODO: make value of i configurable"
+  Comment@27..63
+    CommentLeader@27..28 "#"
+    CommentContents@28..63 " TODO: make value of i configurable"
   Whitespace@63..65 "\n\n"
   BinaryExpr@65..74
     Call@65..66
       Ident@65..66 "i"
     Whitespace@66..67 " "
-    CommentLeader@67..68 "#"
+    Comment@67..68
+      CommentLeader@67..68 "#"
     Whitespace@68..69 "\n"
     Plus@69..70 "+"
     Whitespace@70..71 " "
-    CommentLeader@71..72 "#"
+    Comment@71..72
+      CommentLeader@71..72 "#"
     Whitespace@72..73 "\n"
     IntLiteral@73..74
       Int@73..74 "5"
   Whitespace@74..75 " "
-  CommentLeader@75..76 "#"
+  Comment@75..76
+    CommentLeader@75..76 "#"

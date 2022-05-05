@@ -62,6 +62,7 @@ pub enum NodeKind {
     Param,
     ReturnTy,
     Ty,
+    Comment,
     DocComment,
     Docs,
     Error,

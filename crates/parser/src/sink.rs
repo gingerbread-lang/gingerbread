@@ -1,6 +1,6 @@
 use super::event::Event;
 use crate::{Parse, SyntaxError};
-use syntax::{SyntaxBuilder, TokenKind};
+use syntax::{NodeKind, SyntaxBuilder, TokenKind};
 use token::Tokens;
 
 pub(crate) struct Sink<'tokens> {
@@ -73,6 +73,34 @@ impl<'tokens> Sink<'tokens> {
 
     #[inline(always)]
     fn skip_trivia(&mut self) {
+        loop {
+            match self.tokens.get_kind(self.token_idx) {
+                Some(TokenKind::Whitespace) => self.add_token(),
+
+                // wrap comments in Comment node automatically
+                //
+                // if the comment has contents,
+                // then we finish the node in the CommentContents case;
+                // if it does not have contents,
+                // then we finish the node straight away in the CommentLeader case
+                Some(TokenKind::CommentLeader) => {
+                    self.builder.start_node(NodeKind::Comment);
+                    self.add_token();
+                    // look ahead one token
+                    // (add_token has already advanced self.token_idx for us)
+                    if self.tokens.get_kind(self.token_idx) != Some(TokenKind::CommentContents) {
+                        self.builder.finish_node();
+                    }
+                }
+                Some(TokenKind::CommentContents) => {
+                    self.add_token();
+                    self.builder.finish_node();
+                }
+
+                Some(_) | None => break,
+            }
+        }
+
         while let Some(
             TokenKind::Whitespace | TokenKind::CommentLeader | TokenKind::CommentContents,
         ) = self.tokens.get_kind(self.token_idx)
