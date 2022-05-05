@@ -45,12 +45,14 @@ impl Tokens {
 
 impl fmt::Debug for Tokens {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut list = f.debug_list();
+        for (i, (kind, range)) in self.iter().enumerate() {
+            if i != 0 {
+                writeln!(f)?;
+            }
 
-        for (kind, range) in self.iter() {
-            list.entry(&format!("{kind:?}@{range:?}"));
+            write!(f, "{kind:?}@{range:?}")?;
         }
 
-        list.finish()
+        Ok(())
     }
 }

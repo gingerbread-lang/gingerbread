@@ -163,217 +163,336 @@ enum StringTokenKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use text_size::TextRange;
+    use expect_test::{expect, Expect};
 
-    fn check(input: &str, expected_kind: TokenKind) {
+    fn check(input: &str, expect: Expect) {
         let tokens = lex(input);
-
-        assert_eq!(tokens.kind(0), expected_kind);
-        assert_eq!(tokens.range(0), TextRange::new(0.into(), (input.len() as u32).into())); // the token should span the entire input
-
-        // we should only get one token
-        assert_eq!(tokens.len(), 1);
+        expect.assert_debug_eq(&tokens);
     }
 
     #[test]
     fn lex_whitespace() {
-        check("  \n ", TokenKind::Whitespace);
+        check(
+            "  \n ",
+            expect![[r#"
+                Whitespace@0..4
+            "#]],
+        );
     }
 
     #[test]
     fn lex_comment() {
-        check("# ignore me", TokenKind::Comment);
+        check(
+            "# ignore me",
+            expect![[r#"
+                Comment@0..11
+            "#]],
+        );
     }
 
     #[test]
     fn comments_go_to_end_of_line() {
-        assert_eq!(
-            lex("# foo\n100"),
-            Tokens::new(
-                vec![TokenKind::Comment, TokenKind::Whitespace, TokenKind::Int],
-                vec![0.into(), 5.into(), 6.into(), 9.into()]
-            )
+        check(
+            "# foo\n100",
+            expect![[r#"
+                Comment@0..5
+                Whitespace@5..6
+                Int@6..9
+            "#]],
         );
     }
 
     #[test]
     fn lex_let_keyword() {
-        check("let", TokenKind::LetKw);
+        check(
+            "let",
+            expect![[r#"
+                LetKw@0..3
+            "#]],
+        );
     }
 
     #[test]
     fn lex_fnc_keyword() {
-        check("fnc", TokenKind::FncKw);
+        check(
+            "fnc",
+            expect![[r#"
+                FncKw@0..3
+            "#]],
+        );
     }
 
     #[test]
     fn lex_lowercase_alphabetic_ident() {
-        check("abc", TokenKind::Ident);
+        check(
+            "abc",
+            expect![[r#"
+                Ident@0..3
+            "#]],
+        );
     }
 
     #[test]
     fn lex_uppercase_alphabetic_ident() {
-        check("ABC", TokenKind::Ident);
+        check(
+            "ABC",
+            expect![[r#"
+                Ident@0..3
+            "#]],
+        );
     }
 
     #[test]
     fn lex_mixed_case_alphabetic_ident() {
-        check("abCdEFg", TokenKind::Ident);
+        check(
+            "abCdEFg",
+            expect![[r#"
+                Ident@0..7
+            "#]],
+        );
     }
 
     #[test]
     fn lex_alphanumeric_ident() {
-        check("abc123def", TokenKind::Ident);
+        check(
+            "abc123def",
+            expect![[r#"
+                Ident@0..9
+            "#]],
+        );
     }
 
     #[test]
     fn lex_ident_with_underscores() {
-        check("a_b_c", TokenKind::Ident);
+        check(
+            "a_b_c",
+            expect![[r#"
+                Ident@0..5
+            "#]],
+        );
     }
 
     #[test]
     fn lex_ident_starting_with_underscore() {
-        check("__main__", TokenKind::Ident);
+        check(
+            "__main__",
+            expect![[r#"
+                Ident@0..8
+            "#]],
+        );
     }
 
     #[test]
     fn lex_int() {
-        check("123", TokenKind::Int);
+        check(
+            "123",
+            expect![[r#"
+                Int@0..3
+            "#]],
+        );
     }
 
     #[test]
     fn dont_lex_ident_starting_with_int() {
-        assert_eq!(
-            lex("92foo"),
-            Tokens::new(vec![TokenKind::Int, TokenKind::Ident], vec![0.into(), 2.into(), 5.into()])
+        check(
+            "92foo",
+            expect![[r#"
+                Int@0..2
+                Ident@2..5
+            "#]],
         );
     }
 
     #[test]
     fn lex_string() {
-        assert_eq!(
-            lex("\"hello\""),
-            Tokens::new(
-                vec![TokenKind::Quote, TokenKind::StringContents, TokenKind::Quote],
-                vec![0.into(), 1.into(), 6.into(), 7.into()]
-            )
+        check(
+            "\"hello\"",
+            expect![[r#"
+                Quote@0..1
+                StringContents@1..6
+                Quote@6..7
+            "#]],
         );
     }
 
     #[test]
     fn lex_empty_string() {
-        assert_eq!(
-            lex("\"\""),
-            Tokens::new(
-                vec![TokenKind::Quote, TokenKind::Quote],
-                vec![0.into(), 1.into(), 2.into()]
-            )
+        check(
+            "\"\"",
+            expect![[r#"
+                Quote@0..1
+                Quote@1..2
+            "#]],
         );
     }
 
     #[test]
     fn unclosed_string_go_to_end_of_line() {
-        assert_eq!(
-            lex("\
+        check(
+            "\
 foo\"bar
-baz"),
-            Tokens::new(
-                vec![
-                    TokenKind::Ident,
-                    TokenKind::Quote,
-                    TokenKind::StringContents,
-                    TokenKind::Whitespace,
-                    TokenKind::Ident
-                ],
-                vec![0.into(), 3.into(), 4.into(), 7.into(), 8.into(), 11.into()]
-            )
+baz",
+            expect![[r#"
+                Ident@0..3
+                Quote@3..4
+                StringContents@4..7
+                Whitespace@7..8
+                Ident@8..11
+            "#]],
         );
     }
 
     #[test]
     fn dont_lex_multiline_string() {
-        assert_eq!(
-            lex("\"foo\nbar\""),
-            Tokens::new(
-                vec![
-                    TokenKind::Quote,
-                    TokenKind::StringContents,
-                    TokenKind::Whitespace,
-                    TokenKind::Ident,
-                    TokenKind::Quote
-                ],
-                vec![0.into(), 1.into(), 4.into(), 5.into(), 8.into(), 9.into()]
-            )
+        check(
+            "\"foo\nbar\"",
+            expect![[r#"
+                Quote@0..1
+                StringContents@1..4
+                Whitespace@4..5
+                Ident@5..8
+                Quote@8..9
+            "#]],
         );
     }
 
     #[test]
     fn lex_plus() {
-        check("+", TokenKind::Plus);
+        check(
+            "+",
+            expect![[r#"
+                Plus@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_hyphen() {
-        check("-", TokenKind::Hyphen);
+        check(
+            "-",
+            expect![[r#"
+                Hyphen@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_asterisk() {
-        check("*", TokenKind::Asterisk);
+        check(
+            "*",
+            expect![[r#"
+                Asterisk@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_slash() {
-        check("/", TokenKind::Slash);
+        check(
+            "/",
+            expect![[r#"
+                Slash@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_eq() {
-        check("=", TokenKind::Eq);
+        check(
+            "=",
+            expect![[r#"
+                Eq@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_dot() {
-        check(".", TokenKind::Dot);
+        check(
+            ".",
+            expect![[r#"
+                Dot@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_colon() {
-        check(":", TokenKind::Colon);
+        check(
+            ":",
+            expect![[r#"
+                Colon@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_comma() {
-        check(",", TokenKind::Comma);
+        check(
+            ",",
+            expect![[r#"
+                Comma@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_semicolon() {
-        check(";", TokenKind::Semicolon);
+        check(
+            ";",
+            expect![[r#"
+                Semicolon@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_arrow() {
-        check("->", TokenKind::Arrow);
+        check(
+            "->",
+            expect![[r#"
+                Arrow@0..2
+            "#]],
+        );
     }
 
     #[test]
     fn lex_l_paren() {
-        check("(", TokenKind::LParen);
+        check(
+            "(",
+            expect![[r#"
+                LParen@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_r_paren() {
-        check(")", TokenKind::RParen);
+        check(
+            ")",
+            expect![[r#"
+                RParen@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_l_brace() {
-        check("{", TokenKind::LBrace);
+        check(
+            "{",
+            expect![[r#"
+                LBrace@0..1
+            "#]],
+        );
     }
 
     #[test]
     fn lex_r_brace() {
-        check("}", TokenKind::RBrace);
+        check(
+            "}",
+            expect![[r#"
+                RBrace@0..1
+            "#]],
+        );
     }
 }
