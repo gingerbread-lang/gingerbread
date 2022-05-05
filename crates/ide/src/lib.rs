@@ -308,6 +308,7 @@ impl Analysis {
                     HighlightKind::Operator
                 }
                 TokenKind::Comment => HighlightKind::Comment,
+                TokenKind::DocComment => HighlightKind::DocComment,
 
                 TokenKind::Ident => match last_parent_node_kind {
                     NodeKind::LocalDef => {
@@ -442,6 +443,7 @@ pub enum HighlightKind {
     String,
     Operator,
     Comment,
+    DocComment,
     UnresolvedReference,
     __Last,
 }

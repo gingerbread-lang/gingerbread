@@ -49,6 +49,7 @@ fn token_types() -> Vec<SemanticTokenType> {
             HighlightKind::String => SemanticTokenType::STRING,
             HighlightKind::Operator => SemanticTokenType::OPERATOR,
             HighlightKind::Comment => SemanticTokenType::COMMENT,
+            HighlightKind::DocComment => SemanticTokenType::new("docComment"),
             HighlightKind::UnresolvedReference => SemanticTokenType::new("unresolvedReference"),
             HighlightKind::__Last => unreachable!(),
         })

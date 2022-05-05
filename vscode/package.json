@@ -40,6 +40,11 @@
         "superType": "string"
       },
       {
+        "id": "docComment",
+        "description": "Style for documentation comments",
+        "superType": "comment"
+      },
+      {
         "id": "unresolvedReference",
         "description": "Style for unresolved references"
       }
@@ -83,6 +88,9 @@
           ],
           "comment": [
             "comment.line.gingerbread"
+          ],
+          "docComment": [
+            "comment.line.documentation.gingerbread"
           ],
           "unresolvedReference": [
             "invalid.illegal.unresolved.gingerbread"
