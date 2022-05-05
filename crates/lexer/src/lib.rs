@@ -1,6 +1,7 @@
 use logos::Logos;
 use std::convert::TryInto;
 use std::mem;
+use std::ops::Range;
 use syntax::TokenKind;
 use text_size::TextSize;
 use token::Tokens;
@@ -25,7 +26,7 @@ pub fn lex(text: &str) -> Tokens {
 
 struct Lexer<'a> {
     top_level_lexer: logos::Lexer<'a, LexerTokenKind>,
-    string_lexer: Option<(logos::Lexer<'a, StringTokenKind>, usize)>,
+    string_lexer: Option<(StringLexer<'a>, usize)>,
 }
 
 impl Iterator for Lexer<'_> {
@@ -34,17 +35,7 @@ impl Iterator for Lexer<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         let (kind, range) = match &mut self.string_lexer {
             Some((string_lexer, offset)) => match string_lexer.next() {
-                Some(kind) => {
-                    let kind = match kind {
-                        StringTokenKind::Quote => LexerTokenKind::Quote,
-                        StringTokenKind::Escape => LexerTokenKind::Escape,
-                        StringTokenKind::Contents => LexerTokenKind::StringContents,
-                        StringTokenKind::Error => unreachable!(),
-                    };
-                    let range = string_lexer.span();
-
-                    (kind, (range.start + *offset)..(range.end + *offset))
-                }
+                Some((kind, range)) => (kind, (range.start + *offset)..(range.end + *offset)),
                 None => {
                     self.string_lexer = None;
                     return self.next();
@@ -56,7 +47,7 @@ impl Iterator for Lexer<'_> {
 
                 if kind == LexerTokenKind::__String {
                     self.string_lexer = Some((
-                        StringTokenKind::lexer(self.top_level_lexer.slice()),
+                        StringLexer { text: self.top_level_lexer.slice(), pos: 0 },
                         self.top_level_lexer.span().start,
                     ));
                     return self.next();
@@ -153,16 +144,49 @@ enum LexerTokenKind {
     __String,
 }
 
-#[derive(Debug, Logos)]
-enum StringTokenKind {
-    #[token(r#"""#)]
-    Quote,
-    #[regex(r#"\\."#)]
-    Escape,
-    #[regex(r#"[^"\\]*"#)]
-    Contents,
-    #[error]
-    Error,
+struct StringLexer<'a> {
+    text: &'a str,
+    pos: usize,
+}
+
+impl Iterator for StringLexer<'_> {
+    type Item = (LexerTokenKind, Range<usize>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos == self.text.len() {
+            return None;
+        }
+
+        if self.text[self.pos..].starts_with('"') {
+            let pos = self.pos;
+            self.pos += 1;
+            return Some((LexerTokenKind::Quote, pos..self.pos));
+        }
+
+        if self.text[self.pos..].starts_with('\\') {
+            // we know based on the __String regex that
+            // all backslashes must be followed by something,
+            // so we can safely unwrap
+            let next_char = self.text[self.pos + 1..].chars().next().unwrap();
+            let pos = self.pos;
+            self.pos += 1 + next_char.len_utf8();
+            return Some((LexerTokenKind::Escape, pos..self.pos));
+        }
+
+        let start = self.pos;
+        let mut end = self.pos;
+
+        for c in self.text[self.pos..].chars() {
+            match c {
+                '"' | '\\' => break,
+                _ => end += c.len_utf8(),
+            }
+        }
+
+        self.pos = end;
+
+        Some((LexerTokenKind::StringContents, start..end))
+    }
 }
 
 #[cfg(test)]
@@ -388,6 +412,26 @@ baz",
                 Quote@3..4
                 Whitespace@4..5
                 Ident@5..9
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_weird_escapes() {
+        check(
+            r#""\a\1\"\\\_\|\=\å\👽""#,
+            expect![[r#"
+                Quote@0..1
+                Escape@1..3
+                Escape@3..5
+                Escape@5..7
+                Escape@7..9
+                Escape@9..11
+                Escape@11..13
+                Escape@13..15
+                Escape@15..18
+                Escape@18..23
+                Quote@23..24
             "#]],
         );
     }
