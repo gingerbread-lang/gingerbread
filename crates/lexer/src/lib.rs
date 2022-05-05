@@ -1,7 +1,5 @@
 use logos::Logos;
-use std::convert::TryInto;
 use std::mem;
-use std::ops::Range;
 use syntax::TokenKind;
 use text_size::TextSize;
 use token::Tokens;
@@ -10,9 +8,20 @@ pub fn lex(text: &str) -> Tokens {
     let mut kinds = Vec::new();
     let mut starts = Vec::new();
 
-    let lexer = Lexer { top_level_lexer: LexerTokenKind::lexer(text), string_lexer: None };
-    for (kind, start) in lexer {
-        kinds.push(kind);
+    let mut lexer = LexerTokenKind::lexer(text);
+    while let Some(kind) = lexer.next() {
+        let range = lexer.span();
+        let start = (range.start as u32).into();
+
+        if kind == LexerTokenKind::__InternalString {
+            lex_string(lexer.slice(), start, |k, s| {
+                kinds.push(k);
+                starts.push(s);
+            });
+            continue;
+        }
+
+        kinds.push(unsafe { mem::transmute(kind) });
         starts.push(start);
     }
 
@@ -24,50 +33,40 @@ pub fn lex(text: &str) -> Tokens {
     Tokens::new(kinds, starts)
 }
 
-struct Lexer<'a> {
-    top_level_lexer: logos::Lexer<'a, LexerTokenKind>,
-    string_lexer: Option<(StringLexer<'a>, usize)>,
-}
+fn lex_string(s: &str, offset: TextSize, mut f: impl FnMut(TokenKind, TextSize)) {
+    #[derive(Clone, Copy)]
+    enum Mode {
+        StartContents,
+        InContents,
+        Escape,
+    }
 
-impl Iterator for Lexer<'_> {
-    type Item = (TokenKind, TextSize);
+    let mut mode = Mode::InContents;
+    let mut pos = offset;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        let (kind, range) = match &mut self.string_lexer {
-            Some((string_lexer, offset)) => match string_lexer.next() {
-                Some((kind, range)) => (kind, (range.start + *offset)..(range.end + *offset)),
-                None => {
-                    self.string_lexer = None;
-                    return self.next();
-                }
-            },
-
-            None => {
-                let kind = self.top_level_lexer.next()?;
-
-                if kind == LexerTokenKind::__String {
-                    self.string_lexer = Some((
-                        StringLexer { text: self.top_level_lexer.slice(), pos: 0 },
-                        self.top_level_lexer.span().start,
-                    ));
-                    return self.next();
-                }
-
-                (kind, self.top_level_lexer.span())
+    for c in s.chars() {
+        match (mode, c) {
+            (Mode::InContents | Mode::StartContents, '"') => {
+                mode = Mode::StartContents;
+                f(TokenKind::Quote, pos);
             }
-        };
+            (Mode::InContents | Mode::StartContents, '\\') => {
+                mode = Mode::Escape;
+                f(TokenKind::Escape, pos);
+            }
+            (Mode::StartContents, _) => {
+                mode = Mode::InContents;
+                f(TokenKind::StringContents, pos);
+            }
+            (Mode::InContents, _) => {}
+            (Mode::Escape, _) => mode = Mode::StartContents,
+        }
 
-        let start = {
-            let start = range.start;
-            let start: u32 = start.try_into().unwrap();
-            start.into()
-        };
-
-        Some((unsafe { mem::transmute::<LexerTokenKind, TokenKind>(kind) }, start))
+        pos += TextSize::from(c.len_utf8() as u32);
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Logos)]
+#[derive(PartialEq, Logos)]
 enum LexerTokenKind {
     #[token("let")]
     LetKw,
@@ -81,11 +80,11 @@ enum LexerTokenKind {
     #[regex("[0-9]+")]
     Int,
 
-    Quote,
+    _Quote,
 
-    Escape,
+    _Escape,
 
-    StringContents,
+    _StringContents,
 
     #[token("+")]
     Plus,
@@ -144,52 +143,7 @@ enum LexerTokenKind {
     // the closing quote is optional;
     // unclosed quotes are handled in parsing for better error messages
     #[regex(r#""([^"\\\n]|\\.)*"?"#)]
-    __String,
-}
-
-struct StringLexer<'a> {
-    text: &'a str,
-    pos: usize,
-}
-
-impl Iterator for StringLexer<'_> {
-    type Item = (LexerTokenKind, Range<usize>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos == self.text.len() {
-            return None;
-        }
-
-        if self.text[self.pos..].starts_with('"') {
-            let pos = self.pos;
-            self.pos += 1;
-            return Some((LexerTokenKind::Quote, pos..self.pos));
-        }
-
-        if self.text[self.pos..].starts_with('\\') {
-            // we know based on the __String regex that
-            // all backslashes must be followed by something,
-            // so we can safely unwrap
-            let next_char = self.text[self.pos + 1..].chars().next().unwrap();
-            let pos = self.pos;
-            self.pos += 1 + next_char.len_utf8();
-            return Some((LexerTokenKind::Escape, pos..self.pos));
-        }
-
-        let start = self.pos;
-        let mut end = self.pos;
-
-        for c in self.text[self.pos..].chars() {
-            match c {
-                '"' | '\\' => break,
-                _ => end += c.len_utf8(),
-            }
-        }
-
-        self.pos = end;
-
-        Some((LexerTokenKind::StringContents, start..end))
-    }
+    __InternalString,
 }
 
 #[cfg(test)]
