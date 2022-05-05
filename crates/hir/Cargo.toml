@@ -11,6 +11,7 @@ interner = {path = "../interner"}
 rustc-hash = "1.1"
 syntax = {path = "../syntax"}
 text-size = "1.1"
+textwrap = "0.15.0"
 thiserror = "1.0"
 
 [dev-dependencies]

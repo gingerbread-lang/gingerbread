@@ -11,6 +11,7 @@ use text_size::TextRange;
 pub struct Index {
     pub(crate) functions: FxHashMap<Name, Function>,
     pub(crate) range_info: FxHashMap<Name, RangeInfo>,
+    docs: FxHashMap<Name, Docs>,
     tys: FxHashSet<ast::Ident>,
 }
 
@@ -36,9 +37,10 @@ impl Index {
     }
 
     fn shrink_to_fit(&mut self) {
-        let Self { functions, range_info, tys } = self;
+        let Self { functions, range_info, docs, tys } = self;
         functions.shrink_to_fit();
         range_info.shrink_to_fit();
+        docs.shrink_to_fit();
         tys.shrink_to_fit();
     }
 }
@@ -69,6 +71,11 @@ pub enum Ty {
     Unit,
 }
 
+#[derive(Clone)]
+struct Docs {
+    paras: Vec<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Name(pub Key);
 
@@ -80,6 +87,7 @@ pub fn index(
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut functions = FxHashMap::default();
     let mut range_info = FxHashMap::default();
+    let mut docs = FxHashMap::default();
     let mut tys = FxHashSet::default();
     let mut diagnostics = Vec::new();
 
@@ -125,6 +133,31 @@ pub fn index(
                     None => Ty::Unit,
                 };
 
+                if let Some(d) = function.docs(tree) {
+                    let mut paras = vec![String::new()];
+
+                    for doc_comment in d.lines(tree) {
+                        let (leader, line) = doc_comment.text(tree).split_at(2);
+                        debug_assert_eq!(leader, "##");
+
+                        let line = line.trim();
+
+                        if line.is_empty() {
+                            paras.push(String::new());
+                        } else {
+                            let last_para = &mut paras.last_mut().unwrap();
+
+                            if !last_para.is_empty() {
+                                last_para.push(' ');
+                            }
+
+                            last_para.push_str(line);
+                        }
+                    }
+
+                    docs.insert(name, Docs { paras });
+                }
+
                 match functions.entry(name) {
                     Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
                         kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
@@ -142,7 +175,7 @@ pub fn index(
         }
     }
 
-    let mut index = Index { functions, range_info, tys };
+    let mut index = Index { functions, range_info, docs, tys };
     index.shrink_to_fit();
 
     (index, diagnostics)
@@ -195,6 +228,20 @@ impl Index {
         functions.sort_unstable_by_key(|(name, _)| *name);
 
         for (name, function) in functions {
+            if let Some(docs) = self.docs.get(name) {
+                s.push_str("# docs:\n");
+
+                for (i, para) in docs.paras.iter().enumerate() {
+                    if i != 0 {
+                        s.push_str("#\n");
+                    }
+
+                    for line in textwrap::wrap(para, 66) {
+                        s.push_str(&format!("# {line}\n"));
+                    }
+                }
+            }
+
             s.push_str(&format!("fnc {}", interner.lookup(name.0)));
 
             if !function.params.is_empty() {
@@ -420,6 +467,53 @@ mod tests {
                     ),
                 ]
             },
+        );
+    }
+
+    #[test]
+    fn function_with_docs() {
+        check(
+            r#"
+                ## Increments a signed 32-bit integer.
+                fnc inc(n: s32): s32 -> n + 1;
+            "#,
+            expect![[r#"
+                # docs:
+                # Increments a signed 32-bit integer.
+                fnc inc(n: s32): s32;
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn join_and_trim_lines_in_docs() {
+        check(
+            r#"
+                ## Addition (usually signified by the plus symbol +)
+                ## is one of the four basic operations of arithmetic,
+                ##the other three being subtraction, multiplication and division.
+                ##      The addition of two whole numbers results in
+                ##    the total amount or sum of those values combined.
+                ##
+                ##The example in the adjacent image shows
+                ##  a combination of three apples and two apples,
+                ##making a total of five apples.
+                fnc add(x: s32, y: s32): s32 -> x + y;
+            "#,
+            expect![[r#"
+                # docs:
+                # Addition (usually signified by the plus symbol +) is one of
+                # the four basic operations of arithmetic, the other three being
+                # subtraction, multiplication and division. The addition of two
+                # whole numbers results in the total amount or sum of those values
+                # combined.
+                #
+                # The example in the adjacent image shows a combination of three
+                # apples and two apples, making a total of five apples.
+                fnc add(x: s32, y: s32): s32;
+            "#]],
+            |_| [],
         );
     }
 }
