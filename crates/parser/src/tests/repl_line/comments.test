@@ -1,9 +1,5 @@
-############
-# COMMENTS #
-############
-
 #
-#
+# COMMENTS
 #
 
 let i = 0; # TODO: make value of i configurable
@@ -12,43 +8,37 @@ i #
 + #
 5 #
 ===
-Root@0..107
-  Comment@0..12 "############"
+Root@0..76
+  Comment@0..1 "#"
+  Whitespace@1..2 "\n"
+  Comment@2..12 "# COMMENTS"
   Whitespace@12..13 "\n"
-  Comment@13..25 "# COMMENTS #"
-  Whitespace@25..26 "\n"
-  Comment@26..38 "############"
-  Whitespace@38..40 "\n\n"
-  Comment@40..41 "#"
-  Whitespace@41..42 "\n"
-  Comment@42..43 "#"
-  Whitespace@43..44 "\n"
-  Comment@44..45 "#"
-  Whitespace@45..47 "\n\n"
-  LocalDef@47..57
-    LetKw@47..50 "let"
-    Whitespace@50..51 " "
-    Ident@51..52 "i"
-    Whitespace@52..53 " "
-    Eq@53..54 "="
-    Whitespace@54..55 " "
-    IntLiteral@55..56
-      Int@55..56 "0"
-    Semicolon@56..57 ";"
-  Whitespace@57..58 " "
-  Comment@58..94 "# TODO: make value of i configurable"
-  Whitespace@94..96 "\n\n"
-  BinaryExpr@96..105
-    Call@96..97
-      Ident@96..97 "i"
-    Whitespace@97..98 " "
-    Comment@98..99 "#"
-    Whitespace@99..100 "\n"
-    Plus@100..101 "+"
-    Whitespace@101..102 " "
-    Comment@102..103 "#"
-    Whitespace@103..104 "\n"
-    IntLiteral@104..105
-      Int@104..105 "5"
-  Whitespace@105..106 " "
-  Comment@106..107 "#"
+  Comment@13..14 "#"
+  Whitespace@14..16 "\n\n"
+  LocalDef@16..26
+    LetKw@16..19 "let"
+    Whitespace@19..20 " "
+    Ident@20..21 "i"
+    Whitespace@21..22 " "
+    Eq@22..23 "="
+    Whitespace@23..24 " "
+    IntLiteral@24..25
+      Int@24..25 "0"
+    Semicolon@25..26 ";"
+  Whitespace@26..27 " "
+  Comment@27..63 "# TODO: make value of i configurable"
+  Whitespace@63..65 "\n\n"
+  BinaryExpr@65..74
+    Call@65..66
+      Ident@65..66 "i"
+    Whitespace@66..67 " "
+    Comment@67..68 "#"
+    Whitespace@68..69 "\n"
+    Plus@69..70 "+"
+    Whitespace@70..71 " "
+    Comment@71..72 "#"
+    Whitespace@72..73 "\n"
+    IntLiteral@73..74
+      Int@73..74 "5"
+  Whitespace@74..75 " "
+  Comment@75..76 "#"

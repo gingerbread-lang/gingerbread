@@ -39,6 +39,7 @@ pub enum TokenKind {
     RBrace,
     Whitespace,
     Comment,
+    DocComment,
     Error,
 }
 

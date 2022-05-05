@@ -135,6 +135,9 @@ enum LexerTokenKind {
     #[regex("#.*")]
     Comment,
 
+    #[regex("##.*")]
+    DocComment,
+
     #[error]
     Error,
 
@@ -572,6 +575,16 @@ baz",
             "}",
             expect![[r#"
                 RBrace@0..1
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_doc_comment() {
+        check(
+            "## foo",
+            expect![[r#"
+                DocComment@0..6
             "#]],
         );
     }

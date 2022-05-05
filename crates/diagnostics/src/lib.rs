@@ -249,6 +249,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
         TokenKind::RBrace => "`}`",
         TokenKind::Whitespace => "whitespace",
         TokenKind::Comment => "comment",
+        TokenKind::DocComment => "doc comment",
         TokenKind::Error => "an unrecognized token",
     }
 }
