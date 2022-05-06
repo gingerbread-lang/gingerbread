@@ -7,9 +7,12 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0"
 diagnostics = {path = "../diagnostics"}
+hir = {path = "../hir"}
 ide = {path = "../ide"}
+interner = {path = "../interner"}
 line_index = {path = "../line_index"}
 lsp = {path = "../lsp"}
 lsp-types = "0.91.1"
 mimalloc = {version = "0.1.27", default-features = false}
+owo-colors = "3.4"
 text-size = "1.1"

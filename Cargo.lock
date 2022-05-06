@@ -501,11 +501,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "diagnostics",
+ "hir",
  "ide",
+ "interner",
  "line_index",
  "lsp",
  "lsp-types",
  "mimalloc",
+ "owo-colors",
  "text-size",
 ]
 
@@ -892,6 +895,12 @@ name = "opaque-debug"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
+
+[[package]]
+name = "owo-colors"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "decf7381921fea4dcb2549c5667eda59b3ec297ab7e2b5fc33eac69d2e7da87b"
 
 [[package]]
 name = "parser"

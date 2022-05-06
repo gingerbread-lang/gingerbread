@@ -429,13 +429,14 @@ pub struct Symbol {
     pub range: TextRange,
 }
 
+#[derive(Debug)]
 pub struct Highlight {
     pub range: TextRange,
     pub kind: HighlightKind,
     pub modifiers: HighlightModifiers,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum HighlightKind {
     Keyword,
     Local,
@@ -490,11 +491,16 @@ impl HighlightModifier {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct HighlightModifiers(u32);
 
 impl HighlightModifiers {
     pub fn into_raw(self) -> u32 {
         self.0
+    }
+
+    pub fn contains(self, modifier: HighlightModifier) -> bool {
+        self.0 & modifier.mask() != 0
     }
 }
 
