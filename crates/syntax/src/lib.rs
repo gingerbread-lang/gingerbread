@@ -5,6 +5,7 @@ pub type SyntaxElement = eventree::SyntaxElement<TreeConfig>;
 pub type SyntaxNode = eventree::SyntaxNode<TreeConfig>;
 pub type SyntaxToken = eventree::SyntaxToken<TreeConfig>;
 pub type SyntaxTree = eventree::SyntaxTree<TreeConfig>;
+pub type Event = eventree::Event<TreeConfig>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TreeConfig {}

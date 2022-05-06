@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use std::ops::BitOrAssign;
 use std::path::Path;
 use std::{fs, io, mem};
-use syntax::{NodeKind, SyntaxElement, SyntaxNode, SyntaxTree, TokenKind};
+use syntax::{Event, NodeKind, SyntaxElement, SyntaxNode, SyntaxTree, TokenKind};
 use text_size::{TextRange, TextSize};
 use url::Url;
 
@@ -285,15 +285,19 @@ impl Analysis {
 
     fn highlight(&self) -> Vec<Highlight> {
         let mut tokens = Vec::new();
-        let mut last_parent_node_kind = NodeKind::Root;
+        let mut parent_node_kinds = Vec::new();
 
-        for element in self.ast.syntax().descendants(self.parse.syntax_tree()) {
-            let token = match element {
-                SyntaxElement::Node(node) => {
-                    last_parent_node_kind = node.kind(self.parse.syntax_tree());
+        for event in self.parse.syntax_tree().events() {
+            let token = match event {
+                Event::StartNode(node) => {
+                    parent_node_kinds.push(node.kind(self.parse.syntax_tree()));
                     continue;
                 }
-                SyntaxElement::Token(token) => token,
+                Event::AddToken(token) => token,
+                Event::FinishNode => {
+                    parent_node_kinds.pop();
+                    continue;
+                }
             };
 
             let mut modifiers = HighlightModifiers(0);
@@ -312,7 +316,7 @@ impl Analysis {
                 TokenKind::DocCommentContents => HighlightKind::DocCommentContents,
                 TokenKind::DocCommentLeader => HighlightKind::DocCommentLeader,
 
-                TokenKind::Ident => match last_parent_node_kind {
+                TokenKind::Ident => match parent_node_kinds[parent_node_kinds.len() - 1] {
                     NodeKind::LocalDef => {
                         modifiers |= HighlightModifier::Declaration;
                         HighlightKind::Local
