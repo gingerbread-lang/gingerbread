@@ -20,7 +20,7 @@ pub struct GlobalState {
     project: Option<hir::Project>,
 }
 
-struct Analysis {
+pub struct Analysis {
     uri: Url,
     content: String,
     line_index: LineIndex,
@@ -145,7 +145,7 @@ fn path_to_uri(path: &Path) -> Url {
 }
 
 impl Analysis {
-    fn new(
+    pub fn new(
         uri: Url,
         content: String,
         module_name: hir::Name,
@@ -186,7 +186,7 @@ impl Analysis {
         analysis
     }
 
-    fn update_contents(
+    pub fn update_contents(
         &mut self,
         f: impl FnOnce(&mut String, &LineIndex),
         interner: &mut Interner,
@@ -200,14 +200,14 @@ impl Analysis {
         self.recheck(world_index, interner);
     }
 
-    fn recheck(&mut self, world_index: &mut hir::WorldIndex, interner: &mut Interner) {
+    pub fn recheck(&mut self, world_index: &mut hir::WorldIndex, interner: &mut Interner) {
         self.lower(world_index, interner);
         world_index.update_module(self.module_name, self.index.clone());
 
         self.infer(world_index);
     }
 
-    fn parent_ranges(&self, offset: TextSize) -> Vec<TextRange> {
+    pub fn parent_ranges(&self, offset: TextSize) -> Vec<TextRange> {
         let mut ranges = vec![self.ast.range(self.parse.syntax_tree())];
         let mut last_node = self.ast.syntax();
 
@@ -241,7 +241,7 @@ impl Analysis {
         ranges
     }
 
-    fn goto_definition(
+    pub fn goto_definition(
         &self,
         offset: TextSize,
         world_index: &hir::WorldIndex,
@@ -283,7 +283,7 @@ impl Analysis {
         Some(Definition { definition_range, name_range, file })
     }
 
-    fn highlight(&self) -> Vec<Highlight> {
+    pub fn highlight(&self) -> Vec<Highlight> {
         let mut tokens = Vec::new();
         let mut parent_node_kinds = Vec::new();
 
@@ -354,7 +354,7 @@ impl Analysis {
         tokens
     }
 
-    fn diagnostics(&self) -> Vec<Diagnostic> {
+    pub fn diagnostics(&self) -> Vec<Diagnostic> {
         let syntax_errors =
             self.parse.errors().iter().copied().map(diagnostics::Diagnostic::from_syntax);
 
