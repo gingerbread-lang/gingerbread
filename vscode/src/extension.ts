@@ -11,7 +11,8 @@ let client: LanguageClient;
 export function activate(context: ExtensionContext) {
   const serverOptions: ServerOptions = {
     // FIXME: make server binary location configurable
-    command: "/Users/luna/.cache/cargo-target/debug/gb-server",
+    command: "/Users/luna/.cache/cargo-target/debug/gb",
+    args: ["server"],
   };
 
   const clientOptions: LanguageClientOptions = {

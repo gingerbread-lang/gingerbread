@@ -496,7 +496,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gb-server"
+name = "gb"
 version = "0.1.0"
 dependencies = [
  "anyhow",

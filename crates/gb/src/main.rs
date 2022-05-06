@@ -3,15 +3,26 @@ use lsp_types::request::{
     GotoDefinition, SelectionRangeRequest, SemanticTokensFullRequest, Shutdown, WorkspaceSymbol,
 };
 use lsp_types::InitializeResult;
+use std::env;
 
 #[global_allocator]
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() -> anyhow::Result<()> {
+    match env::args().nth(1).as_deref() {
+        Some("server") => server()?,
+        Some(subcommand) => eprintln!("`{subcommand}` is not a valid subcommand"),
+        None => eprintln!("please provide a subcommand"),
+    }
+
+    Ok(())
+}
+
+fn server() -> anyhow::Result<()> {
     let stdio_connection_storage = lsp::connection::ConnectionStorage::new();
 
     let connection = lsp::connection::Connection::new(&stdio_connection_storage, |_| {
-        InitializeResult { capabilities: gb_server::capabilities(), server_info: None }
+        InitializeResult { capabilities: gb::capabilities(), server_info: None }
     })?;
 
     let mut connection = match connection {
@@ -38,16 +49,16 @@ fn main() -> anyhow::Result<()> {
                         Ok(())
                     })?
                     .on::<SelectionRangeRequest, _>(|params| {
-                        Ok(Some(gb_server::selection_range(params, &mut global_state)))
+                        Ok(Some(gb::selection_range(params, &mut global_state)))
                     })?
                     .on::<GotoDefinition, _>(|params| {
-                        Ok(gb_server::goto_definition(params, &mut global_state))
+                        Ok(gb::goto_definition(params, &mut global_state))
                     })?
                     .on::<WorkspaceSymbol, _>(|params| {
-                        Ok(Some(gb_server::workspace_symbol(params, &mut global_state)))
+                        Ok(Some(gb::workspace_symbol(params, &mut global_state)))
                     })?
                     .on::<SemanticTokensFullRequest, _>(|params| {
-                        Ok(Some(gb_server::semantic_tokens(params, &mut global_state)))
+                        Ok(Some(gb::semantic_tokens(params, &mut global_state)))
                     })?
                     .finish()?;
 
@@ -67,10 +78,10 @@ fn main() -> anyhow::Result<()> {
                 connection
                     .not_handler(not)
                     .on::<DidOpenTextDocument, _>(|params| {
-                        gb_server::open_text_document(params, &mut global_state, &mut connection)
+                        gb::open_text_document(params, &mut global_state, &mut connection)
                     })?
                     .on::<DidChangeTextDocument, _>(|params| {
-                        gb_server::change_text_document(params, &mut global_state, &mut connection)
+                        gb::change_text_document(params, &mut global_state, &mut connection)
                     })?;
             }
         }
