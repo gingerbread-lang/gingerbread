@@ -14,7 +14,10 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() -> anyhow::Result<()> {
     match env::args().nth(1).as_deref() {
-        Some("highlight") => highlight()?,
+        Some("highlight") => {
+            let is_html = env::args().nth(2).as_deref() == Some("--html");
+            highlight(is_html)?;
+        }
         Some("server") => server()?,
         Some(subcommand) => eprintln!("`{subcommand}` is not a valid subcommand"),
         None => eprintln!("please provide a subcommand"),
@@ -23,7 +26,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn highlight() -> anyhow::Result<()> {
+fn highlight(is_html: bool) -> anyhow::Result<()> {
     let mut content = String::new();
     io::stdin().read_to_string(&mut content)?;
 
@@ -49,29 +52,45 @@ fn highlight() -> anyhow::Result<()> {
         let unhighlighted_region = &content[last_range.end..range.start];
         bytes.extend_from_slice(unhighlighted_region.as_bytes());
 
-        let mut style = Style::new();
+        let text = &content[highlight.range];
 
-        style = match highlight.kind {
-            ide::HighlightKind::Keyword => style.magenta(),
-            ide::HighlightKind::Local => style,
-            ide::HighlightKind::Param => style,
-            ide::HighlightKind::Function => style.blue(),
-            ide::HighlightKind::Module => style.yellow(),
-            ide::HighlightKind::Ty => style.cyan(),
-            ide::HighlightKind::Number => style.green(),
-            ide::HighlightKind::Quote => style.green(),
-            ide::HighlightKind::Escape => style,
-            ide::HighlightKind::String => style.green(),
-            ide::HighlightKind::Operator => style.magenta(),
-            ide::HighlightKind::CommentContents => style.bright_black(),
-            ide::HighlightKind::CommentLeader => style.bright_black(),
-            ide::HighlightKind::DocCommentContents => style.bright_black(),
-            ide::HighlightKind::DocCommentLeader => style.bright_black(),
-            ide::HighlightKind::UnresolvedReference => style.red().bold().underline(),
-            ide::HighlightKind::__Last => unreachable!(),
-        };
+        if is_html {
+            write!(
+                bytes,
+                "<span class=\"{:?}{}\">{}</span>",
+                highlight.kind,
+                if highlight.modifiers.contains(ide::HighlightModifier::Declaration) {
+                    " Declaration"
+                } else {
+                    ""
+                },
+                text,
+            )?;
+        } else {
+            let mut style = Style::new();
 
-        write!(bytes, "{}", style.style(&content[highlight.range]))?;
+            style = match highlight.kind {
+                ide::HighlightKind::Keyword => style.magenta(),
+                ide::HighlightKind::Local => style,
+                ide::HighlightKind::Param => style,
+                ide::HighlightKind::Function => style.blue(),
+                ide::HighlightKind::Module => style.yellow(),
+                ide::HighlightKind::Ty => style.cyan(),
+                ide::HighlightKind::Number => style.green(),
+                ide::HighlightKind::Quote => style.green(),
+                ide::HighlightKind::Escape => style,
+                ide::HighlightKind::String => style.green(),
+                ide::HighlightKind::Operator => style.magenta(),
+                ide::HighlightKind::CommentContents => style.bright_black(),
+                ide::HighlightKind::CommentLeader => style.bright_black(),
+                ide::HighlightKind::DocCommentContents => style.bright_black(),
+                ide::HighlightKind::DocCommentLeader => style.bright_black(),
+                ide::HighlightKind::UnresolvedReference => style.red().bold().underline(),
+                ide::HighlightKind::__Last => unreachable!(),
+            };
+
+            write!(bytes, "{}", style.style(text))?;
+        }
 
         last_range = range;
     }
