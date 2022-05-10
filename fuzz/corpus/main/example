@@ -12,3 +12,6 @@ fnc get_greeting: string -> "hello!";
     let sum = add foo, bar;
     sum - 5
 }
+
+rec point { x: s32, y: s32 };
+rec person { name: string, age: s32 };
