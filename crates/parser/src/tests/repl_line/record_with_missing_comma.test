@@ -1,0 +1,27 @@
+rec person { name: string age: s32 };
+===
+Root@0..37
+  Record@0..37
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..10 "person"
+    Whitespace@10..11 " "
+    LBrace@11..12 "{"
+    Whitespace@12..13 " "
+    Field@13..25
+      Ident@13..17 "name"
+      Colon@17..18 ":"
+      Whitespace@18..19 " "
+      Ty@19..25
+        Ident@19..25 "string"
+    Whitespace@25..26 " "
+    Field@26..34
+      Ident@26..29 "age"
+      Colon@29..30 ":"
+      Whitespace@30..31 " "
+      Ty@31..34
+        Ident@31..34 "s32"
+    Whitespace@34..35 " "
+    RBrace@35..36 "}"
+    Semicolon@36..37 ";"
+error at 25: missing Comma

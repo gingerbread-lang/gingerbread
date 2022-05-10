@@ -98,6 +98,7 @@ pub fn lower(
     for def in root.defs(tree) {
         match def {
             ast::Def::Function(function) => ctx.lower_function(function),
+            ast::Def::Record(_) => todo!(),
         }
     }
 

@@ -1,12 +1,14 @@
 mod function;
+mod record;
 
 use self::function::parse_function;
+use self::record::parse_record;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
 use syntax::{NodeKind, TokenKind};
 
 pub(super) const DEF_FIRST: TokenSet =
-    TokenSet::new([TokenKind::FncKw, TokenKind::DocCommentLeader]);
+    TokenSet::new([TokenKind::FncKw, TokenKind::RecKw, TokenKind::DocCommentLeader]);
 
 pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
     let docs_cm = if p.at(TokenKind::DocCommentLeader) { Some(parse_docs(p)) } else { None };
@@ -19,6 +21,8 @@ pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
             None => p.start(),
         };
         return Some(parse_function(p, m));
+    } else if p.at(TokenKind::RecKw) {
+        return Some(parse_record(p));
     }
 
     p.error_with_recovery_set_no_default(TokenSet::default())

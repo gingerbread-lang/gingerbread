@@ -14,6 +14,7 @@ use token::Tokens;
 const DEFAULT_RECOVERY_SET: TokenSet = TokenSet::new([
     TokenKind::LetKw,
     TokenKind::FncKw,
+    TokenKind::RecKw,
     TokenKind::LBrace,
     TokenKind::RBrace,
     TokenKind::Semicolon,

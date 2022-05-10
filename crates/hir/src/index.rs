@@ -169,6 +169,8 @@ pub fn index(
                     }
                 }
             }
+
+            ast::Def::Record(_) => todo!(),
         }
     }
 

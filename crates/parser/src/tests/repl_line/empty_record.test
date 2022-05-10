@@ -1,0 +1,11 @@
+rec unit {};
+===
+Root@0..12
+  Record@0..12
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..8 "unit"
+    Whitespace@8..9 " "
+    LBrace@9..10 "{"
+    RBrace@10..11 "}"
+    Semicolon@11..12 ";"

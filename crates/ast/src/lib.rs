@@ -92,13 +92,14 @@ impl Root {
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Def {
     Function(Function),
+    Record(Record),
 }
 
 impl AstNode for Def {
     fn cast(node: SyntaxNode, tree: &SyntaxTree) -> Option<Self> {
         match node.kind(tree) {
             NodeKind::Function => Some(Self::Function(Function(node))),
-
+            NodeKind::Record => Some(Self::Record(Record(node))),
             _ => None,
         }
     }
@@ -106,6 +107,7 @@ impl AstNode for Def {
     fn syntax(self) -> SyntaxNode {
         match self {
             Self::Function(function) => function.syntax(),
+            Self::Record(record) => record.syntax(),
         }
     }
 }
@@ -131,6 +133,18 @@ impl Function {
 
     pub fn body(self, tree: &SyntaxTree) -> Option<Expr> {
         node(self, tree)
+    }
+}
+
+def_ast_node!(Record);
+
+impl Record {
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
+    }
+
+    pub fn fields(self, tree: &SyntaxTree) -> impl Iterator<Item = Field> + '_ {
+        nodes(self, tree)
     }
 }
 
@@ -188,6 +202,18 @@ impl ReturnTy {
 def_ast_node!(Param);
 
 impl Param {
+    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
+        token(self, tree)
+    }
+
+    pub fn ty(self, tree: &SyntaxTree) -> Option<Ty> {
+        node(self, tree)
+    }
+}
+
+def_ast_node!(Field);
+
+impl Field {
     pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
         token(self, tree)
     }
@@ -614,7 +640,10 @@ mod tests {
         let (tree, root) = parse("fnc a -> {};");
         let def = root.defs(&tree).next().unwrap();
 
-        let Def::Function(function) = def;
+        let function = match def {
+            Def::Function(function) => function,
+            _ => unreachable!(),
+        };
 
         assert_eq!(function.name(&tree).unwrap().text(&tree), "a");
     }
@@ -624,7 +653,10 @@ mod tests {
         let (tree, root) = parse("fnc add(x: s32, y: s32) -> {};");
         let def = root.defs(&tree).next().unwrap();
 
-        let Def::Function(function) = def;
+        let function = match def {
+            Def::Function(function) => function,
+            _ => unreachable!(),
+        };
 
         let mut params = function.param_list(&tree).unwrap().params(&tree);
 
@@ -644,7 +676,10 @@ mod tests {
         let (tree, root) = parse("fnc four: s32 -> 4;");
         let def = root.defs(&tree).next().unwrap();
 
-        let Def::Function(function) = def;
+        let function = match def {
+            Def::Function(function) => function,
+            _ => unreachable!(),
+        };
 
         assert_eq!(
             function.return_ty(&tree).unwrap().ty(&tree).unwrap().name(&tree).unwrap().text(&tree),
@@ -657,7 +692,10 @@ mod tests {
         let (tree, root) = parse("fnc nothing -> {};");
         let def = root.defs(&tree).next().unwrap();
 
-        let Def::Function(function) = def;
+        let function = match def {
+            Def::Function(function) => function,
+            _ => unreachable!(),
+        };
 
         let block = match function.body(&tree).unwrap() {
             Expr::Block(block) => block,
@@ -679,7 +717,10 @@ mod tests {
         );
         let def = root.defs(&tree).next().unwrap();
 
-        let Def::Function(function) = def;
+        let function = match def {
+            Def::Function(function) => function,
+            _ => unreachable!(),
+        };
 
         let docs = function.docs(&tree).unwrap();
         let mut doc_comments = docs.doc_comments(&tree);
@@ -693,5 +734,51 @@ mod tests {
             " Does not actually print something to the screen."
         );
         assert!(doc_comments.next().is_none());
+    }
+
+    #[test]
+    fn get_record_name() {
+        let (tree, root) = parse("rec foo {};");
+        let def = root.defs(&tree).next().unwrap();
+
+        let record = match def {
+            Def::Record(record) => record,
+            _ => unreachable!(),
+        };
+
+        assert_eq!(record.name(&tree).unwrap().text(&tree), "foo");
+    }
+
+    #[test]
+    fn get_record_fields() {
+        let (tree, root) = parse(
+            r#"
+                rec vec3 {
+                    x: s32,
+                    y: s32,
+                    z: s32,
+                };
+            "#,
+        );
+        let def = root.defs(&tree).next().unwrap();
+
+        let record = match def {
+            Def::Record(record) => record,
+            _ => unreachable!(),
+        };
+
+        let mut fields = record.fields(&tree);
+
+        let field = fields.next().unwrap();
+        assert_eq!(field.name(&tree).unwrap().text(&tree), "x");
+        assert_eq!(field.ty(&tree).unwrap().text(&tree), "s32");
+
+        let field = fields.next().unwrap();
+        assert_eq!(field.name(&tree).unwrap().text(&tree), "y");
+        assert_eq!(field.ty(&tree).unwrap().text(&tree), "s32");
+
+        let field = fields.next().unwrap();
+        assert_eq!(field.name(&tree).unwrap().text(&tree), "z");
+        assert_eq!(field.ty(&tree).unwrap().text(&tree), "s32");
     }
 }

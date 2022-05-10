@@ -64,6 +64,8 @@ pub enum NodeKind {
     Param,
     ReturnTy,
     Ty,
+    Record,
+    Field,
     Comment,
     DocComment,
     Docs,

@@ -1,0 +1,20 @@
+rec wrapper { s: string, };
+===
+Root@0..27
+  Record@0..27
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..11 "wrapper"
+    Whitespace@11..12 " "
+    LBrace@12..13 "{"
+    Whitespace@13..14 " "
+    Field@14..23
+      Ident@14..15 "s"
+      Colon@15..16 ":"
+      Whitespace@16..17 " "
+      Ty@17..23
+        Ident@17..23 "string"
+    Comma@23..24 ","
+    Whitespace@24..25 " "
+    RBrace@25..26 "}"
+    Semicolon@26..27 ";"

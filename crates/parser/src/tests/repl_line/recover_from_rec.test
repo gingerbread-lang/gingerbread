@@ -1,0 +1,27 @@
+fnc f -> 1 +
+rec x {};
+===
+Root@0..22
+  Function@0..12
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..5 "f"
+    Whitespace@5..6 " "
+    Arrow@6..8 "->"
+    Whitespace@8..9 " "
+    BinaryExpr@9..12
+      IntLiteral@9..10
+        Int@9..10 "1"
+      Whitespace@10..11 " "
+      Plus@11..12 "+"
+  Whitespace@12..13 "\n"
+  Record@13..22
+    RecKw@13..16 "rec"
+    Whitespace@16..17 " "
+    Ident@17..18 "x"
+    Whitespace@18..19 " "
+    LBrace@19..20 "{"
+    RBrace@20..21 "}"
+    Semicolon@21..22 ";"
+error at 12: missing operand
+error at 12: missing Semicolon
