@@ -51,8 +51,18 @@ impl<'tokens> Parser<'tokens> {
             assert!(event.is_some());
         }
 
-        #[allow(clippy::unsound_collection_transmute)]
-        (unsafe { mem::transmute::<Vec<Option<Event>>, Vec<Event>>(self.events) }, self.errors)
+        let mut events = mem::ManuallyDrop::new(self.events);
+
+        (
+            unsafe {
+                Vec::from_raw_parts(
+                    events.as_mut_ptr() as *mut Event,
+                    events.len(),
+                    events.capacity(),
+                )
+            },
+            self.errors,
+        )
     }
 
     pub(crate) fn expect(&mut self, kind: TokenKind) {
