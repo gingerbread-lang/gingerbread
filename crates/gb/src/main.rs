@@ -13,9 +13,12 @@ use std::io::{self, Write};
 static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 fn main() -> anyhow::Result<()> {
-    match env::args().nth(1).as_deref() {
+    let mut args = env::args();
+    args.next();
+
+    match args.next().as_deref() {
         Some("highlight") => {
-            let is_html = env::args().nth(2).as_deref() == Some("--html");
+            let is_html = args.next().as_deref() == Some("--html");
             highlight(is_html)?;
         }
         Some("server") => server()?,
