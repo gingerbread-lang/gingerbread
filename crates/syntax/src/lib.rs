@@ -19,6 +19,7 @@ impl eventree::TreeConfig for TreeConfig {
 pub enum TokenKind {
     LetKw,
     FncKw,
+    RecKw,
     Ident,
     Int,
     Quote,

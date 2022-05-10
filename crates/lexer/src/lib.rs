@@ -91,6 +91,9 @@ enum LexerTokenKind {
     #[token("fnc")]
     FncKw,
 
+    #[token("rec")]
+    RecKw,
+
     #[regex("[a-zA-Z_]+[a-zA-Z0-9_]*")]
     Ident,
 
@@ -241,6 +244,16 @@ mod tests {
             "fnc",
             expect![[r#"
                 FncKw@0..3
+            "#]],
+        );
+    }
+
+    #[test]
+    fn lex_rec_keyword() {
+        check(
+            "rec",
+            expect![[r#"
+                RecKw@0..3
             "#]],
         );
     }

@@ -228,6 +228,7 @@ fn format_kind(kind: TokenKind) -> &'static str {
     match kind {
         TokenKind::LetKw => "`let`",
         TokenKind::FncKw => "`fnc`",
+        TokenKind::RecKw => "`rec`",
         TokenKind::Ident => "identifier",
         TokenKind::Int => "integer literal",
         TokenKind::Quote => "`\"`",
