@@ -109,122 +109,71 @@ pub fn index(
     world_index: &WorldIndex,
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
-    let mut definitions = FxHashMap::default();
-    let mut range_info = FxHashMap::default();
-    let mut docs = FxHashMap::default();
-    let mut tys = FxHashSet::default();
-    let mut diagnostics = Vec::new();
+    let mut ctx = Ctx {
+        index: Index {
+            definitions: FxHashMap::default(),
+            range_info: FxHashMap::default(),
+            docs: FxHashMap::default(),
+            tys: FxHashSet::default(),
+        },
+        diagnostics: Vec::new(),
+        tree,
+        interner,
+        world_index,
+    };
 
     for def in root.defs(tree) {
-        let (docs_syntax, name) = match def {
-            ast::Def::Function(function) => {
-                let name_token = match function.name(tree) {
-                    Some(ident) => ident,
-                    None => continue,
-                };
+        ctx.index_def(def);
+    }
 
-                let name = Name(interner.intern(name_token.text(tree)));
+    ctx.index.shrink_to_fit();
 
-                let mut params = Vec::new();
+    (ctx.index, ctx.diagnostics)
+}
 
-                if let Some(param_list) = function.param_list(tree) {
-                    for param in param_list.params(tree) {
-                        let name =
-                            param.name(tree).map(|ident| Name(interner.intern(ident.text(tree))));
+struct Ctx<'a> {
+    index: Index,
+    diagnostics: Vec<IndexingDiagnostic>,
+    tree: &'a SyntaxTree,
+    interner: &'a mut Interner,
+    world_index: &'a WorldIndex,
+}
 
-                        let ty = lower_ty(
-                            param.ty(tree),
-                            tree,
-                            world_index,
-                            &mut tys,
-                            interner,
-                            &mut diagnostics,
-                        );
-
-                        params.push(Param { name, ty });
-                    }
-                }
-
-                let return_ty = match function.return_ty(tree) {
-                    Some(return_ty) => lower_ty(
-                        return_ty.ty(tree),
-                        tree,
-                        world_index,
-                        &mut tys,
-                        interner,
-                        &mut diagnostics,
-                    ),
-                    None => Ty::Unit,
-                };
-
-                match definitions.entry(name) {
-                    Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
-                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
-                        range: function.range(tree),
-                    }),
-                    Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(Definition::Function(Function { params, return_ty }));
-                        range_info.insert(
-                            name,
-                            RangeInfo { whole: function.range(tree), name: name_token.range(tree) },
-                        );
-                    }
-                }
-
-                (function.docs(tree), name)
-            }
-
-            ast::Def::Record(record) => {
-                let name_token = match record.name(tree) {
-                    Some(ident) => ident,
-                    None => continue,
-                };
-
-                let name = Name(interner.intern(name_token.text(tree)));
-
-                let mut fields = Vec::new();
-
-                for field in record.fields(tree) {
-                    let name =
-                        field.name(tree).map(|ident| Name(interner.intern(ident.text(tree))));
-
-                    let ty = lower_ty(
-                        field.ty(tree),
-                        tree,
-                        world_index,
-                        &mut tys,
-                        interner,
-                        &mut diagnostics,
-                    );
-
-                    fields.push(Field { name, ty })
-                }
-
-                match definitions.entry(name) {
-                    Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
-                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
-                        range: record.range(tree),
-                    }),
-                    Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(Definition::Record(Record { fields }));
-                        range_info.insert(
-                            name,
-                            RangeInfo { whole: record.range(tree), name: name_token.range(tree) },
-                        );
-                    }
-                }
-
-                (record.docs(tree), name)
-            }
+impl Ctx<'_> {
+    fn index_def(&mut self, def: ast::Def) {
+        let result = match def {
+            ast::Def::Function(function) => self.index_function(function),
+            ast::Def::Record(record) => self.index_record(record),
         };
 
-        if let Some(d) = docs_syntax {
+        let (definition, name, name_token, docs) = match result {
+            IndexDefinitionResult::Ok { definition, name, name_token, docs } => {
+                (definition, name, name_token, docs)
+            }
+            IndexDefinitionResult::NoName => return,
+        };
+
+        match self.index.definitions.entry(name) {
+            Entry::Occupied(_) => self.diagnostics.push(IndexingDiagnostic {
+                kind: IndexingDiagnosticKind::AlreadyDefined { name: name.0 },
+                range: name_token.range(self.tree),
+            }),
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(definition);
+                self.index.range_info.insert(
+                    name,
+                    RangeInfo { whole: def.range(self.tree), name: name_token.range(self.tree) },
+                );
+            }
+        }
+
+        if let Some(d) = docs {
             let mut paras = vec![String::new()];
 
-            for doc_comment in d.doc_comments(tree) {
-                match doc_comment.contents(tree) {
+            for doc_comment in d.doc_comments(self.tree) {
+                match doc_comment.contents(self.tree) {
                     Some(contents) => {
-                        let contents = contents.text(tree).trim();
+                        let contents = contents.text(self.tree).trim();
                         let last_para = &mut paras.last_mut().unwrap();
 
                         if !last_para.is_empty() {
@@ -237,41 +186,96 @@ pub fn index(
                 }
             }
 
-            docs.insert(name, Docs { paras });
+            self.index.docs.insert(name, Docs { paras });
         }
     }
 
-    let mut index = Index { definitions, range_info, docs, tys };
-    index.shrink_to_fit();
+    fn index_function(&mut self, function: ast::Function) -> IndexDefinitionResult {
+        let name_token = match function.name(self.tree) {
+            Some(ident) => ident,
+            None => return IndexDefinitionResult::NoName,
+        };
+        let name = Name(self.interner.intern(name_token.text(self.tree)));
 
-    (index, diagnostics)
-}
+        let mut params = Vec::new();
 
-fn lower_ty(
-    ty: Option<ast::Ty>,
-    tree: &SyntaxTree,
-    world_index: &WorldIndex,
-    tys: &mut FxHashSet<ast::Ident>,
-    interner: &mut Interner,
-    diagnostics: &mut Vec<IndexingDiagnostic>,
-) -> Ty {
-    let ident = match ty.and_then(|ty| ty.name(tree)) {
-        Some(ident) => ident,
-        None => return Ty::Unknown,
-    };
+        if let Some(param_list) = function.param_list(self.tree) {
+            for param in param_list.params(self.tree) {
+                let name = param
+                    .name(self.tree)
+                    .map(|ident| Name(self.interner.intern(ident.text(self.tree))));
 
-    let name = Name(interner.intern(ident.text(tree)));
-    if let Some(kind) = world_index.get_ty(name) {
-        tys.insert(ident);
-        return kind;
+                let ty = self.lower_ty(param.ty(self.tree));
+
+                params.push(Param { name, ty });
+            }
+        }
+
+        let return_ty = match function.return_ty(self.tree) {
+            Some(return_ty) => self.lower_ty(return_ty.ty(self.tree)),
+            None => Ty::Unit,
+        };
+
+        IndexDefinitionResult::Ok {
+            definition: Definition::Function(Function { params, return_ty }),
+            name,
+            name_token,
+            docs: function.docs(self.tree),
+        }
     }
 
-    diagnostics.push(IndexingDiagnostic {
-        kind: IndexingDiagnosticKind::UndefinedTy { name: name.0 },
-        range: ident.range(tree),
-    });
+    fn index_record(&mut self, record: ast::Record) -> IndexDefinitionResult {
+        let name_token = match record.name(self.tree) {
+            Some(ident) => ident,
+            None => return IndexDefinitionResult::NoName,
+        };
+        let name = Name(self.interner.intern(name_token.text(self.tree)));
 
-    Ty::Unknown
+        let mut fields = Vec::new();
+
+        for field in record.fields(self.tree) {
+            let name = field
+                .name(self.tree)
+                .map(|ident| Name(self.interner.intern(ident.text(self.tree))));
+
+            let ty = self.lower_ty(field.ty(self.tree));
+
+            fields.push(Field { name, ty });
+        }
+
+        IndexDefinitionResult::Ok {
+            definition: Definition::Record(Record { fields }),
+            name,
+            name_token,
+            docs: record.docs(self.tree),
+        }
+    }
+
+    fn lower_ty(&mut self, ty: Option<ast::Ty>) -> Ty {
+        let ident = match ty.and_then(|ty| ty.name(self.tree)) {
+            Some(ident) => ident,
+            None => return Ty::Unknown,
+        };
+
+        let name = Name(self.interner.intern(ident.text(self.tree)));
+
+        if let Some(kind) = self.world_index.get_ty(name) {
+            self.index.tys.insert(ident);
+            return kind;
+        }
+
+        self.diagnostics.push(IndexingDiagnostic {
+            kind: IndexingDiagnosticKind::UndefinedTy { name: name.0 },
+            range: ident.range(self.tree),
+        });
+
+        Ty::Unknown
+    }
+}
+
+enum IndexDefinitionResult {
+    Ok { definition: Definition, name: Name, name_token: ast::Ident, docs: Option<ast::Docs> },
+    NoName,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -282,7 +286,7 @@ pub struct IndexingDiagnostic {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndexingDiagnosticKind {
-    FunctionAlreadyDefined { name: Key },
+    AlreadyDefined { name: Key },
     UndefinedTy { name: Key },
 }
 
@@ -298,73 +302,83 @@ impl Index {
                 if idx != 0 {
                     s.push('\n');
                 }
-                s.push_str("# docs:\n");
-
-                for (i, para) in docs.paras.iter().enumerate() {
-                    if i != 0 {
-                        s.push_str("#\n");
-                    }
-
-                    for line in textwrap::wrap(para, 66) {
-                        s.push_str(&format!("# {line}\n"));
-                    }
-                }
+                debug_docs(&mut s, docs);
             }
 
             match definition {
                 Definition::Function(function) => {
-                    s.push_str(&format!("fnc {}", interner.lookup(name.0)));
-
-                    if !function.params.is_empty() {
-                        s.push('(');
-
-                        for (idx, param) in function.params.iter().enumerate() {
-                            if idx != 0 {
-                                s.push_str(", ");
-                            }
-
-                            s.push_str(&format!(
-                                "{}: {}",
-                                param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
-                                param.ty
-                            ));
-                        }
-
-                        s.push(')');
-                    }
-
-                    if function.return_ty != Ty::Unit {
-                        s.push_str(&format!(": {}", function.return_ty));
-                    }
-
-                    s.push_str(";\n");
+                    debug_function(&mut s, **name, function, interner)
                 }
 
-                Definition::Record(record) => {
-                    s.push_str(&format!("rec {} {{", interner.lookup(name.0)));
+                Definition::Record(record) => debug_record(&mut s, **name, record, interner),
+            }
+        }
 
-                    if !record.fields.is_empty() {
-                        s.push(' ');
-                        for (idx, field) in record.fields.iter().enumerate() {
-                            if idx != 0 {
-                                s.push_str(", ");
-                            }
+        return s;
 
-                            s.push_str(&format!(
-                                "{}: {}",
-                                field.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
-                                field.ty
-                            ));
-                        }
-                        s.push(' ');
-                    }
+        fn debug_docs(s: &mut String, docs: &Docs) {
+            s.push_str("# docs:\n");
 
-                    s.push_str("};\n");
+            for (i, para) in docs.paras.iter().enumerate() {
+                if i != 0 {
+                    s.push_str("#\n");
+                }
+
+                for line in textwrap::wrap(para, 66) {
+                    s.push_str(&format!("# {line}\n"));
                 }
             }
         }
 
-        s
+        fn debug_function(s: &mut String, name: Name, function: &Function, interner: &Interner) {
+            s.push_str(&format!("fnc {}", interner.lookup(name.0)));
+
+            if !function.params.is_empty() {
+                s.push('(');
+
+                for (idx, param) in function.params.iter().enumerate() {
+                    if idx != 0 {
+                        s.push_str(", ");
+                    }
+
+                    s.push_str(&format!(
+                        "{}: {}",
+                        param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
+                        param.ty
+                    ));
+                }
+
+                s.push(')');
+            }
+
+            if function.return_ty != Ty::Unit {
+                s.push_str(&format!(": {}", function.return_ty));
+            }
+
+            s.push_str(";\n");
+        }
+
+        fn debug_record(s: &mut String, name: Name, record: &Record, interner: &Interner) {
+            s.push_str(&format!("rec {} {{", interner.lookup(name.0)));
+
+            if !record.fields.is_empty() {
+                s.push(' ');
+                for (idx, field) in record.fields.iter().enumerate() {
+                    if idx != 0 {
+                        s.push_str(", ");
+                    }
+
+                    s.push_str(&format!(
+                        "{}: {}",
+                        field.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
+                        field.ty
+                    ));
+                }
+                s.push(' ');
+            }
+
+            s.push_str("};\n");
+        }
     }
 }
 
@@ -540,11 +554,12 @@ mod tests {
     }
 
     #[test]
-    fn functions_with_same_name() {
+    fn definitions_with_same_name() {
         check(
             r#"
                 fnc a -> {};
                 fnc a: string -> "hello";
+                rec a {};
                 fnc a(x: s32): s32 -> x;
             "#,
             expect![[r#"
@@ -552,14 +567,9 @@ mod tests {
             "#]],
             |i| {
                 [
-                    (
-                        IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("a") },
-                        46..71,
-                    ),
-                    (
-                        IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("a") },
-                        88..112,
-                    ),
+                    (IndexingDiagnosticKind::AlreadyDefined { name: i.intern("a") }, 50..51),
+                    (IndexingDiagnosticKind::AlreadyDefined { name: i.intern("a") }, 92..93),
+                    (IndexingDiagnosticKind::AlreadyDefined { name: i.intern("a") }, 118..119),
                 ]
             },
         );

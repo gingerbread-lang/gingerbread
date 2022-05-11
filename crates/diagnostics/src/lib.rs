@@ -185,8 +185,8 @@ fn validation_diagnostic_message(d: &ValidationDiagnostic) -> String {
 
 fn indexing_diagnostic_message(d: &IndexingDiagnostic, interner: &Interner) -> String {
     match &d.kind {
-        IndexingDiagnosticKind::FunctionAlreadyDefined { name } => {
-            format!("function `{}` already defined", interner.lookup(*name))
+        IndexingDiagnosticKind::AlreadyDefined { name } => {
+            format!("name `{}` already defined", interner.lookup(*name))
         }
         IndexingDiagnosticKind::UndefinedTy { name } => {
             format!("undefined type `{}`", interner.lookup(*name))
@@ -417,13 +417,13 @@ mod tests {
     }
 
     #[test]
-    fn indexing_function_already_defined() {
+    fn indexing_already_defined() {
         check_indexing(
             "fnc do_thing -> {};",
-            |i| IndexingDiagnosticKind::FunctionAlreadyDefined { name: i.intern("do_thing") },
+            |i| IndexingDiagnosticKind::AlreadyDefined { name: i.intern("do_thing") },
             0..19,
             expect![[r#"
-                error at 1:1: function `do_thing` already defined
+                error at 1:1: name `do_thing` already defined
                   fnc do_thing -> {};
                   ^^^^^^^^^^^^^^^^^^^
             "#]],
@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn indexing_function_undefined_ty() {
+    fn indexing_undefined_ty() {
         check_indexing(
             "fnc header: sring -> \"=====\";",
             |i| IndexingDiagnosticKind::UndefinedTy { name: i.intern("sring") },
