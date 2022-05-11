@@ -7,7 +7,11 @@ pub(super) fn parse_record(p: &mut Parser<'_>, m: Marker) -> CompletedMarker {
     assert!(p.at(TokenKind::RecKw));
     p.bump();
 
-    p.expect(TokenKind::Ident);
+    {
+        let _guard = p.expected_syntax_name("record name");
+        p.expect(TokenKind::Ident);
+    }
+
     p.expect(TokenKind::LBrace);
 
     while !p.at(TokenKind::RBrace) && !p.at_eof() {

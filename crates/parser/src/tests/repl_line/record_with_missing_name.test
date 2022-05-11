@@ -1,0 +1,10 @@
+rec {};
+===
+Root@0..7
+  Record@0..7
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    LBrace@4..5 "{"
+    RBrace@5..6 "}"
+    Semicolon@6..7 ";"
+error at 3: missing record name

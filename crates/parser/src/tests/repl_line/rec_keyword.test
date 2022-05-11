@@ -3,7 +3,7 @@ rec
 Root@0..3
   Record@0..3
     RecKw@0..3 "rec"
-error at 3: missing Ident
+error at 3: missing record name
 error at 3: missing LBrace
 error at 3: missing RBrace
 error at 3: missing Semicolon
