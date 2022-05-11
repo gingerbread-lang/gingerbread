@@ -1,0 +1,25 @@
+rec foo { a, b };
+===
+Root@0..17
+  Record@0..17
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..7 "foo"
+    Whitespace@7..8 " "
+    LBrace@8..9 "{"
+    Whitespace@9..10 " "
+    Field@10..11
+      Ident@10..11 "a"
+      Ty@11..11
+    Comma@11..12 ","
+    Whitespace@12..13 " "
+    Field@13..15
+      Ident@13..14 "b"
+      Whitespace@14..15 " "
+      Ty@15..15
+    RBrace@15..16 "}"
+    Semicolon@16..17 ";"
+error at 11: missing Colon
+error at 11: missing field type
+error at 14: missing Colon
+error at 14: missing field type

@@ -1,0 +1,19 @@
+rec a { foo bar };
+===
+Root@0..18
+  Record@0..18
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..5 "a"
+    Whitespace@5..6 " "
+    LBrace@6..7 "{"
+    Whitespace@7..8 " "
+    Field@8..15
+      Ident@8..11 "foo"
+      Whitespace@11..12 " "
+      Ty@12..15
+        Ident@12..15 "bar"
+    Whitespace@15..16 " "
+    RBrace@16..17 "}"
+    Semicolon@17..18 ";"
+error at 11: missing Colon

@@ -1,0 +1,27 @@
+rec a { : foo, bar: baz };
+===
+Root@0..26
+  Record@0..26
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..5 "a"
+    Whitespace@5..6 " "
+    LBrace@6..7 "{"
+    Whitespace@7..8 " "
+    Field@8..13
+      Colon@8..9 ":"
+      Whitespace@9..10 " "
+      Ty@10..13
+        Ident@10..13 "foo"
+    Comma@13..14 ","
+    Whitespace@14..15 " "
+    Field@15..23
+      Ident@15..18 "bar"
+      Colon@18..19 ":"
+      Whitespace@19..20 " "
+      Ty@20..23
+        Ident@20..23 "baz"
+    Whitespace@23..24 " "
+    RBrace@24..25 "}"
+    Semicolon@25..26 ";"
+error at 7: missing field name

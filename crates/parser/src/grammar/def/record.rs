@@ -11,11 +11,27 @@ pub(super) fn parse_record(p: &mut Parser<'_>) -> CompletedMarker {
     p.expect(TokenKind::Ident);
     p.expect(TokenKind::LBrace);
 
-    while p.at(TokenKind::Ident) {
+    while !p.at(TokenKind::RBrace) {
         let m = p.start();
-        p.bump();
-        p.expect(TokenKind::Colon);
-        parse_ty(p, TokenSet::default());
+
+        {
+            let _guard = p.expected_syntax_name("field name");
+            p.expect_with_recovery_set(
+                TokenKind::Ident,
+                TokenSet::new([TokenKind::Colon, TokenKind::Comma]),
+            );
+        }
+
+        p.expect_with_recovery_set(
+            TokenKind::Colon,
+            TokenSet::new([TokenKind::Ident, TokenKind::Comma]),
+        );
+
+        {
+            let _guard = p.expected_syntax_name("field type");
+            parse_ty(p, TokenSet::new([TokenKind::Comma]));
+        }
+
         m.complete(p, NodeKind::Field);
 
         if !p.at(TokenKind::RBrace) {

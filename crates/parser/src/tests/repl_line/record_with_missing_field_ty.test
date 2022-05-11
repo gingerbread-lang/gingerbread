@@ -1,0 +1,33 @@
+rec r { a:, b: string, c: };
+===
+Root@0..28
+  Record@0..28
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..5 "r"
+    Whitespace@5..6 " "
+    LBrace@6..7 "{"
+    Whitespace@7..8 " "
+    Field@8..10
+      Ident@8..9 "a"
+      Colon@9..10 ":"
+      Ty@10..10
+    Comma@10..11 ","
+    Whitespace@11..12 " "
+    Field@12..21
+      Ident@12..13 "b"
+      Colon@13..14 ":"
+      Whitespace@14..15 " "
+      Ty@15..21
+        Ident@15..21 "string"
+    Comma@21..22 ","
+    Whitespace@22..23 " "
+    Field@23..26
+      Ident@23..24 "c"
+      Colon@24..25 ":"
+      Whitespace@25..26 " "
+      Ty@26..26
+    RBrace@26..27 "}"
+    Semicolon@27..28 ";"
+error at 10: missing field type
+error at 25: missing field type

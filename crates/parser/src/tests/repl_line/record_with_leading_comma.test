@@ -1,0 +1,26 @@
+rec a { , s: s32 };
+===
+Root@0..19
+  Record@0..19
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..5 "a"
+    Whitespace@5..6 " "
+    LBrace@6..7 "{"
+    Whitespace@7..8 " "
+    Field@8..8
+      Ty@8..8
+    Comma@8..9 ","
+    Whitespace@9..10 " "
+    Field@10..16
+      Ident@10..11 "s"
+      Colon@11..12 ":"
+      Whitespace@12..13 " "
+      Ty@13..16
+        Ident@13..16 "s32"
+    Whitespace@16..17 " "
+    RBrace@17..18 "}"
+    Semicolon@18..19 ";"
+error at 7: missing field name
+error at 7: missing Colon
+error at 7: missing field type
