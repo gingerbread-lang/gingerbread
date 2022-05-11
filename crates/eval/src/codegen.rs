@@ -74,7 +74,12 @@ impl<'a> Ctx<'a> {
     }
 
     fn compile_function(&mut self, fqn: hir::Fqn) {
-        let function = self.world_index.get_function(fqn).unwrap();
+        let definition = self.world_index.get_definition(fqn).unwrap();
+
+        let function = match definition {
+            hir::Definition::Function(function) => function,
+            hir::Definition::Record(_) => panic!("tried to compile record as function"),
+        };
 
         let params: Vec<_> = function
             .params
@@ -98,7 +103,7 @@ impl<'a> Ctx<'a> {
 
         self.function_section.function(self.function_idx);
 
-        self.compile_expr(fqn.module, self.bodies_map[&fqn.module].function_body(fqn.function));
+        self.compile_expr(fqn.module, self.bodies_map[&fqn.module].function_body(fqn.name));
         self.push(Instruction::End);
 
         let mut f = Function::new(self.local_tys.drain(..));
@@ -194,7 +199,7 @@ impl<'a> Ctx<'a> {
 
             hir::Expr::Call { path, args } => {
                 let fqn = match path {
-                    hir::Path::ThisModule(function) => hir::Fqn { module, function },
+                    hir::Path::ThisModule(name) => hir::Fqn { module, name },
                     hir::Path::OtherModule(fqn) => fqn,
                 };
 

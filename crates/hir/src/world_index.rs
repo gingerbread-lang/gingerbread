@@ -1,4 +1,4 @@
-use crate::{Function, Index, Name, RangeInfo, Ty};
+use crate::{Definition, Index, Name, RangeInfo, Ty};
 use interner::Key;
 use rustc_hash::FxHashMap;
 
@@ -8,17 +8,17 @@ pub struct WorldIndex(FxHashMap<Name, Index>);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fqn {
     pub module: Name,
-    pub function: Name,
+    pub name: Name,
 }
 
 impl WorldIndex {
-    pub fn get_function(&self, fqn: Fqn) -> Result<&Function, GetFunctionError> {
+    pub fn get_definition(&self, fqn: Fqn) -> Result<&Definition, GetDefinitionError> {
         match self.0.get(&fqn.module) {
-            Some(index) => match index.get_function(fqn.function) {
-                Some(function) => Ok(function),
-                None => Err(GetFunctionError::UnknownFunction),
+            Some(index) => match index.get_definition(fqn.name) {
+                Some(def) => Ok(def),
+                None => Err(GetDefinitionError::UnknownDefinition),
             },
-            None => Err(GetFunctionError::UnknownModule),
+            None => Err(GetDefinitionError::UnknownModule),
         }
     }
 
@@ -33,7 +33,7 @@ impl WorldIndex {
     }
 
     pub fn range_info(&self, fqn: Fqn) -> RangeInfo {
-        self.0[&fqn.module].range_info[&fqn.function]
+        self.0[&fqn.module].range_info[&fqn.name]
     }
 
     pub fn add_module(&mut self, module: Name, index: Index) {
@@ -46,13 +46,13 @@ impl WorldIndex {
 
     pub fn iter(&self) -> impl Iterator<Item = (Fqn, RangeInfo)> + '_ {
         self.0.iter().flat_map(|(module, index)| {
-            index.iter().map(|(function, range)| (Fqn { module: *module, function }, range))
+            index.iter().map(|(name, range)| (Fqn { module: *module, name }, range))
         })
     }
 }
 
 #[derive(Debug)]
-pub enum GetFunctionError {
+pub enum GetDefinitionError {
     UnknownModule,
-    UnknownFunction,
+    UnknownDefinition,
 }

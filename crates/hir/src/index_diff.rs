@@ -5,14 +5,14 @@ use rustc_hash::FxHashSet;
 pub fn diff(old_index: &Index, new_index: &Index) -> Diff {
     let mut deleted_or_changed = FxHashSet::default();
 
-    for (&name, old_function) in &old_index.functions {
-        match new_index.get_function(name) {
-            // the function is in both the old and new indexes, and has not been changed
-            Some(new_function) if old_function == new_function => {}
+    for (&name, old_definition) in &old_index.definitions {
+        match new_index.get_definition(name) {
+            // the definition is in both the old and new indexes, and has not been changed
+            Some(new_definition) if old_definition == new_definition => {}
 
-            // the function is in both the old and new indexes, and has been changed
+            // the definition is in both the old and new indexes, and has been changed
             // or
-            // the function is only in the old index (it has been deleted)
+            // the definition is only in the old index (it has been deleted)
             Some(_) | None => {
                 deleted_or_changed.insert(name);
             }
@@ -37,12 +37,12 @@ impl Diff {
         let mut deleted_or_changed: Vec<_> = self.deleted_or_changed.iter().collect();
         deleted_or_changed.sort_unstable();
 
-        for (idx, function) in deleted_or_changed.iter().enumerate() {
+        for (idx, name) in deleted_or_changed.iter().enumerate() {
             if idx != 0 {
                 s.push_str(", ");
             }
 
-            s.push_str(interner.lookup(function.0));
+            s.push_str(interner.lookup(name.0));
         }
 
         s

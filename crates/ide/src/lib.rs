@@ -113,9 +113,9 @@ impl GlobalState {
             .iter()
             .map(|(fqn, range_info)| {
                 let module_name = self.interner.lookup(fqn.module.0);
-                let function_name = self.interner.lookup(fqn.function.0);
+                let definition_name = self.interner.lookup(fqn.name.0);
                 Symbol {
-                    name: format!("{module_name}.{function_name}"),
+                    name: format!("{module_name}.{definition_name}"),
                     file: path_to_uri(project.module_path(fqn.module).unwrap()),
                     range: range_info.whole,
                 }

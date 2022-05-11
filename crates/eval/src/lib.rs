@@ -10,7 +10,11 @@ pub fn eval(
     world_index: &hir::WorldIndex,
 ) -> Val {
     let entry_point_return_ty = {
-        let function = world_index.get_function(fqn).unwrap();
+        let definition = world_index.get_definition(fqn).unwrap();
+        let function = match definition {
+            hir::Definition::Function(f) => f,
+            hir::Definition::Record(_) => panic!("tried to eval record"),
+        };
         function.return_ty
     };
 
@@ -119,7 +123,7 @@ mod tests {
         let result = eval(
             hir::Fqn {
                 module: hir::Name(interner.intern("main")),
-                function: hir::Name(interner.intern("main")),
+                name: hir::Name(interner.intern("main")),
             },
             bodies_map,
             tys_map,

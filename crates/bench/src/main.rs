@@ -133,7 +133,7 @@ impl<'a> Bench<'a> {
 
             let _wasm = self.stage("compile", || {
                 eval::compile(
-                    hir::Fqn { module: main, function: main },
+                    hir::Fqn { module: main, name: main },
                     bodies_map.clone(),
                     tys_map.clone(),
                     &world_index,

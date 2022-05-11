@@ -1,4 +1,4 @@
-use crate::{Fqn, Function, GetFunctionError, Index, Name, WorldIndex};
+use crate::{Definition, Fqn, Function, GetDefinitionError, Index, Name, WorldIndex};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
@@ -98,7 +98,7 @@ pub fn lower(
     for def in root.defs(tree) {
         match def {
             ast::Def::Function(function) => ctx.lower_function(function),
-            ast::Def::Record(_) => todo!(),
+            ast::Def::Record(_) => {}
         }
     }
 
@@ -263,10 +263,10 @@ impl<'a> Ctx<'a> {
             let module_name = self.interner.intern(module_name_token.text(self.tree));
             let function_name = self.interner.intern(function_name_token.text(self.tree));
 
-            let fqn = Fqn { module: Name(module_name), function: Name(function_name) };
+            let fqn = Fqn { module: Name(module_name), name: Name(function_name) };
 
-            match self.world_index.get_function(fqn) {
-                Ok(function) => {
+            match self.world_index.get_definition(fqn) {
+                Ok(definition) => {
                     let path = Path::OtherModule(fqn);
 
                     self.bodies.other_module_references.insert(fqn);
@@ -274,12 +274,19 @@ impl<'a> Ctx<'a> {
                     self.bodies
                         .symbol_map
                         .insert(module_name_token, Symbol::Module(Name(module_name)));
-                    self.bodies.symbol_map.insert(function_name_token, Symbol::Function(path));
 
-                    return self.lower_call(call, function, path, function_name_token);
+                    match definition {
+                        Definition::Function(function) => {
+                            self.bodies
+                                .symbol_map
+                                .insert(function_name_token, Symbol::Function(path));
+                            return self.lower_call(call, function, path, function_name_token);
+                        }
+                        Definition::Record(_) => todo!(),
+                    }
                 }
 
-                Err(GetFunctionError::UnknownModule) => {
+                Err(GetDefinitionError::UnknownModule) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedModule { name: module_name },
                         range: module_name_token.range(self.tree),
@@ -291,7 +298,7 @@ impl<'a> Ctx<'a> {
                     return Expr::Missing;
                 }
 
-                Err(GetFunctionError::UnknownFunction) => {
+                Err(GetDefinitionError::UnknownDefinition) => {
                     self.diagnostics.push(LoweringDiagnostic {
                         kind: LoweringDiagnosticKind::UndefinedLocal { name: function_name },
                         range: function_name_token.range(self.tree),
@@ -322,10 +329,16 @@ impl<'a> Ctx<'a> {
         }
 
         let name = Name(name);
-        if let Some(function) = self.index.get_function(name) {
+        if let Some(definition) = self.index.get_definition(name) {
             let path = Path::ThisModule(name);
-            self.bodies.symbol_map.insert(ident, Symbol::Function(path));
-            return self.lower_call(call, function, path, ident);
+
+            match definition {
+                Definition::Function(function) => {
+                    self.bodies.symbol_map.insert(ident, Symbol::Function(path));
+                    return self.lower_call(call, function, path, ident);
+                }
+                Definition::Record(_) => todo!(),
+            }
         }
 
         self.diagnostics.push(LoweringDiagnostic {
@@ -372,8 +385,8 @@ impl<'a> Ctx<'a> {
 
         if expected != got {
             let name = match path {
-                Path::ThisModule(function) => function.0,
-                Path::OtherModule(fqn) => fqn.function.0,
+                Path::ThisModule(name) => name.0,
+                Path::OtherModule(fqn) => fqn.name.0,
             };
 
             self.diagnostics.push(LoweringDiagnostic {
@@ -560,7 +573,7 @@ impl Bodies {
                 s.push_str(&format!(
                     "- {}.{}\n",
                     interner.lookup(fqn.module.0),
-                    interner.lookup(fqn.function.0)
+                    interner.lookup(fqn.name.0)
                 ));
             }
         }
@@ -637,11 +650,11 @@ impl Bodies {
 
                 Expr::Call { path, args } => {
                     match path {
-                        Path::ThisModule(function) => s.push_str(interner.lookup(function.0)),
+                        Path::ThisModule(name) => s.push_str(interner.lookup(name.0)),
                         Path::OtherModule(fqn) => s.push_str(&format!(
                             "{}.{}",
                             interner.lookup(fqn.module.0),
-                            interner.lookup(fqn.function.0)
+                            interner.lookup(fqn.name.0)
                         )),
                     }
 

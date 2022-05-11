@@ -139,6 +139,10 @@ impl Function {
 def_ast_node!(Record);
 
 impl Record {
+    pub fn docs(self, tree: &SyntaxTree) -> Option<Docs> {
+        node(self, tree)
+    }
+
     pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
         token(self, tree)
     }

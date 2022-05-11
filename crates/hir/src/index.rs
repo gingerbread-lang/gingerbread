@@ -9,23 +9,30 @@ use text_size::TextRange;
 
 #[derive(Clone)]
 pub struct Index {
-    pub(crate) functions: FxHashMap<Name, Function>,
+    pub(crate) definitions: FxHashMap<Name, Definition>,
     pub(crate) range_info: FxHashMap<Name, RangeInfo>,
     docs: FxHashMap<Name, Docs>,
     tys: FxHashSet<ast::Ident>,
 }
 
 impl Index {
-    pub fn get_function(&self, name: Name) -> Option<&Function> {
-        self.functions.get(&name)
+    pub fn get_definition(&self, name: Name) -> Option<&Definition> {
+        self.definitions.get(&name)
     }
 
     pub fn range_info(&self, name: Name) -> RangeInfo {
         self.range_info[&name]
     }
 
-    pub fn functions(&self) -> impl Iterator<Item = Name> + '_ {
-        self.functions.keys().copied()
+    pub fn definition_names(&self) -> impl Iterator<Item = Name> + '_ {
+        self.definitions.keys().copied()
+    }
+
+    pub fn function_names(&self) -> impl Iterator<Item = Name> + '_ {
+        self.definitions.iter().filter_map(|(name, def)| match def {
+            Definition::Function(_) => Some(*name),
+            Definition::Record(_) => None,
+        })
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (Name, RangeInfo)> + '_ {
@@ -37,8 +44,8 @@ impl Index {
     }
 
     fn shrink_to_fit(&mut self) {
-        let Self { functions, range_info, docs, tys } = self;
-        functions.shrink_to_fit();
+        let Self { definitions, range_info, docs, tys } = self;
+        definitions.shrink_to_fit();
         range_info.shrink_to_fit();
         docs.shrink_to_fit();
         tys.shrink_to_fit();
@@ -46,9 +53,20 @@ impl Index {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Definition {
+    Function(Function),
+    Record(Record),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Function {
     pub params: Vec<Param>,
     pub return_ty: Ty,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Record {
+    pub fields: Vec<Field>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +81,12 @@ pub struct Param {
     pub ty: Ty,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Field {
+    pub name: Option<Name>,
+    pub ty: Ty,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Ty {
     Unknown,
@@ -71,7 +95,7 @@ pub enum Ty {
     Unit,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Docs {
     paras: Vec<String>,
 }
@@ -85,14 +109,14 @@ pub fn index(
     world_index: &WorldIndex,
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
-    let mut functions = FxHashMap::default();
+    let mut definitions = FxHashMap::default();
     let mut range_info = FxHashMap::default();
     let mut docs = FxHashMap::default();
     let mut tys = FxHashSet::default();
     let mut diagnostics = Vec::new();
 
     for def in root.defs(tree) {
-        match def {
+        let (docs_syntax, name) = match def {
             ast::Def::Function(function) => {
                 let name_token = match function.name(tree) {
                     Some(ident) => ident,
@@ -117,7 +141,7 @@ pub fn index(
                             &mut diagnostics,
                         );
 
-                        params.push(Param { name, ty })
+                        params.push(Param { name, ty });
                     }
                 }
 
@@ -133,48 +157,91 @@ pub fn index(
                     None => Ty::Unit,
                 };
 
-                if let Some(d) = function.docs(tree) {
-                    let mut paras = vec![String::new()];
-
-                    for doc_comment in d.doc_comments(tree) {
-                        match doc_comment.contents(tree) {
-                            Some(contents) => {
-                                let contents = contents.text(tree).trim();
-                                let last_para = &mut paras.last_mut().unwrap();
-
-                                if !last_para.is_empty() {
-                                    last_para.push(' ');
-                                }
-
-                                last_para.push_str(contents);
-                            }
-                            None => paras.push(String::new()),
-                        }
-                    }
-
-                    docs.insert(name, Docs { paras });
-                }
-
-                match functions.entry(name) {
+                match definitions.entry(name) {
                     Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
                         kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
                         range: function.range(tree),
                     }),
                     Entry::Vacant(vacant_entry) => {
-                        vacant_entry.insert(Function { params, return_ty });
+                        vacant_entry.insert(Definition::Function(Function { params, return_ty }));
                         range_info.insert(
                             name,
                             RangeInfo { whole: function.range(tree), name: name_token.range(tree) },
                         );
                     }
                 }
+
+                (function.docs(tree), name)
             }
 
-            ast::Def::Record(_) => todo!(),
+            ast::Def::Record(record) => {
+                let name_token = match record.name(tree) {
+                    Some(ident) => ident,
+                    None => continue,
+                };
+
+                let name = Name(interner.intern(name_token.text(tree)));
+
+                let mut fields = Vec::new();
+
+                for field in record.fields(tree) {
+                    let name =
+                        field.name(tree).map(|ident| Name(interner.intern(ident.text(tree))));
+
+                    let ty = lower_ty(
+                        field.ty(tree),
+                        tree,
+                        world_index,
+                        &mut tys,
+                        interner,
+                        &mut diagnostics,
+                    );
+
+                    fields.push(Field { name, ty })
+                }
+
+                match definitions.entry(name) {
+                    Entry::Occupied(_) => diagnostics.push(IndexingDiagnostic {
+                        kind: IndexingDiagnosticKind::FunctionAlreadyDefined { name: name.0 },
+                        range: record.range(tree),
+                    }),
+                    Entry::Vacant(vacant_entry) => {
+                        vacant_entry.insert(Definition::Record(Record { fields }));
+                        range_info.insert(
+                            name,
+                            RangeInfo { whole: record.range(tree), name: name_token.range(tree) },
+                        );
+                    }
+                }
+
+                (record.docs(tree), name)
+            }
+        };
+
+        if let Some(d) = docs_syntax {
+            let mut paras = vec![String::new()];
+
+            for doc_comment in d.doc_comments(tree) {
+                match doc_comment.contents(tree) {
+                    Some(contents) => {
+                        let contents = contents.text(tree).trim();
+                        let last_para = &mut paras.last_mut().unwrap();
+
+                        if !last_para.is_empty() {
+                            last_para.push(' ');
+                        }
+
+                        last_para.push_str(contents);
+                    }
+                    None => paras.push(String::new()),
+                }
+            }
+
+            docs.insert(name, Docs { paras });
         }
     }
 
-    let mut index = Index { functions, range_info, docs, tys };
+    let mut index = Index { definitions, range_info, docs, tys };
     index.shrink_to_fit();
 
     (index, diagnostics)
@@ -223,11 +290,14 @@ impl Index {
     pub fn debug(&self, interner: &Interner) -> String {
         let mut s = String::new();
 
-        let mut functions: Vec<_> = self.functions.iter().collect();
-        functions.sort_unstable_by_key(|(name, _)| *name);
+        let mut definitions: Vec<_> = self.definitions.iter().collect();
+        definitions.sort_unstable_by_key(|(name, _)| *name);
 
-        for (name, function) in functions {
+        for (idx, (name, definition)) in definitions.iter().enumerate() {
             if let Some(docs) = self.docs.get(name) {
+                if idx != 0 {
+                    s.push('\n');
+                }
                 s.push_str("# docs:\n");
 
                 for (i, para) in docs.paras.iter().enumerate() {
@@ -241,31 +311,57 @@ impl Index {
                 }
             }
 
-            s.push_str(&format!("fnc {}", interner.lookup(name.0)));
+            match definition {
+                Definition::Function(function) => {
+                    s.push_str(&format!("fnc {}", interner.lookup(name.0)));
 
-            if !function.params.is_empty() {
-                s.push('(');
+                    if !function.params.is_empty() {
+                        s.push('(');
 
-                for (idx, param) in function.params.iter().enumerate() {
-                    if idx != 0 {
-                        s.push_str(", ");
+                        for (idx, param) in function.params.iter().enumerate() {
+                            if idx != 0 {
+                                s.push_str(", ");
+                            }
+
+                            s.push_str(&format!(
+                                "{}: {}",
+                                param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
+                                param.ty
+                            ));
+                        }
+
+                        s.push(')');
                     }
 
-                    s.push_str(&format!(
-                        "{}: {}",
-                        param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
-                        param.ty
-                    ));
+                    if function.return_ty != Ty::Unit {
+                        s.push_str(&format!(": {}", function.return_ty));
+                    }
+
+                    s.push_str(";\n");
                 }
 
-                s.push(')');
-            }
+                Definition::Record(record) => {
+                    s.push_str(&format!("rec {} {{", interner.lookup(name.0)));
 
-            if function.return_ty != Ty::Unit {
-                s.push_str(&format!(": {}", function.return_ty));
-            }
+                    if !record.fields.is_empty() {
+                        s.push(' ');
+                        for (idx, field) in record.fields.iter().enumerate() {
+                            if idx != 0 {
+                                s.push_str(", ");
+                            }
 
-            s.push_str(";\n");
+                            s.push_str(&format!(
+                                "{}: {}",
+                                field.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
+                                field.ty
+                            ));
+                        }
+                        s.push(' ');
+                    }
+
+                    s.push_str("};\n");
+                }
+            }
         }
 
         s
@@ -470,16 +566,62 @@ mod tests {
     }
 
     #[test]
-    fn function_with_docs() {
+    fn empty_record() {
+        check(
+            r#"
+                rec a {};
+            "#,
+            expect![[r#"
+                rec a {};
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn record_with_fields() {
+        check(
+            r#"
+                rec point { x: s32, y: s32 };
+            "#,
+            expect![[r#"
+                rec point { x: s32, y: s32 };
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn record_with_missing_field_name() {
+        check(
+            r#"
+                rec r { : string };
+            "#,
+            expect![[r#"
+                rec r { ?: string };
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn definitions_with_docs() {
         check(
             r#"
                 ## Increments a signed 32-bit integer.
                 fnc inc(n: s32): s32 -> n + 1;
+
+                ## An extremely useful record.
+                rec signed_32_bit_integer { n: s32 };
             "#,
             expect![[r#"
                 # docs:
                 # Increments a signed 32-bit integer.
                 fnc inc(n: s32): s32;
+
+                # docs:
+                # An extremely useful record.
+                rec signed_32_bit_integer { n: s32 };
             "#]],
             |_| [],
         );

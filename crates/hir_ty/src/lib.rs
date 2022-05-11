@@ -53,7 +53,7 @@ pub fn infer_all(
     let mut diagnostics = Vec::new();
     let mut signatures = FxHashMap::default();
 
-    for function_name in index.functions() {
+    for function_name in index.definition_names() {
         signatures.insert(
             function_name,
             infer_impl(
@@ -111,7 +111,12 @@ fn infer_impl(
     local_tys: &mut ArenaMap<Id<hir::LocalDef>, hir::Ty>,
     diagnostics: &mut Vec<TyDiagnostic>,
 ) -> Signature {
-    let signature = get_signature(index.get_function(function_name).unwrap());
+    let function = match index.get_definition(function_name) {
+        Some(hir::Definition::Function(f)) => f,
+        Some(hir::Definition::Record(_)) | None => panic!("passed non-function name to infer_impl"),
+    };
+
+    let signature = get_signature(function);
 
     let mut ctx = Ctx {
         expr_tys,
@@ -182,9 +187,14 @@ impl Ctx<'_> {
             hir::Expr::Local(local_def) => self.local_tys[*local_def],
             hir::Expr::Param { idx } => self.param_tys[*idx as usize],
             hir::Expr::Call { path, args } => {
-                let function = match *path {
-                    hir::Path::ThisModule(function) => self.index.get_function(function).unwrap(),
-                    hir::Path::OtherModule(fqn) => self.world_index.get_function(fqn).unwrap(),
+                let definition = match *path {
+                    hir::Path::ThisModule(name) => self.index.get_definition(name).unwrap(),
+                    hir::Path::OtherModule(fqn) => self.world_index.get_definition(fqn).unwrap(),
+                };
+
+                let function = match definition {
+                    hir::Definition::Function(f) => f,
+                    hir::Definition::Record(_) => todo!(),
                 };
 
                 let signature = get_signature(function);
