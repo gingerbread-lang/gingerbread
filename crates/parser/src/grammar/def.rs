@@ -22,7 +22,11 @@ pub(super) fn parse_def(p: &mut Parser<'_>) -> Option<CompletedMarker> {
         };
         return Some(parse_function(p, m));
     } else if p.at(TokenKind::RecKw) {
-        return Some(parse_record(p));
+        let m = match docs_cm {
+            Some(cm) => cm.precede(p),
+            None => p.start(),
+        };
+        return Some(parse_record(p, m));
     }
 
     p.error_with_recovery_set_no_default(TokenSet::default())
