@@ -1,15 +1,9 @@
-use crate::{Definition, Index, Name, RangeInfo, Ty};
+use crate::{Definition, Fqn, Index, Name, RangeInfo, Ty};
 use interner::Key;
 use rustc_hash::FxHashMap;
 
 #[derive(Default)]
 pub struct WorldIndex(FxHashMap<Name, Index>);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Fqn {
-    pub module: Name,
-    pub name: Name,
-}
 
 impl WorldIndex {
     pub fn get_definition(&self, fqn: Fqn) -> Result<&Definition, GetDefinitionError> {

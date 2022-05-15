@@ -1,4 +1,4 @@
-use crate::WorldIndex;
+use crate::{Name, Ty, WorldIndex};
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -87,21 +87,10 @@ pub struct Field {
     pub ty: Ty,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Ty {
-    Unknown,
-    S32,
-    String,
-    Unit,
-}
-
 #[derive(Debug, Clone)]
 struct Docs {
     paras: Vec<String>,
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Name(pub Key);
 
 pub fn index(
     root: ast::Root,
