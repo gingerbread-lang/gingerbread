@@ -27,7 +27,8 @@ Root@0..34
         Semicolon@24..25 ";"
       Whitespace@25..28 "\n  "
       Call@28..31
-        Ident@28..31 "foo"
+        Path@28..31
+          Ident@28..31 "foo"
       Whitespace@31..32 "\n"
       RBrace@32..33 "}"
     Semicolon@33..34 ";"

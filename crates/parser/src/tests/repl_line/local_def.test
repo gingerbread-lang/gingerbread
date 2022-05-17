@@ -9,5 +9,6 @@ Root@0..10
     Eq@6..7 "="
     Whitespace@7..8 " "
     Call@8..9
-      Ident@8..9 "b"
+      Path@8..9
+        Ident@8..9 "b"
     Semicolon@9..10 ";"

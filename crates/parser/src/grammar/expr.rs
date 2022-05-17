@@ -1,4 +1,5 @@
 use crate::grammar::def::DEF_FIRST;
+use crate::grammar::path::parse_path;
 use crate::grammar::statement::parse_statement;
 use crate::parser::{CompletedMarker, Parser};
 use crate::token_set::TokenSet;
@@ -78,12 +79,7 @@ fn parse_lhs(
 fn parse_call(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
-    p.bump();
-
-    if p.at(TokenKind::Dot) {
-        p.bump();
-        p.expect_with_no_skip(TokenKind::Ident);
-    }
+    parse_path(p);
 
     if p.at_set(EXPR_FIRST) {
         parse_arg_list(p);

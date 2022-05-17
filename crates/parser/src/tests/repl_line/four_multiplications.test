@@ -5,19 +5,23 @@ Root@0..17
     BinaryExpr@0..12
       BinaryExpr@0..7
         Call@0..2
-          Ident@0..2 "x1"
+          Path@0..2
+            Ident@0..2 "x1"
         Whitespace@2..3 " "
         Asterisk@3..4 "*"
         Whitespace@4..5 " "
         Call@5..7
-          Ident@5..7 "x2"
+          Path@5..7
+            Ident@5..7 "x2"
       Whitespace@7..8 " "
       Asterisk@8..9 "*"
       Whitespace@9..10 " "
       Call@10..12
-        Ident@10..12 "x3"
+        Path@10..12
+          Ident@10..12 "x3"
     Whitespace@12..13 " "
     Asterisk@13..14 "*"
     Whitespace@14..15 " "
     Call@15..17
-      Ident@15..17 "x4"
+      Path@15..17
+        Ident@15..17 "x4"

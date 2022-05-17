@@ -3,5 +3,6 @@
 Root@0..7
   Whitespace@0..1 " "
   Call@1..4
-    Ident@1..4 "foo"
+    Path@1..4
+      Ident@1..4 "foo"
   Whitespace@4..7 "   "

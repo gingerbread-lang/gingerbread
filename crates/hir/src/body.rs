@@ -252,12 +252,17 @@ impl<'a> Ctx<'a> {
     }
 
     fn lower_local_or_call(&mut self, call: ast::Call) -> Expr {
-        let ident = match call.top_level_name(self.tree) {
+        let path = match call.path(self.tree) {
+            Some(path) => path,
+            None => return Expr::Missing,
+        };
+
+        let ident = match path.top_level_name(self.tree) {
             Some(ident) => ident,
             None => return Expr::Missing,
         };
 
-        if let Some(function_name_token) = call.nested_name(self.tree) {
+        if let Some(function_name_token) = path.nested_name(self.tree) {
             let module_name_token = ident;
 
             let module_name = self.interner.intern(module_name_token.text(self.tree));

@@ -21,7 +21,8 @@ Root@0..28
     Eq@22..23 "="
     Whitespace@23..24 " "
     Call@24..27
-      Ident@24..27 "baz"
+      Path@24..27
+        Ident@24..27 "baz"
     Semicolon@27..28 ";"
 error at 13: missing Quote
 error at 13: missing Semicolon

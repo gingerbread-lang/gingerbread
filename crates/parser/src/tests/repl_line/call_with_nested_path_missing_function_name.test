@@ -2,8 +2,9 @@ foo. 1, 2, 3
 ===
 Root@0..12
   Call@0..12
-    Ident@0..3 "foo"
-    Dot@3..4 "."
+    Path@0..4
+      Ident@0..3 "foo"
+      Dot@3..4 "."
     Whitespace@4..5 " "
     ArgList@5..12
       Arg@5..6

@@ -10,7 +10,8 @@ Root@0..21
     Eq@6..7 "="
     Whitespace@7..8 " "
     Call@8..9
-      Ident@8..9 "c"
+      Path@8..9
+        Ident@8..9 "c"
     Semicolon@9..10 ";"
   Whitespace@10..11 "\n"
   LocalDef@11..21
@@ -21,5 +22,6 @@ Root@0..21
     Eq@17..18 "="
     Whitespace@18..19 " "
     Call@19..20
-      Ident@19..20 "b"
+      Path@19..20
+        Ident@19..20 "b"
     Semicolon@20..21 ";"

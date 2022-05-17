@@ -3,7 +3,8 @@ len - 1
 Root@0..7
   BinaryExpr@0..7
     Call@0..3
-      Ident@0..3 "len"
+      Path@0..3
+        Ident@0..3 "len"
     Whitespace@3..4 " "
     Hyphen@4..5 "-"
     Whitespace@5..6 " "

@@ -36,7 +36,8 @@ Root@0..76
   Whitespace@63..65 "\n\n"
   BinaryExpr@65..74
     Call@65..66
-      Ident@65..66 "i"
+      Path@65..66
+        Ident@65..66 "i"
     Whitespace@66..67 " "
     Comment@67..68
       CommentLeader@67..68 "#"

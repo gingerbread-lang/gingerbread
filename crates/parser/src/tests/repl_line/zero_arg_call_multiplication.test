@@ -3,9 +3,11 @@ foo * bar
 Root@0..9
   BinaryExpr@0..9
     Call@0..3
-      Ident@0..3 "foo"
+      Path@0..3
+        Ident@0..3 "foo"
     Whitespace@3..4 " "
     Asterisk@4..5 "*"
     Whitespace@5..6 " "
     Call@6..9
-      Ident@6..9 "bar"
+      Path@6..9
+        Ident@6..9 "bar"

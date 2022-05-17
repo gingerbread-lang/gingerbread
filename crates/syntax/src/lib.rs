@@ -66,6 +66,7 @@ pub enum NodeKind {
     Ty,
     Record,
     Field,
+    Path,
     Comment,
     DocComment,
     Docs,

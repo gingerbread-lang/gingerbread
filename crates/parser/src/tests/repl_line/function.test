@@ -32,10 +32,12 @@ Root@0..38
     Whitespace@31..32 " "
     BinaryExpr@32..37
       Call@32..33
-        Ident@32..33 "x"
+        Path@32..33
+          Ident@32..33 "x"
       Whitespace@33..34 " "
       Plus@34..35 "+"
       Whitespace@35..36 " "
       Call@36..37
-        Ident@36..37 "y"
+        Path@36..37
+          Ident@36..37 "y"
     Semicolon@37..38 ";"

@@ -13,7 +13,8 @@ Root@0..14
     Eq@10..11 "="
     Whitespace@11..12 " "
     Call@12..13
-      Ident@12..13 "b"
+      Path@12..13
+        Ident@12..13 "b"
     Semicolon@13..14 ";"
 error at 3: missing variable name
 error at 3: missing Eq

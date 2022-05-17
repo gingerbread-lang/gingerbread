@@ -1,5 +1,6 @@
 mod def;
 mod expr;
+mod path;
 mod statement;
 mod ty;
 

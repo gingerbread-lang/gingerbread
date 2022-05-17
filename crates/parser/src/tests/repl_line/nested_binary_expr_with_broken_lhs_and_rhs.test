@@ -17,7 +17,8 @@ Root@0..17
           Hyphen@7..8 "-"
           Whitespace@8..9 " "
           Call@9..12
-            Ident@9..12 "foo"
+            Path@9..12
+              Ident@9..12 "foo"
         RBrace@12..13 "}"
     Whitespace@13..14 " "
     Slash@14..15 "/"

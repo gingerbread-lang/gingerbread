@@ -36,12 +36,14 @@ Root@0..119
         LBrace@40..41 "{"
         BinaryExpr@41..46
           Call@41..42
-            Ident@41..42 "x"
+            Path@41..42
+              Ident@41..42 "x"
           Whitespace@42..43 " "
           Plus@43..44 "+"
           Whitespace@44..45 " "
           Call@45..46
-            Ident@45..46 "y"
+            Path@45..46
+              Ident@45..46 "y"
         RBrace@46..47 "}"
       Whitespace@47..48 " "
       Slash@48..49 "/"
@@ -93,17 +95,20 @@ Root@0..119
         BinaryExpr@104..113
           BinaryExpr@104..109
             Call@104..105
-              Ident@104..105 "x"
+              Path@104..105
+                Ident@104..105 "x"
             Whitespace@105..106 " "
             Plus@106..107 "+"
             Whitespace@107..108 " "
             Call@108..109
-              Ident@108..109 "y"
+              Path@108..109
+                Ident@108..109 "y"
           Whitespace@109..110 " "
           Plus@110..111 "+"
           Whitespace@111..112 " "
           Call@112..113
-            Ident@112..113 "z"
+            Path@112..113
+              Ident@112..113 "z"
         RBrace@113..114 "}"
       Whitespace@114..115 " "
       Slash@115..116 "/"

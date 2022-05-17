@@ -33,7 +33,8 @@ Root@0..62
         Whitespace@33..38 "\n    "
         BinaryExpr@38..45
           Call@38..41
-            Ident@38..41 "bar"
+            Path@38..41
+              Ident@38..41 "bar"
           Whitespace@41..42 " "
           Asterisk@42..43 "*"
           Whitespace@43..44 " "
@@ -45,7 +46,8 @@ Root@0..62
     Whitespace@50..53 "\n  "
     BinaryExpr@53..60
       Call@53..56
-        Ident@53..56 "foo"
+        Path@53..56
+          Ident@53..56 "foo"
       Whitespace@56..57 " "
       Asterisk@57..58 "*"
       Whitespace@58..59 " "

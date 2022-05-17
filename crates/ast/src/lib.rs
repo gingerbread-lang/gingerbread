@@ -322,16 +322,24 @@ impl Block {
 def_ast_node!(Call);
 
 impl Call {
+    pub fn path(self, tree: &SyntaxTree) -> Option<Path> {
+        node(self, tree)
+    }
+
+    pub fn arg_list(self, tree: &SyntaxTree) -> Option<ArgList> {
+        node(self, tree)
+    }
+}
+
+def_ast_node!(Path);
+
+impl Path {
     pub fn top_level_name(self, tree: &SyntaxTree) -> Option<Ident> {
         token(self, tree)
     }
 
     pub fn nested_name(self, tree: &SyntaxTree) -> Option<Ident> {
-        self.syntax().child_tokens(tree).filter_map(|t| Ident::cast(t, tree)).nth(1)
-    }
-
-    pub fn arg_list(self, tree: &SyntaxTree) -> Option<ArgList> {
-        node(self, tree)
+        tokens(self, tree).nth(1)
     }
 }
 
@@ -545,7 +553,10 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert_eq!(call.top_level_name(&tree).unwrap().text(&tree), "idx");
+        let path = call.path(&tree).unwrap();
+
+        assert_eq!(path.top_level_name(&tree).unwrap().text(&tree), "idx");
+        assert!(path.nested_name(&tree).is_none());
     }
 
     #[test]
@@ -557,8 +568,10 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert_eq!(call.top_level_name(&tree).unwrap().text(&tree), "foo");
-        assert_eq!(call.nested_name(&tree).unwrap().text(&tree), "bar");
+        let path = call.path(&tree).unwrap();
+
+        assert_eq!(path.top_level_name(&tree).unwrap().text(&tree), "foo");
+        assert_eq!(path.nested_name(&tree).unwrap().text(&tree), "bar");
     }
 
     #[test]

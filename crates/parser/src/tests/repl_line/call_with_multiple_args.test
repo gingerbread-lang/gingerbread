@@ -2,7 +2,8 @@ add 1, 2
 ===
 Root@0..8
   Call@0..8
-    Ident@0..3 "add"
+    Path@0..3
+      Ident@0..3 "add"
     Whitespace@3..4 " "
     ArgList@4..8
       Arg@4..5

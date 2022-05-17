@@ -2,4 +2,5 @@ foo
 ===
 Root@0..3
   Call@0..3
-    Ident@0..3 "foo"
+    Path@0..3
+      Ident@0..3 "foo"
