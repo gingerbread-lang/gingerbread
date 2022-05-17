@@ -1,0 +1,24 @@
+rec foo {
+fnc a -> {};
+===
+Root@0..22
+  Record@0..9
+    RecKw@0..3 "rec"
+    Whitespace@3..4 " "
+    Ident@4..7 "foo"
+    Whitespace@7..8 " "
+    LBrace@8..9 "{"
+  Whitespace@9..10 "\n"
+  Function@10..22
+    FncKw@10..13 "fnc"
+    Whitespace@13..14 " "
+    Ident@14..15 "a"
+    Whitespace@15..16 " "
+    Arrow@16..18 "->"
+    Whitespace@18..19 " "
+    Block@19..21
+      LBrace@19..20 "{"
+      RBrace@20..21 "}"
+    Semicolon@21..22 ";"
+error at 9: missing RBrace
+error at 9: missing Semicolon

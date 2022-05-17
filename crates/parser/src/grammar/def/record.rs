@@ -14,7 +14,7 @@ pub(super) fn parse_record(p: &mut Parser<'_>, m: Marker) -> CompletedMarker {
 
     p.expect(TokenKind::LBrace);
 
-    while !p.at(TokenKind::RBrace) && !p.at_eof() {
+    while !p.at(TokenKind::RBrace) && !p.at_eof() && !p.at_default_recovery_set() {
         let m = p.start();
 
         {
