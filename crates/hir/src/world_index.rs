@@ -38,9 +38,9 @@ impl WorldIndex {
         *self.0.get_mut(&module).unwrap() = index;
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (Fqn, RangeInfo)> + '_ {
+    pub fn ranges(&self) -> impl Iterator<Item = (Fqn, RangeInfo)> + '_ {
         self.0.iter().flat_map(|(module, index)| {
-            index.iter().map(|(name, range)| (Fqn { module: *module, name }, range))
+            index.ranges().map(|(name, range)| (Fqn { module: *module, name }, range))
         })
     }
 }

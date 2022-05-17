@@ -110,7 +110,7 @@ impl GlobalState {
     pub fn symbols(&self) -> Vec<Symbol> {
         let project = self.project.as_ref().unwrap();
         self.world_index
-            .iter()
+            .ranges()
             .map(|(fqn, range_info)| {
                 let module_name = self.interner.lookup(fqn.module.0);
                 let definition_name = self.interner.lookup(fqn.name.0);

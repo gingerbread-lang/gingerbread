@@ -35,7 +35,7 @@ impl Index {
         })
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (Name, RangeInfo)> + '_ {
+    pub fn ranges(&self) -> impl Iterator<Item = (Name, RangeInfo)> + '_ {
         self.range_info.iter().map(|(n, r)| (*n, *r))
     }
 
