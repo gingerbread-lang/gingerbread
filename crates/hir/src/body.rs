@@ -725,7 +725,7 @@ mod tests {
             let tokens = lexer::lex(text);
             let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
+            let (index, _) = index(root, &tree, &mut interner);
 
             world_index.add_module(Name(interner.intern(name)), index);
         }
@@ -734,7 +734,7 @@ mod tests {
         let tokens = lexer::lex(text);
         let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
+        let (index, _) = index(root, &tree, &mut interner);
 
         let (bodies, actual_diagnostics) = lower(root, &tree, &index, &world_index, &mut interner);
 

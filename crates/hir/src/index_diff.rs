@@ -52,7 +52,7 @@ impl Diff {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{index, WorldIndex};
+    use crate::index;
     use ast::AstNode;
     use expect_test::{expect, Expect};
 
@@ -63,7 +63,7 @@ mod tests {
             let tokens = lexer::lex(input);
             let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = index(root, &tree, &WorldIndex::default(), &mut interner);
+            let (index, _) = index(root, &tree, &mut interner);
             index
         };
 

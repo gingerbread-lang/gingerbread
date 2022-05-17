@@ -10,6 +10,7 @@ pub use self::index_diff::*;
 pub use self::project::*;
 pub use self::world_index::*;
 
+use interner::Interner;
 use interner::Key;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -26,5 +27,18 @@ pub enum Ty {
     Unknown,
     S32,
     String,
+    Named(Name),
     Unit,
+}
+
+impl Ty {
+    pub fn display(self, interner: &Interner) -> &str {
+        match self {
+            Self::Unknown => "?",
+            Self::S32 => "s32",
+            Self::String => "string",
+            Self::Named(n) => interner.lookup(n.0),
+            Self::Unit => "unit",
+        }
+    }
 }

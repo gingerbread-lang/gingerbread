@@ -158,7 +158,7 @@ impl Analysis {
         };
         let tree = parse.syntax_tree();
         let ast = ast::Root::cast(tree.root(), tree).unwrap();
-        let (index, indexing_diagnostics) = hir::index(ast, tree, world_index, interner);
+        let (index, indexing_diagnostics) = hir::index(ast, tree, interner);
         let (bodies, lowering_diagnostics) = hir::lower(ast, tree, &index, world_index, interner);
         let (inference_result, ty_diagnostics) = hir_ty::infer_all(&bodies, &index, world_index);
 
@@ -196,7 +196,7 @@ impl Analysis {
         self.update_line_index();
         self.reparse();
         self.validate();
-        self.index(world_index, interner);
+        self.index(interner);
         self.recheck(world_index, interner);
     }
 
@@ -396,9 +396,8 @@ impl Analysis {
         self.validation_diagnostics = ast::validation::validate(self.ast, self.parse.syntax_tree());
     }
 
-    fn index(&mut self, world_index: &hir::WorldIndex, interner: &mut Interner) {
-        let (index, diagnostics) =
-            hir::index(self.ast, self.parse.syntax_tree(), world_index, interner);
+    fn index(&mut self, interner: &mut Interner) {
+        let (index, diagnostics) = hir::index(self.ast, self.parse.syntax_tree(), interner);
         self.index = index;
         self.indexing_diagnostics = diagnostics;
     }

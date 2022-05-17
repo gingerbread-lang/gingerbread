@@ -1,9 +1,8 @@
-use crate::{Name, Ty, WorldIndex};
+use crate::{Name, Ty};
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::hash_map::Entry;
-use std::fmt;
 use syntax::SyntaxTree;
 use text_size::TextRange;
 
@@ -102,7 +101,6 @@ struct Docs {
 pub fn index(
     root: ast::Root,
     tree: &SyntaxTree,
-    world_index: &WorldIndex,
     interner: &mut Interner,
 ) -> (Index, Vec<IndexingDiagnostic>) {
     let mut ctx = Ctx {
@@ -115,7 +113,6 @@ pub fn index(
         diagnostics: Vec::new(),
         tree,
         interner,
-        world_index,
     };
 
     for def in root.defs(tree) {
@@ -132,7 +129,6 @@ struct Ctx<'a> {
     diagnostics: Vec<IndexingDiagnostic>,
     tree: &'a SyntaxTree,
     interner: &'a mut Interner,
-    world_index: &'a WorldIndex,
 }
 
 impl Ctx<'_> {
@@ -253,19 +249,17 @@ impl Ctx<'_> {
             None => return Ty::Unknown,
         };
 
+        self.index.tys.insert(ident);
+
         let name = Name(self.interner.intern(ident.text(self.tree)));
 
-        if let Some(kind) = self.world_index.get_ty(name) {
-            self.index.tys.insert(ident);
-            return kind;
+        if name.0 == Key::s32() {
+            Ty::S32
+        } else if name.0 == Key::string() {
+            Ty::String
+        } else {
+            Ty::Named(name)
         }
-
-        self.diagnostics.push(IndexingDiagnostic {
-            kind: IndexingDiagnosticKind::UndefinedTy { name: name.0 },
-            range: ident.range(self.tree),
-        });
-
-        Ty::Unknown
     }
 }
 
@@ -283,7 +277,6 @@ pub struct IndexingDiagnostic {
 #[derive(Debug, Clone, PartialEq)]
 pub enum IndexingDiagnosticKind {
     AlreadyDefined { name: Key },
-    UndefinedTy { name: Key },
 }
 
 impl Index {
@@ -340,7 +333,7 @@ impl Index {
                     s.push_str(&format!(
                         "{}: {}",
                         param.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
-                        param.ty
+                        param.ty.display(interner)
                     ));
                 }
 
@@ -348,7 +341,7 @@ impl Index {
             }
 
             if function.return_ty != Ty::Unit {
-                s.push_str(&format!(": {}", function.return_ty));
+                s.push_str(&format!(": {}", function.return_ty.display(interner)));
             }
 
             s.push_str(";\n");
@@ -367,24 +360,13 @@ impl Index {
                     s.push_str(&format!(
                         "{}: {}",
                         field.name.as_ref().map_or("?", |name| interner.lookup(name.0)),
-                        field.ty
+                        field.ty.display(interner)
                     ));
                 }
                 s.push(' ');
             }
 
             s.push_str("};\n");
-        }
-    }
-}
-
-impl fmt::Display for Ty {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unknown => write!(f, "?"),
-            Self::S32 => write!(f, "s32"),
-            Self::String => write!(f, "string"),
-            Self::Unit => write!(f, "unit"),
         }
     }
 }
@@ -406,7 +388,7 @@ mod tests {
         let tokens = lexer::lex(input);
         let tree = parser::parse_source_file(&tokens, input).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, actual_diagnostics) = index(root, &tree, &WorldIndex::default(), &mut interner);
+        let (index, actual_diagnostics) = index(root, &tree, &mut interner);
 
         expect.assert_eq(&index.debug(&interner));
 
@@ -537,15 +519,15 @@ mod tests {
     }
 
     #[test]
-    fn function_with_undefined_return_ty() {
+    fn function_with_named_return_ty() {
         check(
             r#"
                 fnc foo: bar;
             "#,
             expect![[r#"
-                fnc foo: ?;
+                fnc foo: bar;
             "#]],
-            |i| [(IndexingDiagnosticKind::UndefinedTy { name: i.intern("bar") }, 26..29)],
+            |_| [],
         );
     }
 
@@ -659,6 +641,21 @@ mod tests {
                 # The example in the adjacent image shows a combination of three
                 # apples and two apples, making a total of five apples.
                 fnc add(x: s32, y: s32): s32;
+            "#]],
+            |_| [],
+        );
+    }
+
+    #[test]
+    fn reference_ty_in_file() {
+        check(
+            r#"
+                rec int { n: s32 };
+                fnc takes_int(i: int) -> {};
+            "#,
+            expect![[r#"
+                rec int { n: s32 };
+                fnc takes_int(i: int);
             "#]],
             |_| [],
         );

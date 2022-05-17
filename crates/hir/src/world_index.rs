@@ -1,5 +1,4 @@
-use crate::{Definition, Fqn, Index, Name, RangeInfo, Ty};
-use interner::Key;
+use crate::{Definition, Fqn, Index, Name, RangeInfo};
 use rustc_hash::FxHashMap;
 
 #[derive(Default)]
@@ -13,16 +12,6 @@ impl WorldIndex {
                 None => Err(GetDefinitionError::UnknownDefinition),
             },
             None => Err(GetDefinitionError::UnknownModule),
-        }
-    }
-
-    pub fn get_ty(&self, name: Name) -> Option<Ty> {
-        if name.0 == Key::s32() {
-            Some(Ty::S32)
-        } else if name.0 == Key::string() {
-            Some(Ty::String)
-        } else {
-            None
         }
     }
 

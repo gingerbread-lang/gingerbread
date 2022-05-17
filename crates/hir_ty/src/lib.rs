@@ -239,9 +239,10 @@ impl InferenceResult {
 
         let display_ty = |ty| match ty {
             hir::Ty::Unknown => "<unknown>",
-            hir::Ty::Unit => "unit",
             hir::Ty::S32 => "s32",
             hir::Ty::String => "string",
+            hir::Ty::Named(n) => interner.lookup(n.0),
+            hir::Ty::Unit => "unit",
         };
 
         for (name, signature) in &self.signatures {
@@ -301,7 +302,7 @@ mod tests {
             let tokens = lexer::lex(text);
             let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
-            let (index, _) = hir::index(root, &tree, &world_index, &mut interner);
+            let (index, _) = hir::index(root, &tree, &mut interner);
 
             world_index.add_module(hir::Name(interner.intern(name)), index);
         }
@@ -310,7 +311,7 @@ mod tests {
         let tokens = lexer::lex(text);
         let tree = parser::parse_source_file(&tokens, text).into_syntax_tree();
         let root = ast::Root::cast(tree.root(), &tree).unwrap();
-        let (index, _) = hir::index(root, &tree, &world_index, &mut interner);
+        let (index, _) = hir::index(root, &tree, &mut interner);
         let (bodies, _) = hir::lower(root, &tree, &index, &world_index, &mut interner);
 
         let (inference_result, actual_diagnostics) =

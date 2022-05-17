@@ -102,7 +102,7 @@ impl Diagnostic {
             Repr::Validation(d) => validation_diagnostic_message(d),
             Repr::Indexing(d) => indexing_diagnostic_message(d, interner),
             Repr::Lowering(d) => lowering_diagnostic_message(d, interner),
-            Repr::Ty(d) => ty_diagnostic_message(d),
+            Repr::Ty(d) => ty_diagnostic_message(d, interner),
         }
     }
 }
@@ -188,9 +188,6 @@ fn indexing_diagnostic_message(d: &IndexingDiagnostic, interner: &Interner) -> S
         IndexingDiagnosticKind::AlreadyDefined { name } => {
             format!("name `{}` already defined", interner.lookup(*name))
         }
-        IndexingDiagnosticKind::UndefinedTy { name } => {
-            format!("undefined type `{}`", interner.lookup(*name))
-        }
     }
 }
 
@@ -216,10 +213,14 @@ fn lowering_diagnostic_message(d: &LoweringDiagnostic, interner: &Interner) -> S
     }
 }
 
-fn ty_diagnostic_message(d: &TyDiagnostic) -> String {
+fn ty_diagnostic_message(d: &TyDiagnostic, interner: &Interner) -> String {
     match &d.kind {
         TyDiagnosticKind::Mismatch { expected, found } => {
-            format!("expected `{}` but found `{}`", expected, found)
+            format!(
+                "expected `{}` but found `{}`",
+                expected.display(interner),
+                found.display(interner)
+            )
         }
     }
 }
@@ -426,20 +427,6 @@ mod tests {
                 error at 1:1: name `do_thing` already defined
                   fnc do_thing -> {};
                   ^^^^^^^^^^^^^^^^^^^
-            "#]],
-        );
-    }
-
-    #[test]
-    fn indexing_undefined_ty() {
-        check_indexing(
-            "fnc header: sring -> \"=====\";",
-            |i| IndexingDiagnosticKind::UndefinedTy { name: i.intern("sring") },
-            12..17,
-            expect![[r#"
-                error at 1:13: undefined type `sring`
-                  fnc header: sring -> "=====";
-                              ^^^^^
             "#]],
         );
     }

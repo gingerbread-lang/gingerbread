@@ -113,8 +113,7 @@ impl<'a> Bench<'a> {
 
         let mut interner = Interner::default();
 
-        let (index, _diagnostics) =
-            self.stage("index", || hir::index(root, &tree, &world_index, &mut interner));
+        let (index, _diagnostics) = self.stage("index", || hir::index(root, &tree, &mut interner));
 
         let (bodies, _diagnostics) =
             self.stage("lower", || hir::lower(root, &tree, &index, &world_index, &mut interner));

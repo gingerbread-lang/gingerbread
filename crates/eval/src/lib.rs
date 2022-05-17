@@ -100,7 +100,7 @@ mod tests {
             let root = ast::Root::cast(tree.root(), &tree).unwrap();
             assert!(ast::validation::validate(root, &tree).is_empty());
 
-            let (index, d) = hir::index(root, &tree, &world_index, &mut interner);
+            let (index, d) = hir::index(root, &tree, &mut interner);
             assert!(d.is_empty());
 
             world_index.add_module(hir::Name(interner.intern(module)), index.clone());

@@ -88,6 +88,7 @@ impl<'a> Ctx<'a> {
                 hir::Ty::Unknown => unreachable!(),
                 hir::Ty::S32 => Some(ValType::I32),
                 hir::Ty::String => todo!(),
+                hir::Ty::Named(_) => todo!(),
                 hir::Ty::Unit => None,
             })
             .collect();
@@ -96,6 +97,7 @@ impl<'a> Ctx<'a> {
             hir::Ty::Unknown => unreachable!(),
             hir::Ty::S32 => vec![ValType::I32],
             hir::Ty::String => vec![ValType::I32],
+            hir::Ty::Named(_) => todo!(),
             hir::Ty::Unit => Vec::new(),
         };
 
@@ -139,6 +141,7 @@ impl<'a> Ctx<'a> {
                     hir::Ty::Unknown => unreachable!(),
                     hir::Ty::S32 => ValType::I32,
                     hir::Ty::String => ValType::I32,
+                    hir::Ty::Named(_) => todo!(),
                     hir::Ty::Unit => return,
                 };
                 self.local_tys.push((1, ty));
