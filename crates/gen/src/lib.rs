@@ -301,7 +301,7 @@ impl Gen {
                 }
             }
 
-            if ident == "let" || ident == "fnc" {
+            if ident == "let" || ident == "fnc" || ident == "rec" {
                 ident.clear();
                 continue;
             }
