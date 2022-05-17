@@ -12,7 +12,8 @@ Root@0..24
         Colon@10..11 ":"
         Whitespace@11..12 " "
         Ty@12..15
-          Ident@12..15 "s32"
+          Path@12..15
+            Ident@12..15 "s32"
       Comma@15..16 ","
       RParen@16..17 ")"
     Whitespace@17..18 " "

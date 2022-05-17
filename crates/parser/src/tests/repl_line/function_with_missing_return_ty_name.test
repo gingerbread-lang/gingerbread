@@ -9,6 +9,7 @@ Root@0..15
       Colon@8..9 ":"
       Whitespace@9..10 " "
       Ty@10..10
+        Path@10..10
     Arrow@10..12 "->"
     Whitespace@12..13 " "
     IntLiteral@13..14

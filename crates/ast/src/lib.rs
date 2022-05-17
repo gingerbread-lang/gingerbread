@@ -230,8 +230,8 @@ impl Field {
 def_ast_node!(Ty);
 
 impl Ty {
-    pub fn name(self, tree: &SyntaxTree) -> Option<Ident> {
-        token(self, tree)
+    pub fn path(self, tree: &SyntaxTree) -> Option<Path> {
+        node(self, tree)
     }
 }
 
@@ -679,11 +679,11 @@ mod tests {
 
         let param = params.next().unwrap();
         assert_eq!(param.name(&tree).unwrap().text(&tree), "x");
-        assert_eq!(param.ty(&tree).unwrap().name(&tree).unwrap().text(&tree), "s32");
+        assert_eq!(param.ty(&tree).unwrap().path(&tree).unwrap().text(&tree), "s32");
 
         let param = params.next().unwrap();
         assert_eq!(param.name(&tree).unwrap().text(&tree), "y");
-        assert_eq!(param.ty(&tree).unwrap().name(&tree).unwrap().text(&tree), "s32");
+        assert_eq!(param.ty(&tree).unwrap().path(&tree).unwrap().text(&tree), "s32");
 
         assert!(params.next().is_none());
     }
@@ -698,10 +698,10 @@ mod tests {
             _ => unreachable!(),
         };
 
-        assert_eq!(
-            function.return_ty(&tree).unwrap().ty(&tree).unwrap().name(&tree).unwrap().text(&tree),
-            "s32"
-        );
+        let path = function.return_ty(&tree).unwrap().ty(&tree).unwrap().path(&tree).unwrap();
+
+        assert_eq!(path.top_level_name(&tree).unwrap().text(&tree), "s32");
+        assert!(path.nested_name(&tree).is_none());
     }
 
     #[test]

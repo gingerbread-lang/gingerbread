@@ -13,14 +13,16 @@ Root@0..37
       Colon@17..18 ":"
       Whitespace@18..19 " "
       Ty@19..25
-        Ident@19..25 "string"
+        Path@19..25
+          Ident@19..25 "string"
     Whitespace@25..26 " "
     Field@26..34
       Ident@26..29 "age"
       Colon@29..30 ":"
       Whitespace@30..31 " "
       Ty@31..34
-        Ident@31..34 "s32"
+        Path@31..34
+          Ident@31..34 "s32"
     Whitespace@34..35 " "
     RBrace@35..36 "}"
     Semicolon@36..37 ";"

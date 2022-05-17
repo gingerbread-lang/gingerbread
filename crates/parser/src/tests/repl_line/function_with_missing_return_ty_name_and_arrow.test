@@ -12,6 +12,7 @@ Root@0..34
       Colon@7..8 ":"
       Whitespace@8..9 " "
       Ty@9..9
+        Path@9..9
     Block@9..33
       LBrace@9..10 "{"
       Whitespace@10..13 "\n  "

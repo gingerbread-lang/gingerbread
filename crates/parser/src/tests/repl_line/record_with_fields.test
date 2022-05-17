@@ -13,7 +13,8 @@ Root@0..29
       Colon@13..14 ":"
       Whitespace@14..15 " "
       Ty@15..18
-        Ident@15..18 "s32"
+        Path@15..18
+          Ident@15..18 "s32"
     Comma@18..19 ","
     Whitespace@19..20 " "
     Field@20..26
@@ -21,7 +22,8 @@ Root@0..29
       Colon@21..22 ":"
       Whitespace@22..23 " "
       Ty@23..26
-        Ident@23..26 "s32"
+        Path@23..26
+          Ident@23..26 "s32"
     Whitespace@26..27 " "
     RBrace@27..28 "}"
     Semicolon@28..29 ";"

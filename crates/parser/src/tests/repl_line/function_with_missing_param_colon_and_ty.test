@@ -10,6 +10,7 @@ Root@0..19
       Param@6..11
         Ident@6..11 "param"
         Ty@11..11
+          Path@11..11
       RParen@11..12 ")"
     Whitespace@12..13 " "
     Arrow@13..15 "->"

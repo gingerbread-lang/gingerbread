@@ -11,6 +11,7 @@ Root@0..16
         Ident@6..7 "a"
         Colon@7..8 ":"
         Ty@8..8
+          Path@8..8
       RParen@8..9 ")"
     Whitespace@9..10 " "
     Arrow@10..12 "->"

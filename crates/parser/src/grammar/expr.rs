@@ -79,7 +79,7 @@ fn parse_lhs(
 fn parse_call(p: &mut Parser<'_>) -> CompletedMarker {
     assert!(p.at(TokenKind::Ident));
     let m = p.start();
-    parse_path(p);
+    parse_path(p, TokenSet::default());
 
     if p.at_set(EXPR_FIRST) {
         parse_arg_list(p);

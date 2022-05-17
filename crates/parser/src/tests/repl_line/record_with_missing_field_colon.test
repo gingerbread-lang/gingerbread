@@ -12,7 +12,8 @@ Root@0..18
       Ident@8..11 "foo"
       Whitespace@11..12 " "
       Ty@12..15
-        Ident@12..15 "bar"
+        Path@12..15
+          Ident@12..15 "bar"
     Whitespace@15..16 " "
     RBrace@16..17 "}"
     Semicolon@17..18 ";"

@@ -23,13 +23,15 @@ Root@0..90
         Colon@73..74 ":"
         Whitespace@74..75 " "
         Ty@75..78
-          Ident@75..78 "s32"
+          Path@75..78
+            Ident@75..78 "s32"
       RParen@78..79 ")"
     ReturnTy@79..84
       Colon@79..80 ":"
       Whitespace@80..81 " "
       Ty@81..84
-        Ident@81..84 "s32"
+        Path@81..84
+          Ident@81..84 "s32"
     Whitespace@84..85 " "
     Arrow@85..87 "->"
     Whitespace@87..88 " "

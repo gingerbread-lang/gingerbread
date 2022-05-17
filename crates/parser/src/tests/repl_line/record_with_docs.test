@@ -19,7 +19,8 @@ Root@0..74
       Colon@50..51 ":"
       Whitespace@51..52 " "
       Ty@52..55
-        Ident@52..55 "s32"
+        Path@52..55
+          Ident@52..55 "s32"
     Comma@55..56 ","
     Whitespace@56..57 " "
     Field@57..63
@@ -27,7 +28,8 @@ Root@0..74
       Colon@58..59 ":"
       Whitespace@59..60 " "
       Ty@60..63
-        Ident@60..63 "s32"
+        Path@60..63
+          Ident@60..63 "s32"
     Comma@63..64 ","
     Whitespace@64..65 " "
     Field@65..71
@@ -35,7 +37,8 @@ Root@0..74
       Colon@66..67 ":"
       Whitespace@67..68 " "
       Ty@68..71
-        Ident@68..71 "s32"
+        Path@68..71
+          Ident@68..71 "s32"
     Whitespace@71..72 " "
     RBrace@72..73 "}"
     Semicolon@73..74 ";"

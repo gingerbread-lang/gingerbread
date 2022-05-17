@@ -11,7 +11,8 @@ Root@0..72
       Colon@9..10 ":"
       Whitespace@10..11 " "
       Ty@11..17
-        Ident@11..17 "string"
+        Path@11..17
+          Ident@11..17 "string"
     Whitespace@17..18 " "
     Arrow@18..20 "->"
     Whitespace@20..21 " "
@@ -43,7 +44,8 @@ Root@0..72
       Colon@52..53 ":"
       Whitespace@53..54 " "
       Ty@54..60
-        Ident@54..60 "string"
+        Path@54..60
+          Ident@54..60 "string"
     Whitespace@60..61 " "
     Arrow@61..63 "->"
     Whitespace@63..64 " "

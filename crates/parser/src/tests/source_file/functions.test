@@ -13,7 +13,8 @@ Root@0..119
         Colon@17..18 ":"
         Whitespace@18..19 " "
         Ty@19..22
-          Ident@19..22 "s32"
+          Path@19..22
+            Ident@19..22 "s32"
       Comma@22..23 ","
       Whitespace@23..24 " "
       Param@24..30
@@ -21,13 +22,15 @@ Root@0..119
         Colon@25..26 ":"
         Whitespace@26..27 " "
         Ty@27..30
-          Ident@27..30 "s32"
+          Path@27..30
+            Ident@27..30 "s32"
       RParen@30..31 ")"
     ReturnTy@31..36
       Colon@31..32 ":"
       Whitespace@32..33 " "
       Ty@33..36
-        Ident@33..36 "s32"
+        Path@33..36
+          Ident@33..36 "s32"
     Whitespace@36..37 " "
     Arrow@37..39 "->"
     Whitespace@39..40 " "
@@ -63,7 +66,8 @@ Root@0..119
         Colon@72..73 ":"
         Whitespace@73..74 " "
         Ty@74..77
-          Ident@74..77 "s32"
+          Path@74..77
+            Ident@74..77 "s32"
       Comma@77..78 ","
       Whitespace@78..79 " "
       Param@79..85
@@ -71,7 +75,8 @@ Root@0..119
         Colon@80..81 ":"
         Whitespace@81..82 " "
         Ty@82..85
-          Ident@82..85 "s32"
+          Path@82..85
+            Ident@82..85 "s32"
       Comma@85..86 ","
       Whitespace@86..87 " "
       Param@87..93
@@ -79,13 +84,15 @@ Root@0..119
         Colon@88..89 ":"
         Whitespace@89..90 " "
         Ty@90..93
-          Ident@90..93 "s32"
+          Path@90..93
+            Ident@90..93 "s32"
       RParen@93..94 ")"
     ReturnTy@94..99
       Colon@94..95 ":"
       Whitespace@95..96 " "
       Ty@96..99
-        Ident@96..99 "s32"
+        Path@96..99
+          Ident@96..99 "s32"
     Whitespace@99..100 " "
     Arrow@100..102 "->"
     Whitespace@102..103 " "

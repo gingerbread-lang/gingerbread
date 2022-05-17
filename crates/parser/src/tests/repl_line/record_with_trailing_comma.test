@@ -13,7 +13,8 @@ Root@0..27
       Colon@15..16 ":"
       Whitespace@16..17 " "
       Ty@17..23
-        Ident@17..23 "string"
+        Path@17..23
+          Ident@17..23 "string"
     Comma@23..24 ","
     Whitespace@24..25 " "
     RBrace@25..26 "}"

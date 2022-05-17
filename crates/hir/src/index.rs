@@ -248,7 +248,7 @@ impl Ctx<'_> {
     }
 
     fn lower_ty(&mut self, ty: Option<ast::Ty>) -> Ty {
-        let ident = match ty.and_then(|ty| ty.name(self.tree)) {
+        let ident = match ty.and_then(|ty| ty.path(self.tree)?.top_level_name(self.tree)) {
             Some(ident) => ident,
             None => return Ty::Unknown,
         };

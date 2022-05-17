@@ -11,12 +11,14 @@ Root@0..17
     Field@10..11
       Ident@10..11 "a"
       Ty@11..11
+        Path@11..11
     Comma@11..12 ","
     Whitespace@12..13 " "
     Field@13..15
       Ident@13..14 "b"
       Whitespace@14..15 " "
       Ty@15..15
+        Path@15..15
     RBrace@15..16 "}"
     Semicolon@16..17 ";"
 error at 11: missing Colon

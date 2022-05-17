@@ -1,0 +1,26 @@
+fnc read(f: fs.file) -> {};
+===
+Root@0..27
+  Function@0..27
+    FncKw@0..3 "fnc"
+    Whitespace@3..4 " "
+    Ident@4..8 "read"
+    ParamList@8..20
+      LParen@8..9 "("
+      Param@9..19
+        Ident@9..10 "f"
+        Colon@10..11 ":"
+        Whitespace@11..12 " "
+        Ty@12..19
+          Path@12..19
+            Ident@12..14 "fs"
+            Dot@14..15 "."
+            Ident@15..19 "file"
+      RParen@19..20 ")"
+    Whitespace@20..21 " "
+    Arrow@21..23 "->"
+    Whitespace@23..24 " "
+    Block@24..26
+      LBrace@24..25 "{"
+      RBrace@25..26 "}"
+    Semicolon@26..27 ";"
