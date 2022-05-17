@@ -16,6 +16,13 @@ pub struct Index {
 }
 
 impl Index {
+    pub fn functions(&self) -> impl Iterator<Item = (Name, &Function)> {
+        self.definitions.iter().filter_map(|(name, definition)| match definition {
+            Definition::Function(f) => Some((*name, f)),
+            Definition::Record(_) => None,
+        })
+    }
+
     pub fn get_definition(&self, name: Name) -> Option<&Definition> {
         self.definitions.get(&name)
     }

@@ -53,19 +53,21 @@ pub fn infer_all(
     let mut diagnostics = Vec::new();
     let mut signatures = FxHashMap::default();
 
-    for function_name in index.definition_names() {
-        signatures.insert(
-            function_name,
-            infer_impl(
-                function_name,
-                bodies,
-                index,
-                world_index,
-                &mut expr_tys,
-                &mut local_tys,
-                &mut diagnostics,
-            ),
-        );
+    for (name, function) in index.functions() {
+        let signature = get_signature(function);
+
+        FunctionInferenceCtx {
+            expr_tys: &mut expr_tys,
+            local_tys: &mut local_tys,
+            param_tys: &signature.param_tys,
+            bodies,
+            index,
+            world_index,
+            diagnostics: &mut diagnostics,
+        }
+        .finish(name, &signature);
+
+        signatures.insert(name, signature);
     }
 
     let mut result = InferenceResult { signatures, expr_tys, local_tys };
@@ -80,18 +82,27 @@ pub fn infer(
     index: &hir::Index,
     world_index: &hir::WorldIndex,
 ) -> (InferenceResult, Vec<TyDiagnostic>) {
+    let function = match index.get_definition(function_name) {
+        Some(hir::Definition::Function(f)) => f,
+        Some(hir::Definition::Record(_)) | None => panic!("passed non-function name"),
+    };
+
     let mut expr_tys = ArenaMap::default();
     let mut local_tys = ArenaMap::default();
     let mut diagnostics = Vec::new();
-    let signature = infer_impl(
-        function_name,
+
+    let signature = get_signature(function);
+
+    FunctionInferenceCtx {
+        expr_tys: &mut expr_tys,
+        local_tys: &mut local_tys,
+        param_tys: &signature.param_tys,
         bodies,
         index,
         world_index,
-        &mut expr_tys,
-        &mut local_tys,
-        &mut diagnostics,
-    );
+        diagnostics: &mut diagnostics,
+    }
+    .finish(function_name, &signature);
 
     let mut signatures = FxHashMap::default();
     signatures.insert(function_name, signature);
@@ -102,41 +113,7 @@ pub fn infer(
     (result, diagnostics)
 }
 
-fn infer_impl(
-    function_name: hir::Name,
-    bodies: &hir::Bodies,
-    index: &hir::Index,
-    world_index: &hir::WorldIndex,
-    expr_tys: &mut ArenaMap<Id<hir::Expr>, hir::Ty>,
-    local_tys: &mut ArenaMap<Id<hir::LocalDef>, hir::Ty>,
-    diagnostics: &mut Vec<TyDiagnostic>,
-) -> Signature {
-    let function = match index.get_definition(function_name) {
-        Some(hir::Definition::Function(f)) => f,
-        Some(hir::Definition::Record(_)) | None => panic!("passed non-function name to infer_impl"),
-    };
-
-    let signature = get_signature(function);
-
-    let mut ctx = Ctx {
-        expr_tys,
-        local_tys,
-        param_tys: &signature.param_tys,
-        bodies,
-        index,
-        world_index,
-        diagnostics,
-    };
-
-    let function_body = bodies.function_body(function_name);
-
-    let actual_return_ty = ctx.infer_expr(function_body);
-    ctx.expect_match(actual_return_ty, signature.return_ty, function_body);
-
-    signature
-}
-
-struct Ctx<'a> {
+struct FunctionInferenceCtx<'a> {
     expr_tys: &'a mut ArenaMap<Id<hir::Expr>, hir::Ty>,
     local_tys: &'a mut ArenaMap<Id<hir::LocalDef>, hir::Ty>,
     param_tys: &'a [hir::Ty],
@@ -146,7 +123,13 @@ struct Ctx<'a> {
     diagnostics: &'a mut Vec<TyDiagnostic>,
 }
 
-impl Ctx<'_> {
+impl FunctionInferenceCtx<'_> {
+    fn finish(mut self, function_name: hir::Name, signature: &Signature) {
+        let function_body = self.bodies.function_body(function_name);
+        let actual_return_ty = self.infer_expr(function_body);
+        self.expect_match(actual_return_ty, signature.return_ty, function_body);
+    }
+
     fn infer_statement(&mut self, statement_id: Id<hir::Statement>) {
         match &self.bodies[statement_id] {
             hir::Statement::Expr(expr) => {
