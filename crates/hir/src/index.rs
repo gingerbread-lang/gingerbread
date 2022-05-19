@@ -26,8 +26,8 @@ impl Index {
         self.definitions.get(&name)
     }
 
-    pub fn range_info(&self, name: Name) -> RangeInfo {
-        self.range_info[&name]
+    pub fn range_info(&self, name: Name) -> &RangeInfo {
+        &self.range_info[&name]
     }
 
     pub fn definition_names(&self) -> impl Iterator<Item = Name> + '_ {
@@ -41,8 +41,8 @@ impl Index {
         })
     }
 
-    pub fn ranges(&self) -> impl Iterator<Item = (Name, RangeInfo)> + '_ {
-        self.range_info.iter().map(|(n, r)| (*n, *r))
+    pub fn ranges(&self) -> impl Iterator<Item = (Name, &RangeInfo)> + '_ {
+        self.range_info.iter().map(|(n, r)| (*n, r))
     }
 
     pub fn is_ident_ty(&self, ident: ast::Ident) -> bool {
@@ -75,10 +75,17 @@ pub struct Record {
     pub fields: Vec<Field>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct RangeInfo {
     pub whole: TextRange,
     pub name: TextRange,
+    pub tys: TysRangeInfo,
+}
+
+#[derive(Debug, Clone)]
+pub enum TysRangeInfo {
+    Function { return_ty: Option<TextRange>, param_tys: Vec<Option<TextRange>> },
+    Record { field_tys: Vec<Option<TextRange>> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -138,9 +145,9 @@ impl Ctx<'_> {
             ast::Def::Record(record) => self.index_record(record),
         };
 
-        let (definition, name, name_token, docs) = match result {
-            IndexDefinitionResult::Ok { definition, name, name_token, docs } => {
-                (definition, name, name_token, docs)
+        let (definition, name, name_token, docs, tys_range_info) = match result {
+            IndexDefinitionResult::Ok { definition, name, name_token, docs, tys_range_info } => {
+                (definition, name, name_token, docs, tys_range_info)
             }
             IndexDefinitionResult::NoName => return,
         };
@@ -154,7 +161,11 @@ impl Ctx<'_> {
                 vacant_entry.insert(definition);
                 self.index.range_info.insert(
                     name,
-                    RangeInfo { whole: def.range(self.tree), name: name_token.range(self.tree) },
+                    RangeInfo {
+                        whole: def.range(self.tree),
+                        name: name_token.range(self.tree),
+                        tys: tys_range_info,
+                    },
                 );
             }
         }
@@ -190,6 +201,7 @@ impl Ctx<'_> {
         let name = Name(self.interner.intern(name_token.text(self.tree)));
 
         let mut params = Vec::new();
+        let mut param_ty_ranges = Vec::new();
 
         if let Some(param_list) = function.param_list(self.tree) {
             for param in param_list.params(self.tree) {
@@ -197,15 +209,22 @@ impl Ctx<'_> {
                     .name(self.tree)
                     .map(|ident| Name(self.interner.intern(ident.text(self.tree))));
 
-                let ty = self.lower_ty(param.ty(self.tree));
+                let ty = param.ty(self.tree);
+                param_ty_ranges.push(ty.map(|ty| ty.range(self.tree)));
+
+                let ty = self.lower_ty(ty);
 
                 params.push(Param { name, ty });
             }
         }
 
-        let return_ty = match function.return_ty(self.tree) {
-            Some(return_ty) => self.lower_ty(return_ty.ty(self.tree)),
-            None => Ty::Unit,
+        let return_ty = function.return_ty(self.tree);
+        let (return_ty, return_ty_range) = match return_ty {
+            Some(return_ty) => {
+                let ty = return_ty.ty(self.tree);
+                (self.lower_ty(ty), ty.map(|ty| ty.range(self.tree)))
+            }
+            None => (Ty::Unit, None),
         };
 
         IndexDefinitionResult::Ok {
@@ -213,6 +232,10 @@ impl Ctx<'_> {
             name,
             name_token,
             docs: function.docs(self.tree),
+            tys_range_info: TysRangeInfo::Function {
+                return_ty: return_ty_range,
+                param_tys: param_ty_ranges,
+            },
         }
     }
 
@@ -224,14 +247,17 @@ impl Ctx<'_> {
         let name = Name(self.interner.intern(name_token.text(self.tree)));
 
         let mut fields = Vec::new();
+        let mut field_ty_ranges = Vec::new();
 
         for field in record.fields(self.tree) {
             let name = field
                 .name(self.tree)
                 .map(|ident| Name(self.interner.intern(ident.text(self.tree))));
 
-            let ty = self.lower_ty(field.ty(self.tree));
+            let ty = field.ty(self.tree);
+            field_ty_ranges.push(ty.map(|ty| ty.range(self.tree)));
 
+            let ty = self.lower_ty(ty);
             fields.push(Field { name, ty });
         }
 
@@ -240,6 +266,7 @@ impl Ctx<'_> {
             name,
             name_token,
             docs: record.docs(self.tree),
+            tys_range_info: TysRangeInfo::Record { field_tys: field_ty_ranges },
         }
     }
 
@@ -264,7 +291,13 @@ impl Ctx<'_> {
 }
 
 enum IndexDefinitionResult {
-    Ok { definition: Definition, name: Name, name_token: ast::Ident, docs: Option<ast::Docs> },
+    Ok {
+        definition: Definition,
+        name: Name,
+        name_token: ast::Ident,
+        docs: Option<ast::Docs>,
+        tys_range_info: TysRangeInfo,
+    },
     NoName,
 }
 

@@ -138,11 +138,11 @@ impl<'a> Ctx<'a> {
                 self.push(Instruction::LocalSet(idx));
 
                 let ty = match self.tys_map[&module][local_def] {
-                    hir::Ty::Unknown => unreachable!(),
-                    hir::Ty::S32 => ValType::I32,
-                    hir::Ty::String => ValType::I32,
-                    hir::Ty::Named(_) => todo!(),
-                    hir::Ty::Unit => return,
+                    hir_ty::ResolvedTy::Unknown => unreachable!(),
+                    hir_ty::ResolvedTy::S32 => ValType::I32,
+                    hir_ty::ResolvedTy::String => ValType::I32,
+                    hir_ty::ResolvedTy::Named(_) => todo!(),
+                    hir_ty::ResolvedTy::Unit => return,
                 };
                 self.local_tys.push((1, ty));
             }

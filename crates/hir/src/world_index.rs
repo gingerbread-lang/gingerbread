@@ -15,8 +15,8 @@ impl WorldIndex {
         }
     }
 
-    pub fn range_info(&self, fqn: Fqn) -> RangeInfo {
-        self.0[&fqn.module].range_info[&fqn.name]
+    pub fn range_info(&self, fqn: Fqn) -> &RangeInfo {
+        &self.0[&fqn.module].range_info[&fqn.name]
     }
 
     pub fn add_module(&mut self, module: Name, index: Index) {
@@ -27,7 +27,7 @@ impl WorldIndex {
         *self.0.get_mut(&module).unwrap() = index;
     }
 
-    pub fn ranges(&self) -> impl Iterator<Item = (Fqn, RangeInfo)> + '_ {
+    pub fn ranges(&self) -> impl Iterator<Item = (Fqn, &RangeInfo)> + '_ {
         self.0.iter().flat_map(|(module, index)| {
             index.ranges().map(|(name, range)| (Fqn { module: *module, name }, range))
         })

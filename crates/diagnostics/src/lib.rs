@@ -222,6 +222,9 @@ fn ty_diagnostic_message(d: &TyDiagnostic, interner: &Interner) -> String {
                 found.display(interner)
             )
         }
+        TyDiagnosticKind::Undefined { name } => {
+            format!("undefined type `{}`", interner.lookup(*name))
+        }
     }
 }
 
@@ -330,15 +333,21 @@ mod tests {
         ));
     }
 
-    fn check_ty(input: &str, kind: TyDiagnosticKind, range: StdRange<u32>, formatted: Expect) {
+    fn check_ty(
+        input: &str,
+        kind: impl Fn(&mut Interner) -> TyDiagnosticKind,
+        range: StdRange<u32>,
+        formatted: Expect,
+    ) {
+        let mut interner = Interner::default();
         let diagnostic = Diagnostic::from_ty(TyDiagnostic {
-            kind,
+            kind: kind(&mut interner),
             range: TextRange::new(range.start.into(), range.end.into()),
         });
 
         formatted.assert_eq(&format!(
             "{}\n",
-            diagnostic.display(input, &Interner::default(), &LineIndex::new(input)).join("\n")
+            diagnostic.display(input, &interner, &LineIndex::new(input)).join("\n")
         ));
     }
 
@@ -523,12 +532,29 @@ mod tests {
     fn ty_mismatch() {
         check_ty(
             "1 + \"foo\"",
-            TyDiagnosticKind::Mismatch { expected: hir::Ty::S32, found: hir::Ty::String },
+            |_| TyDiagnosticKind::Mismatch {
+                expected: hir_ty::ResolvedTy::S32,
+                found: hir_ty::ResolvedTy::String,
+            },
             4..9,
             expect![[r#"
                 error at 1:5: expected `s32` but found `string`
                   1 + "foo"
                       ^^^^^
+            "#]],
+        );
+    }
+
+    #[test]
+    fn ty_undefined() {
+        check_ty(
+            "fnc a(i: int) -> {};",
+            |i| TyDiagnosticKind::Undefined { name: i.intern("int") },
+            9..12,
+            expect![[r#"
+                error at 1:10: undefined type `int`
+                  fnc a(i: int) -> {};
+                           ^^^
             "#]],
         );
     }
