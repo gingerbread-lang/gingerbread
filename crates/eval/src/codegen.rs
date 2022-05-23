@@ -202,8 +202,8 @@ impl<'a> Ctx<'a> {
 
             hir::Expr::Call { path, args } => {
                 let fqn = match path {
-                    hir::Path::ThisModule(name) => hir::Fqn { module, name },
-                    hir::Path::OtherModule(fqn) => fqn,
+                    hir::PathWithRange::ThisModule { name, .. } => hir::Fqn { module, name },
+                    hir::PathWithRange::OtherModule { fqn, .. } => fqn,
                 };
 
                 self.functions_to_compile.push(fqn);

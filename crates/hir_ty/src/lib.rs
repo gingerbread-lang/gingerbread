@@ -193,8 +193,12 @@ impl FunctionInferenceCtx<'_> {
             hir::Expr::Param { idx } => self.param_tys[*idx as usize],
             hir::Expr::Call { path, args } => {
                 let definition = match *path {
-                    hir::Path::ThisModule(name) => self.index.get_definition(name).unwrap(),
-                    hir::Path::OtherModule(fqn) => self.world_index.get_definition(fqn).unwrap(),
+                    hir::PathWithRange::ThisModule { name, .. } => {
+                        self.index.get_definition(name).unwrap()
+                    }
+                    hir::PathWithRange::OtherModule { fqn, .. } => {
+                        self.world_index.get_definition(fqn).unwrap()
+                    }
                 };
 
                 let function = match definition {
@@ -202,8 +206,13 @@ impl FunctionInferenceCtx<'_> {
                     hir::Definition::Record(_) => todo!(),
                 };
 
-                let signature =
-                    get_signature(function, *path, self.index, self.world_index, self.diagnostics);
+                let signature = get_signature(
+                    function,
+                    path.path(),
+                    self.index,
+                    self.world_index,
+                    self.diagnostics,
+                );
 
                 for (idx, arg) in args.iter().enumerate() {
                     let arg_ty = self.infer_expr(*arg);

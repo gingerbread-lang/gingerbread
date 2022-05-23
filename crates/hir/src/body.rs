@@ -1,4 +1,6 @@
-use crate::{Definition, Fqn, Function, GetDefinitionError, Index, Name, WorldIndex};
+use crate::{
+    Definition, Fqn, Function, GetDefinitionError, Index, Name, Path, PathWithRange, WorldIndex,
+};
 use arena::{Arena, ArenaMap, Id};
 use ast::{AstNode, AstToken};
 use interner::{Interner, Key};
@@ -26,13 +28,7 @@ pub enum Expr {
     Block { statements: Vec<Id<Statement>>, tail_expr: Option<Id<Expr>> },
     Local(Id<LocalDef>),
     Param { idx: u32 },
-    Call { path: Path, args: Vec<Id<Expr>> },
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Path {
-    ThisModule(Name),
-    OtherModule(Fqn),
+    Call { path: PathWithRange, args: Vec<Id<Expr>> },
 }
 
 #[derive(Debug, Clone)]
@@ -272,7 +268,11 @@ impl<'a> Ctx<'a> {
 
             match self.world_index.get_definition(fqn) {
                 Ok(definition) => {
-                    let path = Path::OtherModule(fqn);
+                    let path = PathWithRange::OtherModule {
+                        fqn,
+                        module_range: module_name_token.range(self.tree),
+                        name_range: function_name_token.range(self.tree),
+                    };
 
                     self.bodies.other_module_references.insert(fqn);
 
@@ -284,7 +284,7 @@ impl<'a> Ctx<'a> {
                         Definition::Function(function) => {
                             self.bodies
                                 .symbol_map
-                                .insert(function_name_token, Symbol::Function(path));
+                                .insert(function_name_token, Symbol::Function(path.path()));
                             return self.lower_call(call, function, path, function_name_token);
                         }
                         Definition::Record(_) => todo!(),
@@ -335,11 +335,11 @@ impl<'a> Ctx<'a> {
 
         let name = Name(name);
         if let Some(definition) = self.index.get_definition(name) {
-            let path = Path::ThisModule(name);
+            let path = PathWithRange::ThisModule { name, range: ident.range(self.tree) };
 
             match definition {
                 Definition::Function(function) => {
-                    self.bodies.symbol_map.insert(ident, Symbol::Function(path));
+                    self.bodies.symbol_map.insert(ident, Symbol::Function(path.path()));
                     return self.lower_call(call, function, path, ident);
                 }
                 Definition::Record(_) => todo!(),
@@ -377,7 +377,7 @@ impl<'a> Ctx<'a> {
         &mut self,
         call: ast::Call,
         function: &Function,
-        path: Path,
+        path: PathWithRange,
         ident: ast::Ident,
     ) -> Expr {
         let arg_list = call.arg_list(self.tree);
@@ -390,8 +390,8 @@ impl<'a> Ctx<'a> {
 
         if expected != got {
             let name = match path {
-                Path::ThisModule(name) => name.0,
-                Path::OtherModule(fqn) => fqn.name.0,
+                PathWithRange::ThisModule { name, .. } => name.0,
+                PathWithRange::OtherModule { fqn, .. } => fqn.name.0,
             };
 
             self.diagnostics.push(LoweringDiagnostic {
@@ -655,8 +655,10 @@ impl Bodies {
 
                 Expr::Call { path, args } => {
                     match path {
-                        Path::ThisModule(name) => s.push_str(interner.lookup(name.0)),
-                        Path::OtherModule(fqn) => s.push_str(&format!(
+                        PathWithRange::ThisModule { name, .. } => {
+                            s.push_str(interner.lookup(name.0))
+                        }
+                        PathWithRange::OtherModule { fqn, .. } => s.push_str(&format!(
                             "{}.{}",
                             interner.lookup(fqn.module.0),
                             interner.lookup(fqn.name.0)
